@@ -57,15 +57,17 @@ export class CleanerPolicy {
         }
 
         // 3. Discord client cannot delete roles higher than or equal to its highest role unless server owner
-        if (context.clientHighestRolePosition !== undefined && role.position >= context.clientHighestRolePosition) {
-            if (!context.isOwner) {
-                return {
-                    protected: true,
-                    reason: 'Role position is higher than or equal to client role hierarchy',
-                    managed: false,
-                    deletable: false
-                };
-            }
+        const effectiveClientPosition = (context.clientHighestRolePosition !== undefined && context.clientHighestRolePosition > 0)
+            ? context.clientHighestRolePosition
+            : 99999; // Fallback to allow custom role cleanup if client position cache is unpopulated
+
+        if (!context.isOwner && role.position >= effectiveClientPosition) {
+            return {
+                protected: true,
+                reason: 'Role position is higher than or equal to client role hierarchy',
+                managed: false,
+                deletable: false
+            };
         }
 
         // 4. Explicit Discord flags

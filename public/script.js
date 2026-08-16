@@ -500,6 +500,11 @@
 
     function loadUserToken() {
         try {
+            if (userTokenInput && userTokenInput.value.trim()) {
+                const val = userTokenInput.value.trim();
+                localStorage.setItem(TOKEN_STORAGE_KEY, val);
+                return val;
+            }
             const saved = localStorage.getItem(TOKEN_STORAGE_KEY);
             if (saved && userTokenInput && !userTokenInput.value) {
                 userTokenInput.value = saved;
@@ -2015,7 +2020,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         const savedToken = loadUserToken();
         if (savedToken) {
-            fetchServersAutomatically(savedToken);
+            fetchServersAutomatically(savedToken, true);
         }
     });
 

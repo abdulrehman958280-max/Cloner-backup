@@ -641,6 +641,9 @@ a {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     transition: background-color var(--transition-smooth), border-color var(--transition-smooth);
 }
 
@@ -3601,11 +3604,14 @@ a {
 
 .server-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
     max-height: 280px;
     overflow-y: auto;
     padding: 4px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .server-card {
@@ -3621,6 +3627,7 @@ a {
     transition: all var(--transition-fast);
     position: relative;
     user-select: none;
+    min-width: 0;
 }
 
 .server-card:hover {
@@ -3670,7 +3677,7 @@ a {
     font-weight: 600;
     color: var(--text-primary);
     white-space: normal;
-    word-break: break-word;
+    word-break: break-all;
     overflow-wrap: break-word;
     display: -webkit-box;
     -webkit-line-clamp: 2;

@@ -101,102 +101,124 @@ export async function executeCleanupPlan({
     );
 
     if (rolesToDelete.length > 0) {
-        onLog('info', `ROLE CLEANUP: Deleting ${rolesToDelete.length} deletable target roles (bounded concurrency: ${roleConcurrency})...`, null, 'cleaning_target');
+        onLog('info', `ROLE CLEANUP: Deleting ${rolesToDelete.length} deletable target roles (bounded concurrency: ${roleConcurrency}, recursive mode enabled)...`, null, 'cleaning_target');
 
-        const roleLimiter = createConcurrencyLimiter(roleConcurrency);
-        let completedRoles = 0;
+        let currentRolesToDelete = [...rolesToDelete];
+        let maxRecursivePasses = 3;
+        let pass = 0;
+        let totalSuccessfullyDeleted = 0;
 
-        // Sort roles bottom-up by position before deletion
-        const sortedRoles = [...rolesToDelete].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
-        const roleTasks = sortedRoles.map((item) => {
-            return roleLimiter(async () => {
-                checkCancelled();
-
-                const role = targetGuild.roles?.cache?.get(item.id);
-                if (!role) {
-                    roleStats.skipped++;
-                    roleItems.push({
-                        id: item.id,
-                        name: item.name,
-                        type: 'role',
-                        status: 'SKIPPED',
-                        reason: 'Role no longer exists in target server'
-                    });
-                    completedRoles++;
-                    return;
-                }
-
+        while (pass < maxRecursivePasses && currentRolesToDelete.length > 0) {
+            pass++;
+            if (pass > 1) {
+                onLog('info', `ROLE CLEANUP: Recursive pass ${pass} for remaining deletable roles...`, null, 'cleaning_target');
                 try {
-                    await executeDiscordOperation({
-                        operationName: 'delete_role',
-                        resourceType: 'role',
-                        resourceId: item.id,
-                        policy: OPERATION_POLICIES.DELETE,
-                        isCancelled,
-                        checkIdempotency: async () => {
-                            const current = targetGuild.roles?.cache?.get(item.id);
-                            if (!current) {
-                                return { deleted: true, reason: 'Already deleted' };
-                            }
-                            return null;
-                        },
-                        execute: async () => {
-                            await role.delete();
-                        },
-                        onRetry: ({ attempt, maxAttempts, waitMs }) => {
-                            onLog('warning', `Retrying deletion of @${item.name} (${attempt}/${maxAttempts}) in ${waitMs}ms...`, null, 'cleaning_target');
-                        },
-                        onRateLimit: ({ retryAfterMs }) => {
-                            onLog('warning', `Rate-limited while deleting @${item.name}. Backing off for ${retryAfterMs}ms...`, null, 'cleaning_target');
-                        }
-                    });
+                    await targetGuild.roles?.fetch?.();
+                } catch (e) {}
+                
+                currentRolesToDelete = currentRolesToDelete.filter(item => {
+                    const role = targetGuild.roles?.cache?.get(item.id);
+                    return role && role.name !== '@everyone' && !role.managed;
+                });
+                if (currentRolesToDelete.length === 0) break;
+            }
 
-                    roleStats.deleted++;
-                    roleItems.push({
-                        id: item.id,
-                        name: item.name,
-                        type: 'role',
-                        status: 'DELETED'
-                    });
-                } catch (err) {
-                    const rawMsg = err?.message || String(err);
-                    const isAlreadyDeleted = (
-                        err?.statusCode === 404 ||
-                        err?.code === 'NOT_FOUND' ||
-                        err?.originalCode === 10011 ||
-                        rawMsg.toLowerCase().includes('unknown role')
-                    );
+            const roleLimiter = createConcurrencyLimiter(roleConcurrency);
+            let completedRoles = 0;
+            const sortedRoles = [...currentRolesToDelete].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            let passFailedItems = [];
 
-                    if (isAlreadyDeleted) {
-                        roleStats.deleted++;
-                        roleItems.push({
-                            id: item.id,
-                            name: item.name,
-                            type: 'role',
-                            status: 'DELETED',
-                            note: 'Role was already removed'
-                        });
-                    } else {
-                        roleStats.failed++;
-                        roleItems.push({
-                            id: item.id,
-                            name: item.name,
-                            type: 'role',
-                            status: 'FAILED',
-                            error: rawMsg
-                        });
-                        onLog('warning', `Could not delete role @${item.name}: ${rawMsg}`, null, 'cleaning_target');
+            const roleTasks = sortedRoles.map((item) => {
+                return roleLimiter(async () => {
+                    checkCancelled();
+
+                    const role = targetGuild.roles?.cache?.get(item.id);
+                    if (!role) {
+                        completedRoles++;
+                        return;
                     }
-                } finally {
-                    completedRoles++;
-                    const progressPct = Math.round((completedRoles / Math.max(1, rolesToDelete.length)) * 50);
-                    onProgress(progressPct, completedRoles, rolesToDelete.length, `Deleted @${item.name}`);
-                }
-            });
-        });
 
-        await Promise.allSettled(roleTasks);
+                    try {
+                        await executeDiscordOperation({
+                            operationName: 'delete_role',
+                            resourceType: 'role',
+                            resourceId: item.id,
+                            policy: OPERATION_POLICIES.DELETE,
+                            isCancelled,
+                            checkIdempotency: async () => {
+                                const current = targetGuild.roles?.cache?.get(item.id);
+                                if (!current) {
+                                    return { deleted: true, reason: 'Already deleted' };
+                                }
+                                return null;
+                            },
+                            execute: async () => {
+                                await role.delete();
+                            },
+                            onRetry: ({ attempt, maxAttempts, waitMs }) => {
+                                onLog('warning', `Retrying deletion of @${item.name} (${attempt}/${maxAttempts}) in ${waitMs}ms...`, null, 'cleaning_target');
+                            },
+                            onRateLimit: ({ retryAfterMs }) => {
+                                onLog('warning', `Rate-limited while deleting @${item.name}. Backing off for ${retryAfterMs}ms...`, null, 'cleaning_target');
+                            }
+                        });
+
+                        totalSuccessfullyDeleted++;
+                        if (pass === 1) {
+                            roleStats.deleted++;
+                            roleItems.push({
+                                id: item.id,
+                                name: item.name,
+                                type: 'role',
+                                status: 'DELETED'
+                            });
+                        }
+                    } catch (err) {
+                        const rawMsg = err?.message || String(err);
+                        const isAlreadyDeleted = (
+                            err?.statusCode === 404 ||
+                            err?.code === 'NOT_FOUND' ||
+                            err?.originalCode === 10011 ||
+                            rawMsg.toLowerCase().includes('unknown role')
+                        );
+
+                        if (isAlreadyDeleted) {
+                            totalSuccessfullyDeleted++;
+                            if (pass === 1) {
+                                roleStats.deleted++;
+                                roleItems.push({
+                                    id: item.id,
+                                    name: item.name,
+                                    type: 'role',
+                                    status: 'DELETED',
+                                    note: 'Role was already removed'
+                                });
+                            }
+                        } else {
+                            passFailedItems.push(item);
+                            if (pass === maxRecursivePasses) {
+                                roleStats.failed++;
+                                roleItems.push({
+                                    id: item.id,
+                                    name: item.name,
+                                    type: 'role',
+                                    status: 'FAILED',
+                                    error: rawMsg
+                                });
+                                onLog('warning', `Could not delete role @${item.name}: ${rawMsg}`, null, 'cleaning_target');
+                            }
+                        }
+                    } finally {
+                        completedRoles++;
+                        const progressPct = Math.round((completedRoles / Math.max(1, currentRolesToDelete.length)) * 50);
+                        onProgress(progressPct, completedRoles, currentRolesToDelete.length, `Deleted @${item.name}`);
+                    }
+                });
+            });
+
+            await Promise.allSettled(roleTasks);
+            currentRolesToDelete = passFailedItems;
+        }
     } else {
         onLog('info', 'ROLE CLEANUP: No custom roles required deletion.', null, 'cleaning_target');
     }
