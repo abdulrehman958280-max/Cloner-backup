@@ -45,10 +45,14 @@ export function createCleanupPlan(targetGuild, mode = CLEANUP_MODES.NONE, option
 
     const policy = new CleanerPolicy(mode, options);
     
-    // Resolve client context and hierarchy
-    const clientMember = targetGuild.members?.me || targetGuild.me;
-    const isOwner = clientMember?.id === targetGuild.ownerId;
-    const clientHighestRolePosition = clientMember?.roles?.highest?.position ?? 0;
+    // Resolve client context and hierarchy reliably
+    const clientUser = targetGuild.client?.user;
+    const clientMember = targetGuild.members?.me || targetGuild.me || (clientUser ? targetGuild.members?.cache?.get(clientUser.id) : null);
+    const isOwner = Boolean(
+        (targetGuild.ownerId && clientUser && targetGuild.ownerId === clientUser.id) ||
+        (targetGuild.ownerId && clientMember?.id && targetGuild.ownerId === clientMember.id)
+    );
+    const clientHighestRolePosition = isOwner ? 99999 : (clientMember?.roles?.highest?.position ?? 99999);
 
     const context = {
         isOwner,

@@ -33,6 +33,9 @@
     const cloneChannelsCheckbox = document.getElementById('cloneChannels');
     const clonePermissionsCheckbox = document.getElementById('clonePermissions');
     const cloneProfileCheckbox = document.getElementById('cloneProfile');
+    const cloneEmojisCheckbox = document.getElementById('cloneEmojis');
+    const cloneStickersCheckbox = document.getElementById('cloneStickers');
+    const cloneWebhooksCheckbox = document.getElementById('cloneWebhooks');
     const cloneMessagesCheckbox = document.getElementById('cloneMessages');
     const cloneAttachmentsCheckbox = document.getElementById('cloneAttachments');
     const attachmentsRow = document.getElementById('attachmentsRow');
@@ -174,16 +177,53 @@
         currentJobId = localStorage.getItem('discloner_active_job_id');
     } catch (e) {}
 
+    // Token Guide Tab Switching Function
+    window.switchTokenTab = function(tab) {
+        const tabPcBtn = document.getElementById('tabPcBtn');
+        const tabMobileBtn = document.getElementById('tabMobileBtn');
+        const panelPc = document.getElementById('panelPc');
+        const panelMobile = document.getElementById('panelMobile');
+
+        if (!tabPcBtn || !tabMobileBtn || !panelPc || !panelMobile) return;
+
+        if (tab === 'pc') {
+            tabPcBtn.classList.add('active');
+            tabPcBtn.setAttribute('aria-selected', 'true');
+            tabMobileBtn.classList.remove('active');
+            tabMobileBtn.setAttribute('aria-selected', 'false');
+
+            panelPc.classList.add('active');
+            panelMobile.classList.remove('active');
+        } else {
+            tabMobileBtn.classList.add('active');
+            tabMobileBtn.setAttribute('aria-selected', 'true');
+            tabPcBtn.classList.remove('active');
+            tabPcBtn.setAttribute('aria-selected', 'false');
+
+            panelMobile.classList.add('active');
+            panelPc.classList.remove('active');
+        }
+    };
+
     // ==========================================================================
     // 1. Theme Engine & Persistence
     // ==========================================================================
 
     function initTheme() {
-        // Enforce light theme immediately
+        let initialTheme = 'light';
         try {
-            localStorage.setItem('discloner-theme', 'light');
-        } catch (e) {}
-        applyTheme('light');
+            const saved = localStorage.getItem('discloner-theme');
+            if (saved === 'dark' || saved === 'light') {
+                initialTheme = saved;
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                initialTheme = 'dark';
+            }
+        } catch (e) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                initialTheme = 'dark';
+            }
+        }
+        applyTheme(initialTheme);
     }
 
     function applyTheme(theme) {
@@ -258,6 +298,9 @@
             if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
             if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
             if (cloneProfileCheckbox) cloneProfileCheckbox.checked = true;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
             if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
             syncMessageOptionUI();
             showToast('Applied preset: Full Server Architecture', 'info');
@@ -267,6 +310,9 @@
             if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
             if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
             if (cloneProfileCheckbox) cloneProfileCheckbox.checked = true;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
             if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = true;
             syncMessageOptionUI();
             if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = true;
@@ -281,6 +327,9 @@
             if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = false;
             if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
             if (cloneProfileCheckbox) cloneProfileCheckbox.checked = false;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = false;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = false;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = false;
             if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
             syncMessageOptionUI();
             showToast('Applied preset: Roles & Permissions Only', 'info');
@@ -333,11 +382,71 @@
         });
     }
 
-    // Clear Token Button
+    // Clear Token Button & Full State Reset
+    function resetServerSelection() {
+        loadedServers = [];
+        selectedSource = null;
+        selectedTarget = null;
+        sourceQuery = '';
+        targetQuery = '';
+        lastFetchedToken = '';
+
+        if (sourceIdInput) {
+            sourceIdInput.value = '';
+            if (sourceFeedback) {
+                sourceFeedback.textContent = '';
+                sourceFeedback.className = 'validation-feedback';
+            }
+            sourceIdInput.classList.remove('input-valid', 'input-invalid');
+        }
+
+        if (targetIdInput) {
+            targetIdInput.value = '';
+            if (targetFeedback) {
+                targetFeedback.textContent = '';
+                targetFeedback.className = 'validation-feedback';
+            }
+            targetIdInput.classList.remove('input-valid', 'input-invalid');
+        }
+
+        const profileCard = document.getElementById('discordProfileCard');
+        if (profileCard) profileCard.classList.add('hidden');
+
+        const selectorInit = document.getElementById('selectorInitialPrompt');
+        const selectorWrap = document.getElementById('selectorContentWrapper');
+        const selectorLoad = document.getElementById('selectorLoadingState');
+        const selectorErr = document.getElementById('selectorErrorState');
+        const countBadge = document.getElementById('serverCountBadge');
+        const statusLabel = document.getElementById('serverStatusLabel');
+        const routingSummary = document.getElementById('routingSummaryBanner');
+        const srcStep = document.getElementById('sourceSelectionStep');
+        const tgtStep = document.getElementById('targetSelectionStep');
+
+        if (selectorInit) selectorInit.classList.remove('hidden');
+        if (selectorWrap) selectorWrap.classList.add('hidden');
+        if (selectorLoad) selectorLoad.classList.add('hidden');
+        if (selectorErr) selectorErr.classList.add('hidden');
+        if (countBadge) countBadge.classList.add('hidden');
+        if (routingSummary) routingSummary.classList.add('hidden');
+        if (srcStep) srcStep.classList.remove('hidden');
+        if (tgtStep) tgtStep.classList.add('hidden');
+        if (statusLabel) statusLabel.textContent = 'Waiting for valid token...';
+
+        const srcGrid = document.getElementById('sourceServersGrid');
+        const tgtGrid = document.getElementById('targetServersGrid');
+        if (srcGrid) srcGrid.innerHTML = '';
+        if (tgtGrid) tgtGrid.innerHTML = '';
+    }
+
     if (clearTokenBtn && userTokenInput) {
         clearTokenBtn.addEventListener('click', () => {
             userTokenInput.value = '';
+            try {
+                localStorage.removeItem(TOKEN_STORAGE_KEY);
+            } catch (e) {}
+            resetServerSelection();
             userTokenInput.focus();
+            showToast('Token and server selections cleared.', 'info');
         });
     }
 
@@ -401,18 +510,170 @@
         return true;
     }
 
-    // Range Slider live badge updates
+    // Option Rows and Slide Buttons Dynamic State Synchronization
+    const activeOptionsCountBadge = document.getElementById('activeOptionsCount');
+    const allOptionCheckboxes = [
+        { el: cleanTargetCheckbox, rowId: 'rowCleanTarget', badgeId: 'badgeCleanTarget' },
+        { el: cloneRolesCheckbox, rowId: 'rowCloneRoles', badgeId: 'badgeCloneRoles' },
+        { el: cloneChannelsCheckbox, rowId: 'rowCloneChannels', badgeId: 'badgeCloneChannels' },
+        { el: clonePermissionsCheckbox, rowId: 'rowClonePermissions', badgeId: 'badgeClonePermissions' },
+        { el: cloneProfileCheckbox, rowId: 'rowCloneProfile', badgeId: 'badgeCloneProfile' },
+        { el: cloneEmojisCheckbox, rowId: 'rowCloneEmojis', badgeId: 'badgeCloneEmojis' },
+        { el: cloneStickersCheckbox, rowId: 'rowCloneStickers', badgeId: 'badgeCloneStickers' },
+        { el: cloneWebhooksCheckbox, rowId: 'rowCloneWebhooks', badgeId: 'badgeCloneWebhooks' },
+        { el: cloneMessagesCheckbox, rowId: 'rowCloneMessages', badgeId: 'msgOptStatusBadge' },
+        { el: cloneAttachmentsCheckbox, rowId: 'attachmentsRow', badgeId: 'attachmentsBadge' }
+    ];
+
+    function syncAllOptionRowsState() {
+        let activeCount = 0;
+        let totalCount = 0;
+
+        allOptionCheckboxes.forEach(({ el, rowId, badgeId }) => {
+            if (!el) return;
+            totalCount++;
+            const row = document.getElementById(rowId);
+            const badge = document.getElementById(badgeId);
+            const isChecked = el.checked;
+            const isDisabled = el.disabled;
+
+            if (row) {
+                if (isChecked && !isDisabled) {
+                    row.classList.add('is-active');
+                } else {
+                    row.classList.remove('is-active');
+                }
+            }
+
+            if (badge && badgeId !== 'msgOptStatusBadge' && badgeId !== 'attachmentsBadge') {
+                if (isChecked) {
+                    badge.textContent = 'ON';
+                    badge.className = 'badge-opt-status active';
+                } else {
+                    badge.textContent = 'OFF';
+                    badge.className = 'badge-opt-status';
+                }
+            }
+
+            if (isChecked && !isDisabled) {
+                activeCount++;
+            }
+        });
+
+        if (activeOptionsCountBadge) {
+            activeOptionsCountBadge.textContent = `${activeCount} of ${totalCount} active`;
+        }
+    }
+
+    // Attach immediate change handlers to all slide switches
+    allOptionCheckboxes.forEach(({ el }) => {
+        if (el) {
+            el.addEventListener('change', () => {
+                if (el === cloneMessagesCheckbox) {
+                    syncMessageOptionUI();
+                } else {
+                    syncAllOptionRowsState();
+                }
+            });
+        }
+    });
+
+    // Quick Batch Actions for Options Toolbar
+    const btnSelectAllOptions = document.getElementById('btnSelectAllOptions');
+    const btnRecommendedOptions = document.getElementById('btnRecommendedOptions');
+    const btnDeselectAllOptions = document.getElementById('btnDeselectAllOptions');
+
+    if (btnSelectAllOptions) {
+        btnSelectAllOptions.addEventListener('click', () => {
+            if (cleanTargetCheckbox) cleanTargetCheckbox.checked = true;
+            if (cloneRolesCheckbox) cloneRolesCheckbox.checked = true;
+            if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
+            if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
+            if (cloneProfileCheckbox) cloneProfileCheckbox.checked = true;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
+            if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = true;
+            syncMessageOptionUI();
+            if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = true;
+            syncAllOptionRowsState();
+            showToast('All replication modules activated', 'info');
+        });
+    }
+
+    if (btnRecommendedOptions) {
+        btnRecommendedOptions.addEventListener('click', () => {
+            if (cleanTargetCheckbox) cleanTargetCheckbox.checked = true;
+            if (cloneRolesCheckbox) cloneRolesCheckbox.checked = true;
+            if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
+            if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
+            if (cloneProfileCheckbox) cloneProfileCheckbox.checked = true;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
+            if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
+            syncMessageOptionUI();
+            syncAllOptionRowsState();
+            showToast('Recommended clean replication settings applied', 'info');
+        });
+    }
+
+    if (btnDeselectAllOptions) {
+        btnDeselectAllOptions.addEventListener('click', () => {
+            if (cleanTargetCheckbox) cleanTargetCheckbox.checked = true;
+            if (cloneRolesCheckbox) cloneRolesCheckbox.checked = true;
+            if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
+            if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = false;
+            if (cloneProfileCheckbox) cloneProfileCheckbox.checked = false;
+            if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = false;
+            if (cloneStickersCheckbox) cloneStickersCheckbox.checked = false;
+            if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = false;
+            if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
+            syncMessageOptionUI();
+            syncAllOptionRowsState();
+            showToast('Minimal structure-only replication applied', 'info');
+        });
+    }
+
+    // Range Slider live badge updates & Preset Chips
+    function updateRangePresetHighlights(targetId, currentVal) {
+        const chips = document.querySelectorAll(`.range-preset-chip[data-target="${targetId}"]`);
+        chips.forEach(chip => {
+            if (chip.getAttribute('data-val') === String(currentVal)) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
     if (msgLimitInput && limitBadge) {
         msgLimitInput.addEventListener('input', (e) => {
             limitBadge.textContent = e.target.value;
+            updateRangePresetHighlights('msgLimit', e.target.value);
         });
     }
 
     if (msgDelayInput && delayBadge) {
         msgDelayInput.addEventListener('input', (e) => {
             delayBadge.textContent = `${e.target.value}ms`;
+            updateRangePresetHighlights('msgDelay', e.target.value);
         });
     }
+
+    // Preset chips click handling
+    document.querySelectorAll('.range-preset-chip').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = chip.getAttribute('data-target');
+            const val = chip.getAttribute('data-val');
+            const targetInput = document.getElementById(targetId);
+            if (targetInput && val !== null) {
+                targetInput.value = val;
+                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+    });
 
     // Message Cloning Dependency UX (OFF by default)
     function syncMessageOptionUI() {
@@ -422,8 +683,8 @@
         if (isMessagesEnabled) {
             if (messageSettingsDrawer) messageSettingsDrawer.classList.remove('collapsed');
             if (msgOptStatusBadge) {
-                msgOptStatusBadge.textContent = 'Active';
-                msgOptStatusBadge.classList.add('active');
+                msgOptStatusBadge.textContent = 'ON';
+                msgOptStatusBadge.className = 'badge-opt-status active';
             }
 
             if (cloneAttachmentsCheckbox) {
@@ -433,8 +694,8 @@
                 attachmentsRow.classList.remove('disabled-option');
             }
             if (attachmentsBadge) {
-                attachmentsBadge.textContent = 'Optional';
-                attachmentsBadge.classList.remove('disabled');
+                attachmentsBadge.textContent = cloneAttachmentsCheckbox && cloneAttachmentsCheckbox.checked ? 'ON' : 'OFF';
+                attachmentsBadge.className = cloneAttachmentsCheckbox && cloneAttachmentsCheckbox.checked ? 'badge-opt-status active' : 'badge-opt-status';
             }
             if (attachmentsDesc) {
                 attachmentsDesc.textContent = 'Synchronize message files, images, and embeds';
@@ -442,8 +703,8 @@
         } else {
             if (messageSettingsDrawer) messageSettingsDrawer.classList.add('collapsed');
             if (msgOptStatusBadge) {
-                msgOptStatusBadge.textContent = 'Optional';
-                msgOptStatusBadge.classList.remove('active');
+                msgOptStatusBadge.textContent = 'OFF';
+                msgOptStatusBadge.className = 'badge-opt-status';
             }
 
             if (cloneAttachmentsCheckbox) {
@@ -455,18 +716,23 @@
             }
             if (attachmentsBadge) {
                 attachmentsBadge.textContent = 'Disabled';
-                attachmentsBadge.classList.add('disabled');
+                attachmentsBadge.className = 'badge-opt-status disabled';
             }
             if (attachmentsDesc) {
                 attachmentsDesc.textContent = 'Available when Message History is enabled';
             }
         }
+
+        syncAllOptionRowsState();
     }
 
     if (cloneMessagesCheckbox) {
         cloneMessagesCheckbox.addEventListener('change', syncMessageOptionUI);
         syncMessageOptionUI();
     }
+
+    // Initial state sync
+    syncAllOptionRowsState();
 
     // Advanced Accordion Toggle
     if (advancedToggleBtn && advancedPanel) {
@@ -593,6 +859,15 @@
             if (cloneProfileCheckbox && typeof config.cloneProfile === 'boolean') {
                 cloneProfileCheckbox.checked = config.cloneProfile;
             }
+            if (cloneEmojisCheckbox && typeof config.cloneEmojis === 'boolean') {
+                cloneEmojisCheckbox.checked = config.cloneEmojis;
+            }
+            if (cloneStickersCheckbox && typeof config.cloneStickers === 'boolean') {
+                cloneStickersCheckbox.checked = config.cloneStickers;
+            }
+            if (cloneWebhooksCheckbox && typeof config.cloneWebhooks === 'boolean') {
+                cloneWebhooksCheckbox.checked = config.cloneWebhooks;
+            }
             if (cloneMessagesCheckbox && typeof config.cloneMessages === 'boolean') {
                 cloneMessagesCheckbox.checked = config.cloneMessages;
             }
@@ -602,13 +877,16 @@
             if (msgLimitInput && config.msgLimit) {
                 msgLimitInput.value = config.msgLimit;
                 if (limitBadge) limitBadge.textContent = config.msgLimit;
+                updateRangePresetHighlights('msgLimit', config.msgLimit);
             }
             if (msgDelayInput && config.msgDelay) {
                 msgDelayInput.value = config.msgDelay;
                 if (delayBadge) delayBadge.textContent = `${config.msgDelay}ms`;
+                updateRangePresetHighlights('msgDelay', config.msgDelay);
             }
 
             syncMessageOptionUI();
+            syncAllOptionRowsState();
 
             if (configSavedBadge) {
                 configSavedBadge.classList.remove('hidden');
@@ -626,18 +904,24 @@
         if (cloneChannelsCheckbox) cloneChannelsCheckbox.checked = true;
         if (clonePermissionsCheckbox) clonePermissionsCheckbox.checked = true;
         if (cloneProfileCheckbox) cloneProfileCheckbox.checked = true;
+        if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
+        if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
+        if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
         if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
         if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = false;
         if (msgLimitInput) {
-            msgLimitInput.value = 15;
-            if (limitBadge) limitBadge.textContent = '15';
+            msgLimitInput.value = 1000;
+            if (limitBadge) limitBadge.textContent = '1000';
+            updateRangePresetHighlights('msgLimit', 1000);
         }
         if (msgDelayInput) {
-            msgDelayInput.value = 1000;
-            if (delayBadge) delayBadge.textContent = '1000ms';
+            msgDelayInput.value = 0;
+            if (delayBadge) delayBadge.textContent = '0ms';
+            updateRangePresetHighlights('msgDelay', 0);
         }
 
         syncMessageOptionUI();
+        syncAllOptionRowsState();
 
         try {
             localStorage.removeItem(CONFIG_STORAGE_KEY);
@@ -849,10 +1133,16 @@
         tourCard.style.left = `${Math.max(10, left)}px`;
     }
 
+    let tourRepositionTimer = null;
     function handleTourReposition() {
         if (!isTourActive) return;
-        const step = TOUR_STEPS[currentTourStep];
-        if (step) positionTourElements(step);
+        if (!tourRepositionTimer) {
+            tourRepositionTimer = requestAnimationFrame(() => {
+                const step = TOUR_STEPS[currentTourStep];
+                if (step) positionTourElements(step);
+                tourRepositionTimer = null;
+            });
+        }
     }
 
     function nextTourStep() {
@@ -1189,6 +1479,9 @@
         if (cloneChannelsCheckbox) cloneChannelsCheckbox.disabled = disabled;
         if (clonePermissionsCheckbox) clonePermissionsCheckbox.disabled = disabled;
         if (cloneProfileCheckbox) cloneProfileCheckbox.disabled = disabled;
+        if (cloneEmojisCheckbox) cloneEmojisCheckbox.disabled = disabled;
+        if (cloneStickersCheckbox) cloneStickersCheckbox.disabled = disabled;
+        if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.disabled = disabled;
         if (cloneMessagesCheckbox) cloneMessagesCheckbox.disabled = disabled;
         if (!disabled) {
             syncMessageOptionUI();
@@ -1500,33 +1793,8 @@
     }
 
     // ==========================================================================
-    // Page Lifecycle: Minimize Resilience & Refresh/Unload Cancellation
+    // Page Lifecycle: Minimize Resilience & Background Persistence
     // ==========================================================================
-
-    function cancelActiveJobOnUnload() {
-        if (isRunning && currentJobId) {
-            const jobIdToCancel = currentJobId;
-            try {
-                if (navigator.sendBeacon) {
-                    navigator.sendBeacon(`/api/jobs/${encodeURIComponent(jobIdToCancel)}/cancel`, '');
-                } else {
-                    fetch(`/api/jobs/${encodeURIComponent(jobIdToCancel)}/cancel`, {
-                        method: 'POST',
-                        keepalive: true
-                    }).catch(() => {});
-                }
-            } catch (e) {}
-            try {
-                socket.emit('clone:cancel', { jobId: jobIdToCancel });
-            } catch (e) {}
-            try {
-                localStorage.removeItem('discloner_active_job_id');
-            } catch (e) {}
-        }
-    }
-
-    window.addEventListener('beforeunload', cancelActiveJobOnUnload);
-    window.addEventListener('pagehide', cancelActiveJobOnUnload);
 
     // Tab minimize / background resilience: keep running without cancellation, sync on return
     document.addEventListener('visibilitychange', () => {
@@ -1535,6 +1803,11 @@
                 updateElapsedTimer();
                 updateLiveStatCounts();
             }
+            if (currentJobId) {
+                socket.emit('job:subscribe', { jobId: currentJobId });
+            } else {
+                socket.emit('job:query_active');
+            }
         }
     });
 
@@ -1542,12 +1815,16 @@
     socket.on('connect', () => {
         if (currentJobId) {
             socket.emit('job:subscribe', { jobId: currentJobId });
+        } else {
+            socket.emit('job:query_active');
         }
     });
 
     socket.on('system:ready', () => {
         if (currentJobId) {
             socket.emit('job:subscribe', { jobId: currentJobId });
+        } else {
+            socket.emit('job:query_active');
         }
     });
 
@@ -1575,20 +1852,25 @@
         appendLog('stage', `Stage: ${stageName}`, 'STAGE');
     });
 
+    let progressRaf = null;
     socket.on('clone:progress', (data) => {
         const rawPercent = data.percent !== undefined ? data.percent : (data.progress !== undefined ? data.progress : 0);
         const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
-        if (progressBar) progressBar.style.width = `${percent}%`;
-        if (progressText) progressText.textContent = `${percent}%`;
-        if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
 
-        if (data.item && progressItemDetail) {
-            progressItemDetail.textContent = data.item;
-        }
+        cancelAnimationFrame(progressRaf);
+        progressRaf = requestAnimationFrame(() => {
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (progressText) progressText.textContent = `${percent}%`;
+            if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
 
-        if (data.current !== undefined && data.total !== undefined && progressCounts) {
-            progressCounts.textContent = `${data.current} / ${data.total}`;
-        }
+            if (data.item && progressItemDetail) {
+                progressItemDetail.textContent = data.item;
+            }
+
+            if (data.current !== undefined && data.total !== undefined && progressCounts) {
+                progressCounts.textContent = `${data.current} / ${data.total}`;
+            }
+        });
 
         updateEtaProgress(percent, data.current, data.total, stageLabel ? stageLabel.textContent : '');
     });
@@ -1659,21 +1941,29 @@
         } catch (e) {}
     });
 
-    // Check active job on boot only if there is a completed snapshot to display
+    // Check active job on boot to restore running or completed state
     async function checkActiveJobOnBoot() {
         try {
             const savedJobId = localStorage.getItem('discloner_active_job_id');
-            if (savedJobId && currentJobId === savedJobId) {
+            if (savedJobId) {
                 const res = await fetch(`/api/jobs/${encodeURIComponent(savedJobId)}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.job && data.job.status !== 'running') {
+                    if (data && data.job) {
                         hydrateJobState(data.job);
+                        return;
                     }
                 }
             }
+            const activeRes = await fetch('/api/jobs/active');
+            if (activeRes.ok) {
+                const activeData = await activeRes.json();
+                if (activeData && activeData.job && activeData.job.status === 'running') {
+                    hydrateJobState(activeData.job);
+                }
+            }
         } catch (err) {
-            // Offline / initial connection
+            // Offline / initial connection fallback
         }
     }
     checkActiveJobOnBoot();
@@ -1788,9 +2078,14 @@
         });
     }
 
+    let logBadgeRaf = null;
     function updateLogCountBadge() {
-        if (logCountPill) {
-            logCountPill.textContent = `${allLogs.length} entries`;
+        if (!logCountPill) return;
+        if (!logBadgeRaf) {
+            logBadgeRaf = requestAnimationFrame(() => {
+                logCountPill.textContent = `${allLogs.length} entries`;
+                logBadgeRaf = null;
+            });
         }
     }
 
@@ -1804,10 +2099,14 @@
         });
     });
 
+    let logSearchTimer = null;
     if (logSearchInput) {
         logSearchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value.toLowerCase().trim();
-            rebuildVisibleLogs();
+            cancelAnimationFrame(logSearchTimer);
+            logSearchTimer = requestAnimationFrame(() => {
+                rebuildVisibleLogs();
+            });
         });
     }
 
@@ -1829,25 +2128,65 @@
     }
 
     function rebuildVisibleLogs() {
-        logStream.innerHTML = '';
+        if (!logStream) return;
         const filtered = allLogs.filter(matchesCurrentFilterAndSearch);
         const toRender = filtered.slice(-MAX_DOM_LOGS);
-        toRender.forEach(renderLogItem);
+
+        const fragment = document.createDocumentFragment();
+        toRender.forEach(logObj => {
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-entry-${logObj.level}`;
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'log-time font-mono';
+            timeSpan.textContent = logObj.timeStr;
+
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'log-icon-type';
+            iconSpan.textContent = getIconForLevel(logObj.level);
+
+            const msgSpan = document.createElement('span');
+            msgSpan.className = 'log-message';
+            msgSpan.textContent = logObj.message;
+
+            if (logObj.detail) {
+                const detailBadge = document.createElement('span');
+                detailBadge.className = 'log-detail-tag font-mono';
+                detailBadge.textContent = logObj.detail;
+                msgSpan.appendChild(detailBadge);
+            }
+
+            entry.appendChild(timeSpan);
+            entry.appendChild(iconSpan);
+            entry.appendChild(msgSpan);
+            fragment.appendChild(entry);
+        });
+
+        logStream.innerHTML = '';
+        logStream.appendChild(fragment);
+
         if (isAutoScrollLocked && terminal) {
             terminal.scrollTop = terminal.scrollHeight;
         }
     }
 
     // Scroll & Jump to Latest
+    let isScrollTicking = false;
     if (terminal) {
         terminal.addEventListener('scroll', () => {
-            const isNearBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
-            isAutoScrollLocked = isNearBottom;
-            if (isNearBottom && jumpLatestBtn) {
-                jumpLatestBtn.classList.add('hidden');
-                unreadLogsCount = 0;
+            if (!isScrollTicking) {
+                requestAnimationFrame(() => {
+                    const isNearBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
+                    isAutoScrollLocked = isNearBottom;
+                    if (isNearBottom && jumpLatestBtn) {
+                        jumpLatestBtn.classList.add('hidden');
+                        unreadLogsCount = 0;
+                    }
+                    isScrollTicking = false;
+                });
+                isScrollTicking = true;
             }
-        });
+        }, { passive: true });
     }
 
     function handleAutoScroll() {
@@ -1932,6 +2271,7 @@
     const serverStatusLabel = document.getElementById('serverStatusLabel');
 
     async function fetchServersAutomatically(token, force = false) {
+        const profileCard = document.getElementById('discordProfileCard');
         if (!token || token.length < 20) {
             if (serverStatusLabel) serverStatusLabel.textContent = 'Waiting for valid token...';
             if (selectorInitialPrompt) selectorInitialPrompt.classList.remove('hidden');
@@ -1939,6 +2279,7 @@
             if (selectorErrorState) selectorErrorState.classList.add('hidden');
             if (selectorContentWrapper) selectorContentWrapper.classList.add('hidden');
             if (serverCountBadge) serverCountBadge.classList.add('hidden');
+            if (profileCard) profileCard.classList.add('hidden');
             loadedServers = [];
             lastFetchedToken = '';
             return;
@@ -1978,6 +2319,41 @@
                 serverStatusLabel.textContent = `${loadedServers.length} accessible servers loaded`;
             }
 
+            // Populate Real-Time Discord User Profile Card
+            if (data.user && profileCard) {
+                const avatarImg = document.getElementById('profileAvatarImg');
+                const usernameSpan = document.getElementById('profileUsername');
+                const tagSpan = document.getElementById('profileTag');
+                const userIdSpan = document.getElementById('profileUserId');
+
+                if (avatarImg && usernameSpan && tagSpan && userIdSpan) {
+                    let fullTag = data.user.tag || 'Discord User';
+                    let username = fullTag;
+                    let tag = '';
+                    if (fullTag.includes('#')) {
+                        const parts = fullTag.split('#');
+                        username = parts[0];
+                        if (parts[1] && parts[1] !== '0') {
+                            tag = '#' + parts[1];
+                        } else {
+                            tag = '@' + parts[0];
+                        }
+                    } else {
+                        tag = '@' + fullTag;
+                    }
+                    usernameSpan.textContent = username;
+                    tagSpan.textContent = tag;
+                    userIdSpan.textContent = `ID: ${data.user.id || '--'}`;
+                    
+                    avatarImg.onerror = function() {
+                        this.onerror = null;
+                        this.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    };
+                    avatarImg.src = data.user.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    profileCard.classList.remove('hidden');
+                }
+            }
+
             if (selectorLoadingState) selectorLoadingState.classList.add('hidden');
             if (selectorContentWrapper) selectorContentWrapper.classList.remove('hidden');
             
@@ -1988,6 +2364,7 @@
             if (selectorErrorState) selectorErrorState.classList.remove('hidden');
             if (selectorErrorText) selectorErrorText.textContent = err.message || 'Failed to fetch servers.';
             if (serverStatusLabel) serverStatusLabel.textContent = 'Fetch failed (check token)';
+            if (profileCard) profileCard.classList.add('hidden');
             showToast(err.message || 'Failed to fetch servers.', 'error');
         }
     }
@@ -2034,9 +2411,11 @@
             .replace(/'/g, '&#039;');
     }
 
+    let sourceSearchTimer = null;
+    let targetSearchTimer = null;
+
     function renderSourceServers() {
         if (!sourceServersGrid) return;
-        sourceServersGrid.innerHTML = '';
 
         const filtered = loadedServers.filter(g => {
             if (!g.name.toLowerCase().includes(sourceQuery.toLowerCase())) return false;
@@ -2050,13 +2429,19 @@
             return;
         }
 
+        const fragment = document.createDocumentFragment();
+
         filtered.forEach(guild => {
             const isSelected = selectedSource && selectedSource.id === guild.id;
             const card = document.createElement('div');
             card.className = `server-card ${isSelected ? 'selected' : ''}`;
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            card.setAttribute('aria-label', `Select source server ${guild.name} (${guild.memberCount} members)`);
             card.innerHTML = `
-                <div class="server-card-avatar">
-                    ${guild.icon ? `<img src="${guild.icon}" alt="${escapeHtml(guild.name)}">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
+                <div class="server-card-avatar" aria-hidden="true">
+                    ${guild.icon ? `<img src="${guild.icon}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='${escapeHtml(guild.name.substring(0, 2).toUpperCase())}'">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
                     <div class="server-status-dot"></div>
                 </div>
                 <div class="server-card-info">
@@ -2067,17 +2452,25 @@
                         ${guild.isAdmin ? '<span class="server-badge admin">Admin</span>' : ''}
                     </div>
                 </div>
-                <div class="server-card-check">
+                <div class="server-card-check" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:12px;height:12px;"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
             `;
 
-            card.addEventListener('click', () => {
-                selectSourceServer(guild);
+            const handleSelect = () => selectSourceServer(guild);
+            card.addEventListener('click', handleSelect);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSelect();
+                }
             });
 
-            sourceServersGrid.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        sourceServersGrid.innerHTML = '';
+        sourceServersGrid.appendChild(fragment);
     }
 
     function selectSourceServer(guild) {
@@ -2113,7 +2506,6 @@
 
     function renderTargetServers() {
         if (!targetServersGrid) return;
-        targetServersGrid.innerHTML = '';
 
         const eligible = loadedServers.filter(g => {
             if (selectedSource && g.id === selectedSource.id) return false;
@@ -2129,13 +2521,19 @@
             return;
         }
 
+        const fragment = document.createDocumentFragment();
+
         eligible.forEach(guild => {
             const isSelected = selectedTarget && selectedTarget.id === guild.id;
             const card = document.createElement('div');
             card.className = `server-card ${isSelected ? 'selected' : ''}`;
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            card.setAttribute('aria-label', `Select target destination server ${guild.name} (${guild.memberCount} members)`);
             card.innerHTML = `
-                <div class="server-card-avatar">
-                    ${guild.icon ? `<img src="${guild.icon}" alt="${escapeHtml(guild.name)}">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
+                <div class="server-card-avatar" aria-hidden="true">
+                    ${guild.icon ? `<img src="${guild.icon}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='${escapeHtml(guild.name.substring(0, 2).toUpperCase())}'">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
                     <div class="server-status-dot"></div>
                 </div>
                 <div class="server-card-info">
@@ -2145,17 +2543,25 @@
                         <span class="server-badge admin">Manage</span>
                     </div>
                 </div>
-                <div class="server-card-check">
+                <div class="server-card-check" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:12px;height:12px;"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
             `;
 
-            card.addEventListener('click', () => {
-                selectTargetServer(guild);
+            const handleSelect = () => selectTargetServer(guild);
+            card.addEventListener('click', handleSelect);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSelect();
+                }
             });
 
-            targetServersGrid.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        targetServersGrid.innerHTML = '';
+        targetServersGrid.appendChild(fragment);
     }
 
     function selectTargetServer(guild) {
@@ -2183,14 +2589,20 @@
     if (sourceSearchInput) {
         sourceSearchInput.addEventListener('input', (e) => {
             sourceQuery = e.target.value;
-            renderSourceServers();
+            cancelAnimationFrame(sourceSearchTimer);
+            sourceSearchTimer = requestAnimationFrame(() => {
+                renderSourceServers();
+            });
         });
     }
 
     if (targetSearchInput) {
         targetSearchInput.addEventListener('input', (e) => {
             targetQuery = e.target.value;
-            renderTargetServers();
+            cancelAnimationFrame(targetSearchTimer);
+            targetSearchTimer = requestAnimationFrame(() => {
+                renderTargetServers();
+            });
         });
     }
 

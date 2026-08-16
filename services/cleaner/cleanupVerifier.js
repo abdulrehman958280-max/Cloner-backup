@@ -3,6 +3,24 @@
  */
 
 /**
+ * Extracts and standardizes failed resource items from cleanup results
+ */
+function extractFailedResources(resultGroup, defaultType = 'unknown') {
+    if (!resultGroup || !Array.isArray(resultGroup.items)) {
+        return [];
+    }
+    return resultGroup.items
+        .filter(item => item && (item.status === 'FAILED' || item.error))
+        .map(item => ({
+            id: String(item.id || ''),
+            name: item.name || 'Unknown',
+            type: item.type || defaultType,
+            error: item.error || 'Failed to remove resource',
+            note: item.note || undefined
+        }));
+}
+
+/**
  * Verifies role cleanup stage completion before proceeding to channels
  */
 export function verifyRoleCleanupState(targetGuild, roleResult) {
@@ -13,13 +31,15 @@ export function verifyRoleCleanupState(targetGuild, roleResult) {
             deleted: roleResult?.deleted || 0,
             failed: roleResult?.failed || 0,
             skipped: roleResult?.skipped || 0,
-            remainingRoles: targetGuild ? (targetGuild.roles?.cache?.size || 0) : 0
+            remainingRoles: targetGuild ? (targetGuild.roles?.cache?.size || 0) : 0,
+            failedResources: []
         };
     }
 
     const failed = roleResult.failed || 0;
     const deleted = roleResult.deleted || 0;
     const verified = failed === 0;
+    const failedResources = extractFailedResources(roleResult, 'role');
 
     return {
         verified,
@@ -27,7 +47,14 @@ export function verifyRoleCleanupState(targetGuild, roleResult) {
         deleted,
         failed,
         skipped: roleResult.skipped || 0,
-        remainingRoles: targetGuild ? (targetGuild.roles?.cache?.size || 0) : 0
+        remainingRoles: targetGuild ? (targetGuild.roles?.cache?.size || 0) : 0,
+        failedResources,
+        failureSummary: failedResources.length > 0 ? {
+            totalFailed: failedResources.length,
+            rolesFailed: failedResources.length,
+            channelsFailed: 0,
+            items: failedResources
+        } : null
     };
 }
 
@@ -41,13 +68,16 @@ export function verifyCleanupState(targetGuild, cleanupResult) {
             status: 'SKIPPED',
             remainingChannels: targetGuild ? (targetGuild.channels?.cache?.size || 0) : 0,
             remainingRoles: targetGuild ? (targetGuild.roles?.cache?.size || 0) : 0,
+            failedResources: [],
+            failureSummary: null,
             details: {
                 rolesDeleted: 0,
                 rolesFailed: 0,
                 rolesSkipped: 0,
                 channelsDeleted: 0,
                 channelsFailed: 0,
-                channelsSkipped: 0
+                channelsSkipped: 0,
+                failedResources: []
             }
         };
     }
@@ -65,18 +95,30 @@ export function verifyCleanupState(targetGuild, cleanupResult) {
         finalStatus = (channelDeleted > 0 || roleDeleted > 0) ? 'PARTIAL' : 'FAILED';
     }
 
+    const failedRoles = extractFailedResources(cleanupResult.roles, 'role');
+    const failedChannels = extractFailedResources(cleanupResult.channels, 'channel');
+    const failedResources = [...failedRoles, ...failedChannels];
+
     return {
         verified: channelFailures === 0 && roleFailures === 0,
         status: finalStatus,
         remainingChannels: currentChannels,
         remainingRoles: currentRoles,
+        failedResources,
+        failureSummary: failedResources.length > 0 ? {
+            totalFailed: failedResources.length,
+            rolesFailed: failedRoles.length,
+            channelsFailed: failedChannels.length,
+            items: failedResources
+        } : null,
         details: {
             rolesDeleted: roleDeleted,
             rolesFailed: roleFailures,
             rolesSkipped: cleanupResult.roles?.skipped || 0,
             channelsDeleted: channelDeleted,
             channelsFailed: channelFailures,
-            channelsSkipped: cleanupResult.channels?.skipped || 0
+            channelsSkipped: cleanupResult.channels?.skipped || 0,
+            failedResources
         }
     };
 }

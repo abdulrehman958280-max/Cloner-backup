@@ -180,11 +180,21 @@
                                         </button>
                                     </div>
                                 </div>
-                                <div class="field-helper security-badge">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="helper-icon">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                    </svg>
-                                    <span>Token auto-saved locally in browser storage for quick reuse.</span>
+                                <div class="discord-profile-card hidden" id="discordProfileCard">
+                                    <div class="profile-avatar-wrapper">
+                                        <img id="profileAvatarImg" src="" alt="Discord User Avatar" class="profile-avatar">
+                                        <div class="profile-status-dot"></div>
+                                    </div>
+                                    <div class="profile-info-content">
+                                        <div class="profile-name-row">
+                                            <span class="profile-username" id="profileUsername">Connected User</span>
+                                            <span class="profile-tag-badge font-mono" id="profileTag">#0000</span>
+                                        </div>
+                                        <div class="profile-id-row font-mono" id="profileUserId">ID: --</div>
+                                    </div>
+                                    <div class="profile-badge-status">
+                                        <span class="online-pill font-mono">ONLINE</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -252,14 +262,14 @@
                                         <div class="step-header">
                                             <div class="step-title-group">
                                                 <span class="badge-role source-badge">STEP 1</span>
-                                                <h3 class="step-title">Select Source Server</h3>
+                                                <h3 class="step-title">Select what server you want to clone</h3>
                                             </div>
                                             <div class="neu-search-wrapper mini-search">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
                                                     <circle cx="11" cy="11" r="8"/>
                                                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                                 </svg>
-                                                <input type="text" id="sourceSearchInput" placeholder="Search servers..." aria-label="Search source servers">
+                                                <input type="text" id="sourceSearchInput" placeholder="Search servers..." aria-label="Search what server you want to clone">
                                             </div>
                                         </div>
                                         <div class="server-cards-grid" id="sourceServersGrid">
@@ -272,7 +282,7 @@
                                         <div class="step-header">
                                             <div class="step-title-group">
                                                 <span class="badge-role target-badge">STEP 2</span>
-                                                <h3 class="step-title">Select Target Server</h3>
+                                                <h3 class="step-title">Select where you want to clone</h3>
                                                 <span class="step-subtitle-hint">(Filtered by administrator/manage permissions)</span>
                                             </div>
                                             <div class="neu-search-wrapper mini-search">
@@ -280,7 +290,7 @@
                                                     <circle cx="11" cy="11" r="8"/>
                                                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                                 </svg>
-                                                <input type="text" id="targetSearchInput" placeholder="Search eligible targets..." aria-label="Search target servers">
+                                                <input type="text" id="targetSearchInput" placeholder="Search eligible targets..." aria-label="Search where you want to clone">
                                             </div>
                                         </div>
                                         <div class="server-cards-grid" id="targetServersGrid">
@@ -317,133 +327,151 @@
                                 <!-- Collapsible Slidebar Panel (Closed by default) -->
                                 <div class="advanced-panel-content collapsed" id="advancedPanel">
                                     <div class="advanced-panel-inner">
+                                        <!-- Quick Batch Presets Toolbar for Options -->
+                                        <div class="advanced-quick-bar">
+                                            <div class="quick-bar-left">
+                                                <span class="quick-bar-title">Configuration Options</span>
+                                                <span class="quick-bar-count" id="activeOptionsCount">8 of 9 active</span>
+                                            </div>
+                                            <div class="quick-bar-btns">
+                                                <button type="button" class="quick-chip-btn" id="btnSelectAllOptions" title="Enable all replication options">All ON</button>
+                                                <button type="button" class="quick-chip-btn" id="btnRecommendedOptions" title="Reset to standard recommended architecture">Recommended</button>
+                                                <button type="button" class="quick-chip-btn" id="btnDeselectAllOptions" title="Disable all non-essential options">Minimal</button>
+                                            </div>
+                                        </div>
+
                                         <div class="options-list">
                                             <!-- Option 0: Clean Target Server (Default ON) -->
-                                            <label class="neu-option-row" for="cleanTarget">
+                                            <label class="neu-option-row is-active" for="cleanTarget" id="rowCleanTarget">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Clean Target Server</span>
-                                                        <span class="badge-opt-status active">Default ON</span>
+                                                        <span class="badge-opt-status active" id="badgeCleanTarget">ON</span>
                                                     </div>
                                                     <p class="option-desc">Purge existing channels & custom roles in target before replication</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cleanTarget" name="cleanTarget" checked>
+                                                    <input type="checkbox" id="cleanTarget" name="cleanTarget" checked aria-label="Toggle clean target server">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 1: Roles -->
-                                            <label class="neu-option-row" for="cloneRoles">
+                                            <label class="neu-option-row is-active" for="cloneRoles" id="rowCloneRoles">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Roles & Hierarchy</span>
-                                                        <span class="badge-opt-status active">Core</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneRoles">ON</span>
                                                     </div>
                                                     <p class="option-desc">Mirror roles, colors, hoist settings, and base permission bitfields</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneRoles" checked>
+                                                    <input type="checkbox" id="cloneRoles" checked aria-label="Toggle clone roles">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 2: Channels -->
-                                            <label class="neu-option-row" for="cloneChannels">
+                                            <label class="neu-option-row is-active" for="cloneChannels" id="rowCloneChannels">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Channels & Categories</span>
-                                                        <span class="badge-opt-status active">Core</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneChannels">ON</span>
                                                     </div>
                                                     <p class="option-desc">Mirror category trees, text, voice, announcement channels, and topics</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneChannels" checked>
+                                                    <input type="checkbox" id="cloneChannels" checked aria-label="Toggle clone channels">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 3: Permissions -->
-                                            <label class="neu-option-row" for="clonePermissions">
+                                            <label class="neu-option-row is-active" for="clonePermissions" id="rowClonePermissions">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Permissions & Overwrites</span>
+                                                        <span class="badge-opt-status active" id="badgeClonePermissions">ON</span>
                                                     </div>
                                                     <p class="option-desc">Preserve role-specific channel privacy, hidden categories, and overrides</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="clonePermissions" checked>
+                                                    <input type="checkbox" id="clonePermissions" checked aria-label="Toggle clone permissions">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 4: Server Profile -->
-                                            <label class="neu-option-row" for="cloneProfile">
+                                            <label class="neu-option-row is-active" for="cloneProfile" id="rowCloneProfile">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Server Profile & Assets</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneProfile">ON</span>
                                                     </div>
                                                     <p class="option-desc">Synchronize server title name, 4096px icon avatar, and server banner</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneProfile" checked>
+                                                    <input type="checkbox" id="cloneProfile" checked aria-label="Toggle clone profile">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 4b: Emojis -->
-                                            <label class="neu-option-row" for="cloneEmojis">
+                                            <label class="neu-option-row is-active" for="cloneEmojis" id="rowCloneEmojis">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Emojis</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneEmojis">ON</span>
                                                     </div>
                                                     <p class="option-desc">Clone all custom emojis from the source server</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneEmojis" checked>
+                                                    <input type="checkbox" id="cloneEmojis" checked aria-label="Toggle clone emojis">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 4c: Stickers -->
-                                            <label class="neu-option-row" for="cloneStickers">
+                                            <label class="neu-option-row is-active" for="cloneStickers" id="rowCloneStickers">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Stickers</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneStickers">ON</span>
                                                     </div>
                                                     <p class="option-desc">Clone all custom stickers from the source server</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneStickers" checked>
+                                                    <input type="checkbox" id="cloneStickers" checked aria-label="Toggle clone stickers">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 4d: Webhooks -->
-                                            <label class="neu-option-row" for="cloneWebhooks">
+                                            <label class="neu-option-row is-active" for="cloneWebhooks" id="rowCloneWebhooks">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Webhooks</span>
+                                                        <span class="badge-opt-status active" id="badgeCloneWebhooks">ON</span>
                                                     </div>
                                                     <p class="option-desc">Clone channel webhooks (names and avatars)</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneWebhooks" checked>
+                                                    <input type="checkbox" id="cloneWebhooks" checked aria-label="Toggle clone webhooks">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
 
                                             <!-- Option 5: Message History (Default OFF) -->
-                                            <label class="neu-option-row highlight-row" for="cloneMessages">
+                                            <label class="neu-option-row highlight-row" for="cloneMessages" id="rowCloneMessages">
                                                 <div class="option-text-group">
                                                     <div class="option-title-row">
                                                         <span class="option-title">Message History (Webhooks)</span>
-                                                        <span class="badge-opt-status" id="msgOptStatusBadge">Optional</span>
+                                                        <span class="badge-opt-status" id="msgOptStatusBadge">OFF</span>
                                                     </div>
                                                     <p class="option-desc">Clone recent chat logs from source channels using webhooks with author profiles</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneMessages">
+                                                    <input type="checkbox" id="cloneMessages" aria-label="Toggle clone messages">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
@@ -458,7 +486,7 @@
                                                     <p class="option-desc" id="attachmentsDesc">Available when Message History is enabled</p>
                                                 </div>
                                                 <div class="neu-toggle">
-                                                    <input type="checkbox" id="cloneAttachments" disabled>
+                                                    <input type="checkbox" id="cloneAttachments" disabled aria-label="Toggle clone attachments">
                                                     <span class="neu-toggle-slider"></span>
                                                 </div>
                                             </label>
@@ -473,7 +501,7 @@
                                                             </svg>
                                                             <span class="drawer-title">Message Tuning</span>
                                                         </div>
-                                                        <span class="badge-tag">ACTIVE</span>
+                                                        <span class="badge-tag">TUNING ACTIVE</span>
                                                     </div>
 
                                                     <div class="drawer-body-grid">
@@ -483,7 +511,13 @@
                                                                 <span class="range-val-badge" id="limitBadge">1000</span>
                                                             </div>
                                                             <div class="neu-range-wrapper">
-                                                                <input type="range" id="msgLimit" min="1" max="1000" value="1000" class="neu-range-slider">
+                                                                <input type="range" id="msgLimit" min="1" max="1000" value="1000" class="neu-range-slider" aria-label="Messages per channel limit">
+                                                            </div>
+                                                            <div class="range-preset-row">
+                                                                <button type="button" class="range-preset-chip" data-target="msgLimit" data-val="25">25</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgLimit" data-val="100">100</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgLimit" data-val="500">500</button>
+                                                                <button type="button" class="range-preset-chip active" data-target="msgLimit" data-val="1000">1,000 (Max)</button>
                                                             </div>
                                                         </div>
 
@@ -493,11 +527,19 @@
                                                                 <span class="range-val-badge" id="delayBadge">0ms</span>
                                                             </div>
                                                             <div class="neu-range-wrapper">
-                                                                <input type="range" id="msgDelay" min="0" max="5000" step="50" value="0" class="neu-range-slider">
+                                                                <input type="range" id="msgDelay" min="0" max="5000" step="50" value="0" class="neu-range-slider" aria-label="Webhook migration pacing delay">
+                                                            </div>
+                                                            <div class="range-preset-row">
+                                                                <button type="button" class="range-preset-chip active" data-target="msgDelay" data-val="0">0ms (Turbo)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="250">250ms</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="500">500ms</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="1000">1000ms (Safe)</button>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
+
                                             <!-- Configuration Action Toolbar (Save / Reset preferences) -->
                                             <div class="config-actions-bar" id="configActionsBar">
                                                 <div class="config-btns-group">
@@ -524,6 +566,7 @@
                                                     <span id="configSavedText">Preferences Saved</span>
                                                 </div>
                                             </div>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
@@ -686,6 +729,34 @@
                         <button type="button" class="jump-latest-pill hidden" id="jumpLatestBtn">
                             <span>↓ New activity received</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- Token Guide Card: How to Get Your Discord Token Video -->
+                <div class="neu-card token-guide-card" id="tokenGuideCard">
+                    <div class="neu-card-header" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);">
+                        <div class="card-icon-bubble" style="background: var(--surface-inset); color: var(--accent);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 16v-4"/>
+                                <path d="M12 8h.01"/>
+                            </svg>
+                        </div>
+                        <div class="card-header-titles">
+                            <h3 class="card-title" style="font-size: 15px;">How to Get Your Discord Token (Video Tutorial)</h3>
+                            <p class="card-desc" style="font-size: 12px;">Watch the video guide for step-by-step instructions</p>
+                        </div>
+                    </div>
+                    <div class="neu-card-body token-video-body">
+                        <div class="video-container">
+                            <iframe 
+                                src="https://www.youtube.com/embed/J5DUYBEz3FA" 
+                                title="How to get your Discord token" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                allowfullscreen>
+                            </iframe>
+                        </div>
                     </div>
                 </div>
 

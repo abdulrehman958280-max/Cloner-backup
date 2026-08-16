@@ -142,8 +142,16 @@ export async function executeClone({
             checkCancellation();
             onStage('cleaning_target', 'Cleaning Target Server Structure', 24);
 
+            try {
+                await Promise.allSettled([
+                    targetGuild.roles?.fetch?.().catch(() => {}),
+                    targetGuild.channels?.fetch?.().catch(() => {}),
+                    targetGuild.members?.fetchMe?.().catch(() => targetGuild.members?.fetch?.(client.user.id).catch(() => {}))
+                ]);
+            } catch (e) {}
+
             const cleanupPlan = createCleanupPlan(targetGuild, options.cleanupMode || 'full', options);
-            emitLog('info', `Target cleanup starting (${cleanupPlan.summary.channelsToDeleteCount} channels, ${cleanupPlan.summary.rolesToDeleteCount} roles)...`, null, 'cleaning_target');
+            emitLog('info', `Target cleanup starting (${cleanupPlan.summary.channelsToDeleteCount} channels, ${cleanupPlan.summary.rolesToDeleteCount} roles to delete)...`, null, 'cleaning_target');
 
             const cleanupResult = await executeCleanupPlan({
                 targetGuild,
@@ -155,12 +163,26 @@ export async function executeClone({
             });
 
             cleanupReport = verifyCleanupState(targetGuild, cleanupResult);
+            const failureCount = cleanupReport.failedResources?.length || 0;
             emitLog(
                 cleanupReport.verified ? 'success' : 'warning',
-                `Target cleanup finished with status: ${cleanupReport.status}`,
-                null,
+                `Target cleanup finished with status: ${cleanupReport.status}${failureCount > 0 ? ` (${failureCount} unremoved items)` : ''}`,
+                failureCount > 0 ? `${failureCount} failed` : null,
                 'cleaning_target'
             );
+
+            if (cleanupReport.failedResources && cleanupReport.failedResources.length > 0) {
+                for (const failedItem of cleanupReport.failedResources) {
+                    const tagType = (failedItem.type || 'resource').toUpperCase();
+                    const reason = failedItem.error || 'Deletion failed';
+                    emitLog(
+                        'warning',
+                        `[CLEANUP UNREMOVED ${tagType}] "${failedItem.name}" (ID: ${failedItem.id}) - Reason: ${reason}`,
+                        `ID:${failedItem.id}`,
+                        'cleaning_target'
+                    );
+                }
+            }
         }
 
         // ======================================================================
@@ -485,6 +507,13 @@ export async function executeClone({
                     nsfw: Boolean(ch.nsfw),
                     bitrate: ch.bitrate || undefined,
                     userLimit: ch.userLimit || undefined,
+                    rateLimitPerUser: ch.rateLimitPerUser || undefined,
+                    rtcRegion: ch.rtcRegion || undefined,
+                    videoQualityMode: ch.videoQualityMode || undefined,
+                    availableTags: ch.availableTags || undefined,
+                    defaultReactionEmoji: ch.defaultReactionEmoji || undefined,
+                    defaultSortOrder: ch.defaultSortOrder || undefined,
+                    defaultThreadRateLimitPerUser: ch.defaultThreadRateLimitPerUser || undefined,
                     parent: parentId || undefined,
                     position: ch.position
                 };
@@ -544,6 +573,35 @@ export async function executeClone({
 
                 await cancellableSleep(100, isCancelled);
             }
+
+            // Map System and AFK channels if configured on source
+            if (options.cloneProfile) {
+                if (sourceGuild.afkChannelId && manifest.channelMap.has(sourceGuild.afkChannelId)) {
+                    const mappedAfkId = manifest.channelMap.get(sourceGuild.afkChannelId);
+                    try {
+                        await targetGuild.setAFKChannel(mappedAfkId);
+                        if (sourceGuild.afkTimeout) {
+                            await targetGuild.setAFKTimeout(sourceGuild.afkTimeout);
+                        }
+                        emitLog('success', 'Mapped AFK voice channel and timeout', null, 'cloning_channels');
+                    } catch (e) {
+                        // ignore afk channel mapping warning
+                    }
+                }
+                if (sourceGuild.systemChannelId && manifest.channelMap.has(sourceGuild.systemChannelId)) {
+                    const mappedSysId = manifest.channelMap.get(sourceGuild.systemChannelId);
+                    try {
+                        await targetGuild.setSystemChannel(mappedSysId);
+                        if (sourceGuild.systemChannelFlags) {
+                            await targetGuild.setSystemChannelFlags(sourceGuild.systemChannelFlags);
+                        }
+                        emitLog('success', 'Mapped System messages channel and notifications', null, 'cloning_channels');
+                    } catch (e) {
+                        // ignore system channel mapping warning
+                    }
+                }
+            }
+
             emitLog('success', `Finished building channels (${manifest.channels.created} created, ${manifest.channels.failed} failed).`, null, 'cloning_channels');
         }
 
@@ -756,9 +814,13 @@ export async function executeClone({
                                 }
 
                                 const hasAttachments = options.cloneAttachments && msg.attachments && msg.attachments.size > 0;
-                                if (msg.content || hasAttachments) {
+                                const hasEmbeds = msg.embeds && msg.embeds.length > 0;
+                                if (msg.content || hasAttachments || hasEmbeds) {
                                     const files = hasAttachments
                                         ? msg.attachments.map(a => a.url).filter(Boolean)
+                                        : [];
+                                    const rawEmbeds = hasEmbeds
+                                        ? msg.embeds.map(e => (typeof e.toJSON === 'function' ? e.toJSON() : e)).filter(Boolean)
                                         : [];
 
                                     if (options.cloneAttachments && msg.attachments) {
@@ -775,12 +837,16 @@ export async function executeClone({
                                             policy: OPERATION_POLICIES.MESSAGE,
                                             isCancelled,
                                             execute: async () => {
-                                                await webhook.send({
-                                                    content: safeContent || ' ',
+                                                const payload = {
+                                                    content: safeContent || (rawEmbeds.length > 0 ? '' : ' '),
                                                     username: msg.author ? msg.author.username.substring(0, 32) : 'User',
                                                     avatarURL: msg.author && msg.author.displayAvatarURL ? msg.author.displayAvatarURL({ dynamic: true }) : undefined,
                                                     files: files.slice(0, 10)
-                                                });
+                                                };
+                                                if (rawEmbeds.length > 0) {
+                                                    payload.embeds = rawEmbeds.slice(0, 10);
+                                                }
+                                                await webhook.send(payload);
                                             },
                                             onRetry: makeRetryHandler('cloning_messages'),
                                             onRateLimit: makeRateLimitHandler('cloning_messages')

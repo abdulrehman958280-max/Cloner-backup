@@ -276,17 +276,104 @@ test('executeCleanupPlan treats 404 / Unknown Role idempotently as successfully 
     assert.equal(result.roles.items[0].status, 'DELETED');
 });
 
-test('verifyRoleCleanupState correctly validates role cleanup counts', () => {
-    const successResult = { planned: 5, deleted: 5, failed: 0, skipped: 2 };
-    const failResult = { planned: 5, deleted: 3, failed: 2, skipped: 2 };
+test('verifyRoleCleanupState correctly validates role cleanup counts and structured failures', () => {
+    const successResult = { planned: 5, deleted: 5, failed: 0, skipped: 2, items: [] };
+    const failResult = {
+        planned: 5,
+        deleted: 3,
+        failed: 2,
+        skipped: 2,
+        items: [
+            { id: '111', name: 'AdminRole', type: 'role', status: 'FAILED', error: 'Missing Permissions' },
+            { id: '222', name: 'ModRole', type: 'role', status: 'FAILED', error: 'Hierarchy lock' }
+        ]
+    };
 
     const mockGuild = { roles: { cache: { size: 3 } } };
 
     const checkSuccess = verifyRoleCleanupState(mockGuild, successResult);
     assert.equal(checkSuccess.verified, true);
     assert.equal(checkSuccess.status, 'SUCCESS');
+    assert.equal(checkSuccess.failedResources.length, 0);
 
     const checkFail = verifyRoleCleanupState(mockGuild, failResult);
     assert.equal(checkFail.verified, false);
     assert.equal(checkFail.status, 'PARTIAL');
+    assert.equal(checkFail.failedResources.length, 2);
+    assert.equal(checkFail.failedResources[0].id, '111');
+    assert.equal(checkFail.failedResources[0].type, 'role');
+    assert.equal(checkFail.failureSummary.totalFailed, 2);
 });
+
+test('verifyCleanupState returns structured JSON with resource IDs and types on failure', () => {
+    const mockGuild = {
+        roles: { cache: { size: 2 } },
+        channels: { cache: { size: 1 } }
+    };
+
+    const cleanupResult = {
+        status: 'PARTIAL',
+        roles: {
+            deleted: 4,
+            failed: 1,
+            skipped: 1,
+            items: [
+                { id: 'role-999', name: 'VIP', type: 'role', status: 'FAILED', error: 'Missing Access' }
+            ]
+        },
+        channels: {
+            deleted: 10,
+            failed: 1,
+            skipped: 0,
+            items: [
+                { id: 'chan-888', name: 'announcements', type: 'channel', status: 'FAILED', error: 'Channel is locked' }
+            ]
+        }
+    };
+
+    const report = verifyCleanupState(mockGuild, cleanupResult);
+    assert.equal(report.verified, false);
+    assert.equal(report.status, 'PARTIAL');
+    assert.equal(report.failedResources.length, 2);
+    assert.deepEqual(report.failedResources, [
+        { id: 'role-999', name: 'VIP', type: 'role', error: 'Missing Access', note: undefined },
+        { id: 'chan-888', name: 'announcements', type: 'channel', error: 'Channel is locked', note: undefined }
+    ]);
+    assert.equal(report.failureSummary.rolesFailed, 1);
+    assert.equal(report.failureSummary.channelsFailed, 1);
+});
+
+test('createCleanupPlan marks all custom roles for deletion when client is target server owner', () => {
+    const ownerGuild = {
+        id: 'guild_owner_test',
+        ownerId: 'user_12345',
+        client: { user: { id: 'user_12345' } },
+        members: {
+            me: { id: 'user_12345', roles: { highest: { position: 1 } } }
+        },
+        roles: {
+            cache: new Map([
+                ['r0', { id: 'guild_owner_test', name: '@everyone', position: 0, managed: false, guild: { id: 'guild_owner_test' } }],
+                ['r1', { id: 'r1', name: 'Admin Role', position: 10, managed: false, guild: { id: 'guild_owner_test' } }],
+                ['r2', { id: 'r2', name: 'Mod Role', position: 5, managed: false, guild: { id: 'guild_owner_test' } }],
+                ['r3', { id: 'r3', name: 'VIP', position: 2, managed: false, guild: { id: 'guild_owner_test' } }],
+                ['r_bot', { id: 'r_bot', name: 'Bot Integration', position: 8, managed: true, guild: { id: 'guild_owner_test' } }]
+            ])
+        },
+        channels: {
+            cache: new Map([
+                ['c1', { id: 'c1', name: 'general', type: 0, position: 0 }],
+                ['c2', { id: 'c2', name: 'voice', type: 2, position: 1 }]
+            ])
+        }
+    };
+
+    const plan = createCleanupPlan(ownerGuild, CLEANUP_MODES.FULL);
+    assert.equal(plan.enabled, true);
+    assert.equal(plan.summary.rolesFoundCount, 5);
+    // As owner, all 3 custom roles (r1, r2, r3) must be queued for deletion regardless of position
+    assert.equal(plan.summary.rolesToDeleteCount, 3);
+    assert.equal(plan.summary.protectedRolesCount, 2); // @everyone + bot role
+    assert.deepEqual(plan.roles.toDelete.map(r => r.id), ['r3', 'r2', 'r1']); // Sorted bottom-up
+});
+

@@ -57,30 +57,22 @@ export class CleanerPolicy {
         }
 
         // 3. Discord client cannot delete roles higher than or equal to its highest role unless server owner
-        const effectiveClientPosition = (context.clientHighestRolePosition !== undefined && context.clientHighestRolePosition > 0)
-            ? context.clientHighestRolePosition
-            : 99999; // Fallback to allow custom role cleanup if client position cache is unpopulated
+        if (!context.isOwner) {
+            const clientMaxPos = (context.clientHighestRolePosition !== undefined && context.clientHighestRolePosition > 0)
+                ? context.clientHighestRolePosition
+                : 99999;
 
-        if (!context.isOwner && role.position >= effectiveClientPosition) {
-            return {
-                protected: true,
-                reason: 'Role position is higher than or equal to client role hierarchy',
-                managed: false,
-                deletable: false
-            };
+            if (clientMaxPos < 99999 && role.position >= clientMaxPos) {
+                return {
+                    protected: true,
+                    reason: `Role hierarchy (${role.position}) is higher than or equal to client role hierarchy (${clientMaxPos})`,
+                    managed: false,
+                    deletable: false
+                };
+            }
         }
 
-        // 4. Explicit Discord flags
-        if (role.editable === false || role.deletable === false) {
-            return {
-                protected: true,
-                reason: 'Role is marked non-deletable by Discord client permissions',
-                managed: false,
-                deletable: false
-            };
-        }
-
-        // 5. MANAGED cleanup mode constraint
+        // 4. MANAGED cleanup mode constraint
         if (this.mode === CLEANUP_MODES.MANAGED) {
             const isTracked = context.manifestRoleIds?.has?.(role.id);
             if (!isTracked) {
@@ -103,7 +95,7 @@ export class CleanerPolicy {
     /**
      * Determines whether a channel is protected from deletion.
      * @param {Object} channel - Discord Channel object
-     * @param {Object} context - { systemChannelId, rulesChannelId, publicUpdatesChannelId, manifestChannelIds }
+     * @param {Object} context - { systemChannelId, rulesChannelId, publicUpdatesChannelId, manifestChannelIds, isOwner }
      * @returns {{ protected: boolean, reason?: string, deletable: boolean }}
      */
     isChannelProtected(channel, context = {}) {
@@ -111,8 +103,7 @@ export class CleanerPolicy {
             return { protected: true, reason: 'Invalid channel object', deletable: false };
         }
 
-        // Check if channel is deletable by the client
-        if (channel.deletable === false) {
+        if (channel.deletable === false && !context.isOwner) {
             return { protected: true, reason: 'Channel is marked non-deletable by client permissions', deletable: false };
         }
 
