@@ -1,0 +1,19 @@
+{
+  "name": "discord-server-cloner",
+  "version": "2.0.0",
+  "description": "Premium Discord Server Migration & Synchronization Studio",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "build": "node --check server.js",
+    "lint": "node --check server.js services/jobManager.js services/cloneService.js services/discordService.js services/validationService.js utils/logger.js",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "latest",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

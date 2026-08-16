@@ -1,0 +1,6 @@
+{
+  "name": "DISCLONER",
+  "description": "Premium Discord server migration and synchronization studio featuring a clean neumorphic design, real-time stage telemetry, and robust guild cloning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
