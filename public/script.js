@@ -1979,24 +1979,61 @@
     }
 
     // ==========================================================================
-    // 7. Activity Console Engine
+    // 7. Activity Console Engine (Ultra-Optimized Batch Stream)
     // ==========================================================================
+
+    let pendingRenderQueue = [];
+    let logRenderRaf = null;
 
     function appendLog(level, message, detail, timestamp) {
         const timeStr = timestamp || formatCurrentTime();
         const logObj = { id: Date.now() + Math.random(), level, message, detail, timeStr };
         allLogs.push(logObj);
 
-        if (allLogs.length > 2000) {
-            allLogs.shift();
+        if (allLogs.length > 5000) {
+            allLogs.splice(0, 1000); // Efficient chunk trimming
         }
 
         updateLogCountBadge();
 
         if (matchesCurrentFilterAndSearch(logObj)) {
-            renderLogItem(logObj);
-            handleAutoScroll();
+            pendingRenderQueue.push(logObj);
+            scheduleLogBatchRender();
         }
+    }
+
+    function scheduleLogBatchRender() {
+        if (logRenderRaf) return;
+        logRenderRaf = requestAnimationFrame(() => {
+            flushPendingLogs();
+            logRenderRaf = null;
+        });
+    }
+
+    function flushPendingLogs() {
+        if (!logStream || pendingRenderQueue.length === 0) return;
+
+        const fragment = document.createDocumentFragment();
+        const batch = pendingRenderQueue;
+        pendingRenderQueue = [];
+
+        for (let i = 0; i < batch.length; i++) {
+            fragment.appendChild(createLogElement(batch[i]));
+        }
+
+        logStream.appendChild(fragment);
+
+        // Fast bulk prune if exceeding max DOM capacity
+        const excess = logStream.children.length - MAX_DOM_LOGS;
+        if (excess > 0) {
+            for (let i = 0; i < excess; i++) {
+                if (logStream.firstChild) {
+                    logStream.removeChild(logStream.firstChild);
+                }
+            }
+        }
+
+        handleAutoScroll();
     }
 
     function formatCurrentTime() {
@@ -2007,7 +2044,10 @@
         return `${h}:${m}:${s}`;
     }
 
-    function getIconForLevel(level) {
+    function getIconForLevel(level, message, detail) {
+        if (level === 'delete' || level === 'deleted') return '🗑';
+        if (detail && detail.includes('DELETED')) return '🗑';
+        if (message && message.includes('[CLEANUP] Deleted')) return '🗑';
         switch (level) {
             case 'success': return '✓';
             case 'warning': return '⚠';
@@ -2017,9 +2057,18 @@
         }
     }
 
-    function renderLogItem(logObj) {
+    function isDeleteLog(logObj) {
+        if (logObj.level === 'delete' || logObj.level === 'deleted') return true;
+        if (logObj.detail && logObj.detail.includes('DELETED')) return true;
+        if (logObj.message && (logObj.message.includes('[CLEANUP] Deleted') || logObj.message.includes('Purging'))) return true;
+        return false;
+    }
+
+    function createLogElement(logObj) {
         const entry = document.createElement('div');
-        entry.className = `log-entry log-entry-${logObj.level}`;
+        const isDelete = isDeleteLog(logObj);
+        const actualLevel = isDelete ? 'delete' : logObj.level;
+        entry.className = `log-entry log-entry-${actualLevel}`;
 
         const timeSpan = document.createElement('span');
         timeSpan.className = 'log-time font-mono';
@@ -2027,7 +2076,7 @@
 
         const iconSpan = document.createElement('span');
         iconSpan.className = 'log-icon-type';
-        iconSpan.textContent = getIconForLevel(logObj.level);
+        iconSpan.textContent = getIconForLevel(actualLevel, logObj.message, logObj.detail);
 
         const msgSpan = document.createElement('span');
         msgSpan.className = 'log-message';
@@ -2044,18 +2093,20 @@
         entry.appendChild(iconSpan);
         entry.appendChild(msgSpan);
 
-        logStream.appendChild(entry);
-
-        while (logStream.children.length > MAX_DOM_LOGS) {
-            logStream.removeChild(logStream.firstChild);
-        }
+        return entry;
     }
 
     function clearLogs() {
         allLogs = [];
-        logStream.innerHTML = '';
+        pendingRenderQueue = [];
+        if (logRenderRaf) {
+            cancelAnimationFrame(logRenderRaf);
+            logRenderRaf = null;
+        }
+        if (logStream) logStream.innerHTML = '';
         updateLogCountBadge();
         if (jumpLatestBtn) jumpLatestBtn.classList.add('hidden');
+        unreadLogsCount = 0;
     }
 
     if (clearLogsBtn) {
@@ -2112,10 +2163,11 @@
 
     function matchesCurrentFilterAndSearch(logObj) {
         if (currentFilter !== 'all') {
+            const isDelete = isDeleteLog(logObj);
             if (currentFilter === 'warning' && logObj.level !== 'warning') return false;
             if (currentFilter === 'error' && logObj.level !== 'error') return false;
-            if (currentFilter === 'success' && logObj.level !== 'success') return false;
-            if (currentFilter === 'info' && logObj.level !== 'info' && logObj.level !== 'stage') return false;
+            if (currentFilter === 'success' && logObj.level !== 'success' && !isDelete) return false;
+            if (currentFilter === 'info' && logObj.level !== 'info' && logObj.level !== 'stage' && !isDelete) return false;
         }
 
         if (searchQuery) {
@@ -2129,54 +2181,42 @@
 
     function rebuildVisibleLogs() {
         if (!logStream) return;
+        pendingRenderQueue = [];
         const filtered = allLogs.filter(matchesCurrentFilterAndSearch);
         const toRender = filtered.slice(-MAX_DOM_LOGS);
 
         const fragment = document.createDocumentFragment();
-        toRender.forEach(logObj => {
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-entry-${logObj.level}`;
-
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'log-time font-mono';
-            timeSpan.textContent = logObj.timeStr;
-
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'log-icon-type';
-            iconSpan.textContent = getIconForLevel(logObj.level);
-
-            const msgSpan = document.createElement('span');
-            msgSpan.className = 'log-message';
-            msgSpan.textContent = logObj.message;
-
-            if (logObj.detail) {
-                const detailBadge = document.createElement('span');
-                detailBadge.className = 'log-detail-tag font-mono';
-                detailBadge.textContent = logObj.detail;
-                msgSpan.appendChild(detailBadge);
-            }
-
-            entry.appendChild(timeSpan);
-            entry.appendChild(iconSpan);
-            entry.appendChild(msgSpan);
-            fragment.appendChild(entry);
-        });
+        for (let i = 0; i < toRender.length; i++) {
+            fragment.appendChild(createLogElement(toRender[i]));
+        }
 
         logStream.innerHTML = '';
         logStream.appendChild(fragment);
 
         if (isAutoScrollLocked && terminal) {
-            terminal.scrollTop = terminal.scrollHeight;
+            scrollToBottom();
         }
     }
 
     // Scroll & Jump to Latest
     let isScrollTicking = false;
+
+    function scrollToBottom() {
+        if (!terminal) return;
+        terminal.scrollTop = terminal.scrollHeight;
+        requestAnimationFrame(() => {
+            if (terminal && isAutoScrollLocked) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        });
+    }
+
     if (terminal) {
         terminal.addEventListener('scroll', () => {
             if (!isScrollTicking) {
                 requestAnimationFrame(() => {
-                    const isNearBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
+                    const scrollBottomDistance = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight;
+                    const isNearBottom = scrollBottomDistance < 80;
                     isAutoScrollLocked = isNearBottom;
                     if (isNearBottom && jumpLatestBtn) {
                         jumpLatestBtn.classList.add('hidden');
@@ -2192,7 +2232,7 @@
     function handleAutoScroll() {
         if (!terminal) return;
         if (isAutoScrollLocked) {
-            terminal.scrollTop = terminal.scrollHeight;
+            scrollToBottom();
         } else {
             unreadLogsCount++;
             if (jumpLatestBtn) {
@@ -2205,8 +2245,11 @@
     if (jumpLatestBtn) {
         jumpLatestBtn.addEventListener('click', () => {
             if (terminal) {
-                terminal.scrollTop = terminal.scrollHeight;
                 isAutoScrollLocked = true;
+                terminal.scrollTo({
+                    top: terminal.scrollHeight,
+                    behavior: 'smooth'
+                });
                 jumpLatestBtn.classList.add('hidden');
                 unreadLogsCount = 0;
             }
