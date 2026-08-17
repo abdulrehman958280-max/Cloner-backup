@@ -825,58 +825,7 @@
 
     <!-- Modals System -->
     
-    <!-- 1. Confirmation Modal & Preflight Preview -->
-    <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-        <div class="neu-modal-card">
-            <div class="modal-header-icon warning-icon-bg">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-            </div>
-            <div class="modal-body-content">
-                <h3 class="modal-title" id="confirmTitle">Confirm Migration Sequence</h3>
-                <p class="modal-desc" id="confirmDesc">
-                    Inspect the source-to-target routing and preflight checks before proceeding.
-                </p>
-                <div class="confirm-route-box">
-                    <div class="route-item">
-                        <span class="route-label">Source Server:</span>
-                        <span class="route-val font-mono" id="confirmSourceId">-</span>
-                    </div>
-                    <div class="route-divider">↓</div>
-                    <div class="route-item">
-                        <span class="route-label">Target Server:</span>
-                        <span class="route-val font-mono" id="confirmTargetId">-</span>
-                    </div>
-                </div>
-
-                <!-- Preflight Status Container -->
-                <div class="preflight-box" id="preflightBox">
-                    <div class="preflight-header-row">
-                        <span class="preflight-status-badge" id="preflightStatusBadge">PREFLIGHT READY</span>
-                        <span class="preflight-sub-text" id="preflightSubText">Verification checks passed</span>
-                    </div>
-                    <div class="preflight-checks-list" id="preflightChecksList"></div>
-                    
-                    <!-- Destructive Cleanup Warning (Shown when Clean Target is enabled) -->
-                    <div class="cleanup-alert-box hidden" id="confirmCleanupAlert">
-                        <div class="cleanup-alert-icon">⚠️</div>
-                        <div class="cleanup-alert-text">
-                            <strong>Clean Target Server is ENABLED:</strong> Existing non-system channels and custom roles on the target server will be permanently deleted before replication.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-actions-row">
-                <button type="button" class="neu-btn-secondary" id="cancelConfirmBtn">Cancel</button>
-                <button type="button" class="neu-btn-primary" id="proceedConfirmBtn">Start Migration</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. Migration Summary / Success Modal -->
+    <!-- Migration Summary / Success Modal -->
     <div class="modal-backdrop hidden" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
         <div class="neu-modal-card success-modal">
             <div class="modal-header-icon success-icon-bg">

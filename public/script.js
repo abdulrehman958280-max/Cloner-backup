@@ -345,7 +345,6 @@
     // Global Modal Escape and Backdrop Handlers
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal(confirmModal);
             closeModal(summaryModal);
             closeModal(helpModal);
             closeModal(templatesModal);
@@ -353,7 +352,7 @@
         }
     });
 
-    [confirmModal, summaryModal, helpModal, templatesModal, supportModal].forEach(modal => {
+    [summaryModal, helpModal, templatesModal, supportModal].forEach(modal => {
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -1267,98 +1266,7 @@
             return;
         }
 
-        // Populate Confirmation Modal Initial State
-        confirmSourceId.textContent = sourceId;
-        confirmTargetId.textContent = targetId;
-
-        if (preflightStatusBadge) {
-            preflightStatusBadge.className = 'preflight-status-badge';
-            preflightStatusBadge.textContent = 'CHECKING...';
-        }
-        if (preflightSubText) {
-            preflightSubText.textContent = 'Querying guild accessibility & permissions...';
-        }
-        if (preflightChecksList) {
-            preflightChecksList.innerHTML = '<div class="preflight-check-item"><span class="preflight-check-icon info">⏳</span><span>Running preflight validation checks...</span></div>';
-        }
-
-        if (confirmCleanupAlert) {
-            if (cleanTargetCheckbox && cleanTargetCheckbox.checked) {
-                confirmCleanupAlert.classList.remove('hidden');
-            } else {
-                confirmCleanupAlert.classList.add('hidden');
-            }
-        }
-
-        if (proceedConfirmBtn) {
-            proceedConfirmBtn.disabled = true;
-            proceedConfirmBtn.textContent = 'Verifying...';
-        }
-
-        openModal(confirmModal);
-
-        // Run Preflight Check
-        const payload = getPayload();
-        socket.emit('clone:preflight', payload);
-    });
-
-    socket.on('clone:preflight_result', (report) => {
-        if (!preflightChecksList || !preflightStatusBadge || !proceedConfirmBtn) return;
-
-        if (report.sourceGuildName) {
-            confirmSourceId.textContent = `${report.sourceGuildName} (${sourceIdInput.value.trim()})`;
-        }
-        if (report.targetGuildName) {
-            confirmTargetId.textContent = `${report.targetGuildName} (${targetIdInput.value.trim()})`;
-        }
-
-        if (report.status === 'BLOCKED' || !report.ready) {
-            preflightStatusBadge.className = 'preflight-status-badge blocked';
-            preflightStatusBadge.textContent = 'BLOCKED';
-            if (preflightSubText) preflightSubText.textContent = report.reason || report.error || 'Preflight checks failed';
-            proceedConfirmBtn.disabled = true;
-            proceedConfirmBtn.textContent = 'Cannot Proceed';
-        } else if (report.status === 'WARNING') {
-            preflightStatusBadge.className = 'preflight-status-badge warning';
-            preflightStatusBadge.textContent = 'READY WITH WARNINGS';
-            if (preflightSubText) preflightSubText.textContent = 'Review warnings before proceeding';
-            proceedConfirmBtn.disabled = false;
-            proceedConfirmBtn.textContent = 'I Understand, Start Migration';
-        } else {
-            preflightStatusBadge.className = 'preflight-status-badge';
-            preflightStatusBadge.textContent = 'READY';
-            if (preflightSubText) preflightSubText.textContent = 'All preflight checks passed';
-            proceedConfirmBtn.disabled = false;
-            proceedConfirmBtn.textContent = 'Start Migration';
-        }
-
-        if (Array.isArray(report.checks) && report.checks.length > 0) {
-            preflightChecksList.innerHTML = '';
-            report.checks.forEach(c => {
-                const item = document.createElement('div');
-                item.className = 'preflight-check-item';
-
-                const icon = document.createElement('span');
-                const st = (c.status || 'info').toLowerCase();
-                icon.className = `preflight-check-icon ${st}`;
-                icon.textContent = st === 'passed' ? '✓' : st === 'warning' ? '⚠' : st === 'blocked' ? '✕' : 'ℹ';
-
-                const text = document.createElement('span');
-                text.textContent = `${c.name}: ${c.detail}`;
-
-                item.appendChild(icon);
-                item.appendChild(text);
-                preflightChecksList.appendChild(item);
-            });
-        }
-    });
-
-    cancelConfirmBtn.addEventListener('click', () => {
-        closeModal(confirmModal);
-    });
-
-    proceedConfirmBtn.addEventListener('click', () => {
-        closeModal(confirmModal);
+        // Start Cloning Process directly
         startCloningProcess();
     });
 
