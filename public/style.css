@@ -205,22 +205,22 @@ a {
     top: 12px;
     z-index: 100;
     width: 100%;
-    background: rgba(248, 250, 253, 0.96);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(248, 250, 253, 0.92) 0%, rgba(240, 244, 249, 0.88) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-raised);
     border-top: var(--bevel-top);
     border-left: 1px solid var(--border-subtle);
     border-right: 1px solid var(--border-subtle);
     border-bottom: var(--bevel-bottom);
-    transition: background-color 0.2s ease;
+    transition: background-color var(--transition-smooth);
+    will-change: transform;
     transform: translateZ(0);
-    contain: layout style;
 }
 
 [data-theme="dark"] .app-header {
-    background: rgba(33, 40, 51, 0.96);
+    background: linear-gradient(180deg, rgba(40, 49, 63, 0.92) 0%, rgba(33, 40, 51, 0.88) 100%);
 }
 
 .header-inner {
@@ -633,85 +633,11 @@ a {
     box-sizing: border-box;
 }
 
-/* Animated Slow Rotating Gemini Iridescent Rainbow Glowing Border on Main Card */
-@property --border-angle {
-    syntax: "<angle>";
-    inherits: false;
-    initial-value: 0deg;
-}
-
-@keyframes rotateCardBorder {
-    0% {
-        --border-angle: 0deg;
-    }
-    100% {
-        --border-angle: 360deg;
-    }
-}
-
-#migrationSetupCard {
-    position: relative;
-    z-index: 1;
-    contain: layout;
-}
-
-#migrationSetupCard::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    padding: 2px;
-    border-radius: inherit;
-    background: conic-gradient(
-        from var(--border-angle),
-        transparent 0deg,
-        transparent 160deg,
-        rgba(59, 130, 246, 0.25) 195deg,
-        #1E88E5 225deg,
-        #7C3AED 255deg,
-        #D946EF 285deg,
-        #F43F5E 310deg,
-        #FB923C 330deg,
-        #FBBF24 345deg,
-        #38BDF8 355deg,
-        #60A5FA 360deg
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 6;
-    animation: rotateCardBorder 18s linear infinite;
-    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.65)) drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
-    will-change: --border-angle;
-}
-
-[data-theme="dark"] #migrationSetupCard::after {
-    background: conic-gradient(
-        from var(--border-angle),
-        transparent 0deg,
-        transparent 150deg,
-        rgba(56, 189, 248, 0.3) 190deg,
-        #38BDF8 220deg,
-        #818CF8 250deg,
-        #C084FC 280deg,
-        #F472B6 305deg,
-        #FB7185 325deg,
-        #FBBF24 345deg,
-        #67E8F9 355deg,
-        #38BDF8 360deg
-    );
-    filter: drop-shadow(0 0 10px rgba(192, 132, 252, 0.8)) drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
-}
-
-/* 7. Neu-Skeuomorphic Cards */
+/* 7. Neu-Skeuomorphic Cards with Rotating Rainbow Glowing Border Light */
 .neu-card {
-    background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
+    position: relative;
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-raised);
-    border-top: var(--bevel-top);
-    border-left: 1px solid var(--border-subtle);
-    border-right: 1px solid var(--border-subtle);
-    border-bottom: var(--bevel-bottom);
+    box-shadow: var(--shadow-raised), 0 0 24px rgba(99, 102, 241, 0.14), 0 0 42px rgba(236, 72, 153, 0.09);
     padding: 24px;
     display: flex;
     flex-direction: column;
@@ -721,7 +647,85 @@ a {
     min-width: 0;
     box-sizing: border-box;
     overflow: hidden;
-    transition: background-color var(--transition-smooth), border-color var(--transition-smooth);
+    isolation: isolate;
+    transition: background-color var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+
+[data-theme="dark"] .neu-card {
+    box-shadow: var(--shadow-raised), 0 0 28px rgba(99, 102, 241, 0.24), 0 0 50px rgba(236, 72, 153, 0.16);
+}
+
+/* Slowly Rotating Glowing Rainbow Outline Line (Comet Beam) */
+.neu-card::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 280%;
+    height: 280%;
+    min-width: 1400px;
+    min-height: 1400px;
+    transform: translate(-50%, -50%) rotate(0deg);
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 150deg,
+        rgba(255, 0, 110, 0.25) 175deg,
+        rgba(255, 0, 110, 1) 205deg,
+        rgba(255, 106, 0, 1) 230deg,
+        rgba(255, 217, 0, 1) 255deg,
+        rgba(0, 247, 119, 1) 280deg,
+        rgba(0, 212, 255, 1) 305deg,
+        rgba(138, 43, 226, 1) 330deg,
+        rgba(255, 0, 170, 1) 352deg,
+        transparent 360deg
+    );
+    animation: rotateRainbowBorder 7.5s linear infinite;
+    z-index: -2;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* Inner Surface Shield: Carves out the interior so only a crisp 2.5px glowing rainbow border line is visible around the card */
+.neu-card::after {
+    content: "";
+    position: absolute;
+    inset: 2.5px;
+    border-radius: calc(var(--radius-lg) - 2px);
+    background: linear-gradient(180deg, var(--surface-raised) 0%, var(--surface) 100%);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7);
+    border-top: var(--bevel-top);
+    border-bottom: var(--bevel-bottom);
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+    z-index: -1;
+    pointer-events: none;
+    transition: background var(--transition-smooth);
+}
+
+[data-theme="dark"] .neu-card::after {
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.08);
+}
+
+/* Elevate all direct children above the background shield */
+.neu-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes rotateRainbowBorder {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .neu-card::before {
+        animation: none;
+    }
 }
 
 .neu-card-header {
@@ -2334,17 +2338,15 @@ a {
 /* Inset Neumorphic Terminal */
 .neu-terminal-container {
     position: relative;
-    height: 360px;
-    min-height: 280px;
+    height: 340px;
     border-radius: var(--radius-md);
     background-color: var(--surface-inset);
     box-shadow: var(--shadow-inset-deep);
     border: 1px solid var(--border-subtle);
-    padding: 12px 10px 20px 10px;
+    padding: 12px;
     overflow-y: auto;
     overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
 }
 
 .neu-terminal-container::-webkit-scrollbar {
@@ -2363,50 +2365,33 @@ a {
 .log-stream {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    min-height: 100%;
-    padding-bottom: 36px;
+    gap: 5px;
 }
 
 .log-entry {
     display: flex;
     align-items: flex-start;
-    gap: 7px;
+    gap: 8px;
     font-size: 11.5px;
     font-family: var(--font-mono);
     line-height: 1.45;
     word-break: break-word;
     overflow-wrap: anywhere;
     padding: 4px 8px;
-    border-radius: 5px;
-    background: rgba(0, 0, 0, 0.025);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-left: 3px solid transparent;
+    border-radius: var(--radius-sm);
     transition: background var(--transition-fast);
-    flex-shrink: 0;
-}
-
-[data-theme="dark"] .log-entry {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-left: 3px solid transparent;
 }
 
 .log-time {
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 10.5px;
     flex-shrink: 0;
-    letter-spacing: 0.02em;
-    user-select: none;
-    line-height: 1.45;
 }
 
 .log-icon-type {
     font-weight: 700;
     flex-shrink: 0;
     font-size: 11px;
-    line-height: 1.45;
 }
 
 .log-message {
@@ -2416,83 +2401,27 @@ a {
 
 .log-detail-tag {
     display: inline-block;
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 10px;
     padding: 1px 5px;
     border-radius: 4px;
     margin-left: 6px;
-    background: rgba(0, 0, 0, 0.06);
+    background: rgba(0, 0, 0, 0.05);
     color: var(--text-secondary);
-    letter-spacing: 0.03em;
-    border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="dark"] .log-detail-tag {
     background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--text-secondary);
 }
 
-/* Log Severity Theme Variants - Consistent Cards */
-.log-entry-info {
-    background: rgba(14, 165, 233, 0.06);
-    border-color: rgba(14, 165, 233, 0.15);
-    border-left-color: #0EA5E9;
-}
-.log-entry-info .log-icon-type { color: #0EA5E9; }
-
-.log-entry-success {
-    background: rgba(16, 185, 129, 0.07);
-    border-color: rgba(16, 185, 129, 0.16);
-    border-left-color: #10B981;
-}
-.log-entry-success .log-icon-type { color: #10B981; }
-
-/* RED COLOR FOR DELETE / PURGE / REMOVE LOGS */
-.log-entry-delete {
-    background: rgba(239, 68, 68, 0.09);
-    border-color: rgba(239, 68, 68, 0.22);
-    border-left-color: #EF4444;
-}
-.log-entry-delete .log-icon-type { color: #EF4444; }
-.log-entry-delete .log-detail-tag {
-    background: rgba(239, 68, 68, 0.15);
-    color: #DC2626;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-[data-theme="dark"] .log-entry-delete {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.28);
-    border-left-color: #EF4444;
-}
-[data-theme="dark"] .log-entry-delete .log-detail-tag {
-    background: rgba(239, 68, 68, 0.22);
-    color: #FCA5A5;
-    border: 1px solid rgba(239, 68, 68, 0.4);
-}
-
-.log-entry-warning {
-    background: rgba(245, 158, 11, 0.07);
-    border-color: rgba(245, 158, 11, 0.18);
-    border-left-color: #F59E0B;
-}
-.log-entry-warning .log-icon-type { color: #F59E0B; }
-
-.log-entry-error {
-    background: rgba(220, 38, 38, 0.12);
-    border-color: rgba(220, 38, 38, 0.28);
-    border-left-color: #DC2626;
-}
-.log-entry-error .log-icon-type { color: #DC2626; }
-
-.log-entry-stage {
-    font-weight: 600;
-    color: var(--accent);
-    background: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.18);
-    border-left-color: #8B5CF6;
-}
-.log-entry-stage .log-icon-type { color: #8B5CF6; }
+/* Log Severity Theme Variants */
+.log-entry-info .log-icon-type { color: var(--accent); }
+.log-entry-success { background: var(--success-bg); }
+.log-entry-success .log-icon-type { color: var(--success); }
+.log-entry-warning { background: var(--warning-bg); }
+.log-entry-warning .log-icon-type { color: var(--warning); }
+.log-entry-error { background: var(--danger-bg); }
+.log-entry-error .log-icon-type { color: var(--danger); }
+.log-entry-stage { font-weight: 600; color: var(--accent); }
 
 /* Floating Jump to Latest Button */
 .jump-latest-pill {
@@ -2560,7 +2489,6 @@ a {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     animation: modalBackdropFade 0.2s ease;
-    contain: layout paint;
 }
 
 @keyframes modalBackdropFade {
@@ -2587,8 +2515,6 @@ a {
     overflow: hidden;
     position: relative;
     margin: auto;
-    contain: content;
-    transform: translateZ(0);
     animation: modalScaleUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -3433,20 +3359,13 @@ a {
         font-size: 14.5px;
     }
 
-    .neu-terminal-container {
-        height: 320px;
-        min-height: 260px;
-        padding: 10px 8px 16px 8px;
-    }
-
     .log-stream {
         font-size: 11px;
-        padding-bottom: 40px;
+        max-height: 240px;
     }
 
     .log-entry {
-        padding: 4px 6px;
-        gap: 6px;
+        padding: 5px 6px;
     }
 
     .log-time {
@@ -4172,8 +4091,6 @@ a {
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    contain: content;
-    -webkit-overflow-scrolling: touch;
 }
 
 .server-card {
@@ -4195,8 +4112,6 @@ a {
     flex-shrink: 0;
     box-sizing: border-box;
     outline: none;
-    touch-action: manipulation;
-    transform: translateZ(0);
 }
 
 .server-card:focus-visible {
@@ -4422,6 +4337,12 @@ a {
 .server-card {
     position: relative;
     overflow: hidden;
+    animation: fadeInCard 0.3s ease-out forwards;
+}
+
+@keyframes fadeInCard {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .server-card::before {

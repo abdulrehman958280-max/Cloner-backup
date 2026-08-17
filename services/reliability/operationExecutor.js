@@ -6,6 +6,7 @@
 
 import { classifyError, ClassifiedError, ERROR_CATEGORIES } from './errorTaxonomy.js';
 import { parseRetryAfter, calculateBackoff, globalRateLimiter } from './rateLimiter.js';
+import { withTimeout } from './timeout.js';
 
 export const OPERATION_POLICIES = Object.freeze({
     READ: Object.freeze({
@@ -14,6 +15,7 @@ export const OPERATION_POLICIES = Object.freeze({
         baseDelayMs: 400,
         maxDelayMs: 6000,
         maxTotalRetryTimeMs: 25000,
+        operationTimeoutMs: 15000,
         jitterFactor: 0.2
     }),
     CREATE: Object.freeze({
@@ -21,7 +23,8 @@ export const OPERATION_POLICIES = Object.freeze({
         maxAttempts: 3,
         baseDelayMs: 600,
         maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 30000,
+        maxTotalRetryTimeMs: 35000,
+        operationTimeoutMs: 30000,
         jitterFactor: 0.25
     }),
     UPDATE: Object.freeze({
@@ -30,6 +33,7 @@ export const OPERATION_POLICIES = Object.freeze({
         baseDelayMs: 500,
         maxDelayMs: 8000,
         maxTotalRetryTimeMs: 25000,
+        operationTimeoutMs: 20000,
         jitterFactor: 0.2
     }),
     DELETE: Object.freeze({
@@ -38,6 +42,7 @@ export const OPERATION_POLICIES = Object.freeze({
         baseDelayMs: 500,
         maxDelayMs: 8000,
         maxTotalRetryTimeMs: 25000,
+        operationTimeoutMs: 20000,
         jitterFactor: 0.2
     }),
     MESSAGE: Object.freeze({
@@ -46,6 +51,7 @@ export const OPERATION_POLICIES = Object.freeze({
         baseDelayMs: 800,
         maxDelayMs: 10000,
         maxTotalRetryTimeMs: 30000,
+        operationTimeoutMs: 25000,
         jitterFactor: 0.25
     }),
     VERIFICATION: Object.freeze({
@@ -54,6 +60,7 @@ export const OPERATION_POLICIES = Object.freeze({
         baseDelayMs: 400,
         maxDelayMs: 5000,
         maxTotalRetryTimeMs: 15000,
+        operationTimeoutMs: 12000,
         jitterFactor: 0.15
     })
 });
@@ -71,10 +78,13 @@ export function cancellableSleep(ms, isCancelled = () => false, signal = null) {
             }));
         }
 
+        const safeMs = Math.max(0, ms);
+        if (safeMs === 0) return resolve();
+
         const timeout = setTimeout(() => {
             cleanup();
             resolve();
-        }, ms);
+        }, safeMs);
 
         const onAbort = () => {
             cleanup();
@@ -111,7 +121,9 @@ export function cancellableSleep(ms, isCancelled = () => false, signal = null) {
 }
 
 /**
- * Executes an arbitrary Discord operation with full reliability wrapper
+ * Executes an arbitrary Discord operation with full reliability wrapper,
+ * strict per-operation timeouts, idempotency boundaries, rate-limit deadlines,
+ * and guaranteed settling (SUCCESS | FAILED | TIMEOUT | CANCELLED).
  */
 export async function executeDiscordOperation({
     operationName = 'discord_operation',
@@ -120,6 +132,7 @@ export async function executeDiscordOperation({
     execute,
     policy = OPERATION_POLICIES.CREATE,
     retryPolicy = null,
+    operationTimeoutMs = null,
     rateLimiter = globalRateLimiter,
     signal = null,
     isCancelled = () => false,
@@ -140,7 +153,8 @@ export async function executeDiscordOperation({
     const maxAttempts = Math.max(1, Math.min(10, mergedPolicy.maxAttempts || 3));
     const baseDelayMs = Math.max(50, mergedPolicy.baseDelayMs || 500);
     const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 10000);
-    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 30000;
+    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 35000;
+    const singleOpTimeoutMs = Math.max(10, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 30000);
     const jitterFactor = mergedPolicy.jitterFactor ?? 0.25;
 
     const opStartTime = Date.now();
@@ -162,12 +176,43 @@ export async function executeDiscordOperation({
             });
         }
 
+        const elapsedSoFar = Date.now() - opStartTime;
+        if (elapsedSoFar >= maxTotalRetryTimeMs) {
+            rateLimiter.recordExhausted();
+            throw new ClassifiedError({
+                code: ERROR_CATEGORIES.TIMEOUT,
+                message: `Operation "${operationName}" exceeded maximum retry deadline (${maxTotalRetryTimeMs}ms).`,
+                operation: operationName,
+                resourceType,
+                resourceId,
+                retryable: false,
+                attempt,
+                maxAttempts,
+                originalError: lastError
+            });
+        }
+
         attempt++;
 
         // 2. Check route / global rate limiter backpressure
         const routeKey = `${operationName}:${resourceType || 'global'}`;
         const proactiveWait = rateLimiter.getRemainingWaitMs(routeKey);
         if (proactiveWait > 0) {
+            const remainingBudget = maxTotalRetryTimeMs - (Date.now() - opStartTime);
+            if (proactiveWait > remainingBudget) {
+                rateLimiter.recordExhausted();
+                throw new ClassifiedError({
+                    code: ERROR_CATEGORIES.TIMEOUT,
+                    message: `Rate limit wait (${proactiveWait}ms) for "${operationName}" exceeds remaining operation deadline (${remainingBudget}ms).`,
+                    operation: operationName,
+                    resourceType,
+                    resourceId,
+                    retryable: false,
+                    attempt,
+                    maxAttempts
+                });
+            }
+
             rateLimiter.recordDelayed();
             onRateLimit({
                 operation: operationName,
@@ -181,16 +226,39 @@ export async function executeDiscordOperation({
         }
 
         try {
-            // 3. Optional Idempotency Check on Retries (read-before-retry)
+            // 3. Optional Idempotency Check on Retries (read-before-retry, with bounded timeout)
             if (attempt > 1 && typeof checkIdempotency === 'function') {
-                const existing = await checkIdempotency();
-                if (existing) {
-                    return existing;
+                const idempotencyTimeout = Math.min(5000, singleOpTimeoutMs);
+                try {
+                    const existing = await withTimeout(
+                        checkIdempotency,
+                        idempotencyTimeout,
+                        { operationName: `${operationName}_idempotency_check`, resourceType, resourceId, isCancelled, signal }
+                    );
+                    if (existing) {
+                        return existing;
+                    }
+                } catch (idempErr) {
+                    // Non-fatal idempotency check failure; proceed to execute
                 }
             }
 
-            // 4. Perform actual Discord operation
-            const result = await execute({ attempt });
+            // 4. Perform actual Discord operation with hard timeout boundary
+            const remainingForThisAttempt = Math.max(10, Math.min(singleOpTimeoutMs, maxTotalRetryTimeMs - (Date.now() - opStartTime)));
+            
+            const result = await withTimeout(
+                () => execute({ attempt }),
+                remainingForThisAttempt,
+                {
+                    operationName,
+                    resourceType,
+                    resourceId,
+                    isCancelled,
+                    signal,
+                    customMessage: `Discord operation "${operationName}" timed out after ${remainingForThisAttempt}ms.`
+                }
+            );
+
             return result;
 
         } catch (rawErr) {
@@ -227,7 +295,7 @@ export async function executeDiscordOperation({
                 rateLimiter.recordExhausted();
                 throw new ClassifiedError({
                     code: ERROR_CATEGORIES.TIMEOUT,
-                    message: `Operation ${operationName} exceeded maximum retry deadline (${maxTotalRetryTimeMs}ms).`,
+                    message: `Operation "${operationName}" exceeded maximum retry deadline (${maxTotalRetryTimeMs}ms).`,
                     operation: operationName,
                     resourceType,
                     resourceId,
@@ -262,6 +330,23 @@ export async function executeDiscordOperation({
                 });
             }
 
+            // Check if wait exceeds remaining total retry deadline
+            const remainingDeadline = maxTotalRetryTimeMs - (Date.now() - opStartTime);
+            if (waitMs > remainingDeadline) {
+                rateLimiter.recordExhausted();
+                throw new ClassifiedError({
+                    code: ERROR_CATEGORIES.TIMEOUT,
+                    message: `Retry wait (${waitMs}ms) for "${operationName}" exceeds remaining operation deadline (${remainingDeadline}ms).`,
+                    operation: operationName,
+                    resourceType,
+                    resourceId,
+                    retryable: false,
+                    attempt,
+                    maxAttempts,
+                    originalError: rawErr
+                });
+            }
+
             rateLimiter.recordRetry(attempt);
 
             onRetry({
@@ -281,7 +366,7 @@ export async function executeDiscordOperation({
 
     throw lastError || new ClassifiedError({
         code: ERROR_CATEGORIES.INTERNAL_ERROR,
-        message: `Operation ${operationName} failed after ${maxAttempts} attempts.`,
+        message: `Operation "${operationName}" failed after ${maxAttempts} attempts.`,
         operation: operationName,
         resourceType,
         resourceId,

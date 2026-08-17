@@ -14,7 +14,8 @@ import {
     executeDiscordOperation,
     OPERATION_POLICIES,
     cancellableSleep,
-    globalRateLimiter
+    globalRateLimiter,
+    withTimeout
 } from './reliability/index.js';
 
 /**
@@ -60,12 +61,12 @@ export async function executeClone({
     // Shared event handlers for operation executor
     const makeRetryHandler = (stage) => ({ operation, resourceType, attempt, maxAttempts, waitMs }) => {
         manifest.recordRetry(waitMs);
-        emitLog('warning', `Retrying ${operation} for ${resourceType || 'item'} (${attempt}/${maxAttempts}) in ${(waitMs / 1000).toFixed(1)}s...`, null, stage);
+        emitLog('warning', `Retrying ${operation} for ${resourceType || 'item'} (${attempt}/${maxAttempts}) with exponential backoff in ${(waitMs / 1000).toFixed(1)}s...`, null, stage);
     };
 
     const makeRateLimitHandler = (stage) => ({ operation, resourceType, retryAfterMs }) => {
         manifest.recordRateLimit(retryAfterMs);
-        emitLog('warning', `Rate-limit detected on ${operation}. Backing off for ${(retryAfterMs / 1000).toFixed(1)}s...`, null, stage);
+        emitLog('warning', `Discord API 429 Rate Limit hit on ${operation}. Backing off for ${(retryAfterMs / 1000).toFixed(1)}s before retry...`, null, stage);
     };
 
     try {
@@ -186,12 +187,12 @@ export async function executeClone({
         }
 
         // ======================================================================
-        // 6. CLONING SERVER PROFILE / BRANDING
+        // 6. CLONING SERVER PROFILE / BRANDING & SETTINGS
         // ======================================================================
         if (options.cloneProfile) {
             checkCancellation();
-            onStage('cloning_profile', 'Cloning Server Branding & Profile', 34);
-            emitLog('info', 'Synchronizing server title, icon, and banner assets...', null, 'cloning_profile');
+            onStage('cloning_profile', 'Cloning Server Branding & Settings', 34);
+            emitLog('info', 'Synchronizing server title, icon, banner, and settings...', null, 'cloning_profile');
 
             if (targetGuild.name !== sourceGuild.name) {
                 try {
@@ -228,7 +229,7 @@ export async function executeClone({
                         onRetry: makeRetryHandler('cloning_profile'),
                         onRateLimit: makeRateLimitHandler('cloning_profile')
                     });
-                    emitLog('success', 'Synchronized server icon asset', null, 'cloning_profile');
+                    emitLog('success', 'Synchronized server icon asset (high-res dynamic)', null, 'cloning_profile');
                 } catch (err) {
                     emitLog('warning', 'Could not apply server icon', err.message, 'cloning_profile');
                 }
@@ -251,25 +252,68 @@ export async function executeClone({
                     });
                     emitLog('success', 'Synchronized server banner asset', null, 'cloning_profile');
                 } catch (err) {
-                    emitLog('warning', 'Could not apply server banner (tier requirement)', err.message, 'cloning_profile');
+                    emitLog('warning', 'Could not apply server banner (tier requirement or permission)', err.message, 'cloning_profile');
                 }
+            }
+
+            const splashUrl = sourceGuild.splashURL ? sourceGuild.splashURL({ size: 4096 }) : null;
+            if (splashUrl) {
+                try {
+                    await executeDiscordOperation({
+                        operationName: 'update_server_splash',
+                        resourceType: 'guild',
+                        resourceId: targetGuild.id,
+                        policy: OPERATION_POLICIES.UPDATE,
+                        isCancelled,
+                        execute: async () => {
+                            if (typeof targetGuild.setSplash === 'function') {
+                                await targetGuild.setSplash(splashUrl);
+                            }
+                        },
+                        onRetry: makeRetryHandler('cloning_profile'),
+                        onRateLimit: makeRateLimitHandler('cloning_profile')
+                    });
+                    emitLog('success', 'Synchronized invite splash background', null, 'cloning_profile');
+                } catch (err) {
+                    // Ignore splash error if tier not met
+                }
+            }
+
+            // Sync server verification and notification levels if supported
+            try {
+                if (sourceGuild.verificationLevel && typeof targetGuild.setVerificationLevel === 'function') {
+                    await targetGuild.setVerificationLevel(sourceGuild.verificationLevel).catch(() => {});
+                }
+                if (sourceGuild.explicitContentFilter && typeof targetGuild.setExplicitContentFilter === 'function') {
+                    await targetGuild.setExplicitContentFilter(sourceGuild.explicitContentFilter).catch(() => {});
+                }
+                if (sourceGuild.defaultMessageNotifications && typeof targetGuild.setDefaultMessageNotifications === 'function') {
+                    await targetGuild.setDefaultMessageNotifications(sourceGuild.defaultMessageNotifications).catch(() => {});
+                }
+            } catch (settingsErr) {
+                // Ignore guild level settings non-fatal errors
             }
         }
 
         // ======================================================================
-        // 6a. CLONING EMOJIS
+        // 6a. CLONING EMOJIS (BEAST RESILIENCE)
         // ======================================================================
         if (options.cloneEmojis) {
             checkCancellation();
             onStage('cloning_emojis', 'Cloning Emojis', 35);
-            emitLog('info', 'Cloning custom emojis...', null, 'cloning_emojis');
+            emitLog('info', 'Cloning custom emojis (animated & static)...', null, 'cloning_emojis');
 
             try {
                 const sourceEmojis = await sourceGuild.emojis.fetch();
+                manifest.emojis.planned = sourceEmojis.size;
                 let emojiIdx = 0;
+                const totalEmojis = sourceEmojis.size;
+
                 for (const emoji of sourceEmojis.values()) {
                     checkCancellation();
                     emojiIdx++;
+                    onProgress(35 + Math.round((emojiIdx / Math.max(1, totalEmojis)) * 3), emojiIdx, totalEmojis, `:${emoji.name}:`);
+
                     try {
                         await executeDiscordOperation({
                             operationName: 'create_emoji',
@@ -277,8 +321,11 @@ export async function executeClone({
                             resourceId: emoji.name,
                             policy: OPERATION_POLICIES.CREATE,
                             isCancelled,
+                            checkIdempotency: async () => {
+                                return targetGuild.emojis.cache.find(e => e.name === emoji.name);
+                            },
                             execute: async () => {
-                                await targetGuild.emojis.create({
+                                return await targetGuild.emojis.create({
                                     attachment: emoji.url,
                                     name: emoji.name
                                 });
@@ -286,11 +333,21 @@ export async function executeClone({
                             onRetry: makeRetryHandler('cloning_emojis'),
                             onRateLimit: makeRateLimitHandler('cloning_emojis')
                         });
+                        manifest.recordEmoji('created');
                         emitLog('success', `Cloned emoji :${emoji.name}:`, null, 'cloning_emojis');
                     } catch (err) {
-                        emitLog('warning', `Failed to clone emoji ${emoji.name}`, err.message, 'cloning_emojis');
+                        manifest.recordEmoji('failed');
+                        if (err.message && (err.message.includes('30016') || err.message.includes('Maximum number of emojis'))) {
+                            emitLog('warning', `Server emoji limit reached: cannot upload :${emoji.name}:`, err.message, 'cloning_emojis');
+                            break; // Avoid spamming when emoji slots are capped
+                        } else {
+                            emitLog('warning', `Failed to clone emoji :${emoji.name}:`, err.message, 'cloning_emojis');
+                        }
                     }
+
+                    await cancellableSleep(150, isCancelled);
                 }
+                emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
                 emitLog('error', 'Failed to fetch source emojis', err.message, 'cloning_emojis');
             }
@@ -306,10 +363,15 @@ export async function executeClone({
 
             try {
                 const sourceStickers = await sourceGuild.stickers.fetch();
+                manifest.stickers.planned = sourceStickers.size;
                 let stickerIdx = 0;
+                const totalStickers = sourceStickers.size;
+
                 for (const sticker of sourceStickers.values()) {
                     checkCancellation();
                     stickerIdx++;
+                    onProgress(38 + Math.round((stickerIdx / Math.max(1, totalStickers)) * 4), stickerIdx, totalStickers, sticker.name);
+
                     try {
                         await executeDiscordOperation({
                             operationName: 'create_sticker',
@@ -317,8 +379,11 @@ export async function executeClone({
                             resourceId: sticker.name,
                             policy: OPERATION_POLICIES.CREATE,
                             isCancelled,
+                            checkIdempotency: async () => {
+                                return targetGuild.stickers.cache.find(s => s.name === sticker.name);
+                            },
                             execute: async () => {
-                                await targetGuild.stickers.create({
+                                return await targetGuild.stickers.create({
                                     file: sticker.url,
                                     name: sticker.name,
                                     tags: sticker.tags || 'cloned',
@@ -328,37 +393,74 @@ export async function executeClone({
                             onRetry: makeRetryHandler('cloning_stickers'),
                             onRateLimit: makeRateLimitHandler('cloning_stickers')
                         });
-                        emitLog('success', `Cloned sticker ${sticker.name}`, null, 'cloning_stickers');
+                        manifest.recordSticker('created');
+                        emitLog('success', `Cloned sticker "${sticker.name}"`, null, 'cloning_stickers');
                     } catch (err) {
-                        emitLog('warning', `Failed to clone sticker ${sticker.name}`, err.message, 'cloning_stickers');
+                        manifest.recordSticker('failed');
+                        if (err.message && (err.message.includes('30039') || err.message.includes('Maximum number of stickers'))) {
+                            emitLog('warning', `Server sticker capacity reached: cannot upload "${sticker.name}"`, err.message, 'cloning_stickers');
+                            break;
+                        } else {
+                            emitLog('warning', `Failed to clone sticker "${sticker.name}"`, err.message, 'cloning_stickers');
+                        }
                     }
+
+                    await cancellableSleep(200, isCancelled);
                 }
+                emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {
                 emitLog('error', 'Failed to fetch source stickers', err.message, 'cloning_stickers');
             }
         }
 
         // ======================================================================
-        // 7. CLONING ROLES
+        // 7. CLONING ROLES & HIERARCHY
         // ======================================================================
         if (options.cloneRoles) {
             checkCancellation();
             onStage('cloning_roles', 'Cloning Roles & Hierarchy', 42);
             emitLog('info', 'Cloning custom roles, colors, and permissions...', null, 'cloning_roles');
 
-            const sourceRoles = Array.from(sourceGuild.roles.cache.values())
-                .filter(r => !r.managed)
-                .sort((a, b) => a.position - b.position);
+            const continueOnRoleError = options.continueOnRoleError !== false;
+            const reuseExistingRoles = options.reuseExistingRoles !== false;
+            const roleOperationTimeoutMs = options.roleOperationTimeoutMs || 30000;
+
+            // Fetch source roles safely with timeout
+            let sourceRoles = [];
+            try {
+                const fetchedRoles = await withTimeout(
+                    () => sourceGuild.roles.fetch(),
+                    15000,
+                    { operationName: 'fetch_source_roles', isCancelled }
+                );
+                sourceRoles = Array.from(fetchedRoles.values())
+                    .filter(r => !r.managed)
+                    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            } catch (fetchErr) {
+                emitLog('warning', 'Could not refresh source roles, using cache', fetchErr.message, 'cloning_roles');
+                sourceRoles = Array.from(sourceGuild.roles.cache.values())
+                    .filter(r => !r.managed)
+                    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            }
+
+            // Fetch target roles cache safely
+            try {
+                await withTimeout(
+                    () => targetGuild.roles.fetch(),
+                    15000,
+                    { operationName: 'fetch_target_roles', isCancelled }
+                ).catch(() => {});
+            } catch (e) {}
 
             manifest.roles.planned = sourceRoles.filter(r => r.name !== '@everyone').length;
             const totalRoles = sourceRoles.length;
             let roleIdx = 0;
+            const createdRolesForPositioning = [];
 
             for (const role of sourceRoles) {
                 checkCancellation();
                 roleIdx++;
-                const currentPct = 42 + Math.round((roleIdx / Math.max(1, totalRoles)) * 16);
-                onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
+                const roleStartTime = Date.now();
 
                 if (role.name === '@everyone') {
                     const targetEveryone = targetGuild.roles.cache.find(r => r.name === '@everyone');
@@ -369,9 +471,12 @@ export async function executeClone({
                                 resourceType: 'role',
                                 resourceId: targetEveryone.id,
                                 policy: OPERATION_POLICIES.UPDATE,
+                                operationTimeoutMs: Math.min(15000, roleOperationTimeoutMs),
                                 isCancelled,
                                 execute: async () => {
-                                    await targetEveryone.setPermissions(role.permissions);
+                                    if (role.permissions) {
+                                        await targetEveryone.setPermissions(role.permissions).catch(() => {});
+                                    }
                                 },
                                 onRetry: makeRetryHandler('cloning_roles'),
                                 onRateLimit: makeRateLimitHandler('cloning_roles')
@@ -384,50 +489,226 @@ export async function executeClone({
                     continue;
                 }
 
+                let processedRole = null;
+                let roleOutcome = 'failed';
+                let roleError = null;
+
                 try {
-                    const newRole = await executeDiscordOperation({
-                        operationName: 'create_role',
-                        resourceType: 'role',
-                        resourceId: role.id,
-                        policy: OPERATION_POLICIES.CREATE,
-                        isCancelled,
-                        checkIdempotency: async () => {
-                            // Check if target already has this created role
-                            return targetGuild.roles.cache.find(r => r.name === role.name && !r.managed);
-                        },
-                        execute: async () => {
-                            return await targetGuild.roles.create({
-                                name: role.name,
-                                color: role.color,
-                                hoist: role.hoist,
-                                permissions: role.permissions,
-                                mentionable: role.mentionable
-                            });
-                        },
-                        onRetry: makeRetryHandler('cloning_roles'),
-                        onRateLimit: makeRateLimitHandler('cloning_roles')
-                    });
-
-                    if (newRole) {
-                        manifest.recordRole(role, newRole, 'created');
-                        emitLog('success', `Created role @${role.name}`, null, 'cloning_roles');
+                    // Check if role is already mapped in manifest
+                    const existingMappedId = manifest.roleMap.get(role.id);
+                    if (existingMappedId) {
+                        const existing = targetGuild.roles.cache.get(existingMappedId);
+                        if (existing) {
+                            processedRole = existing;
+                            roleOutcome = 'reused';
+                            manifest.recordRole(role, existing, 'reused', null, { durationMs: Date.now() - roleStartTime });
+                            createdRolesForPositioning.push({ role: existing, sourcePos: role.position ?? 0 });
+                            emitLog('info', `Role @${role.name} already synchronized`, null, 'cloning_roles');
+                            continue;
+                        }
                     }
-                } catch (rCreateErr) {
-                    manifest.recordRole(role, null, 'failed', rCreateErr);
-                    emitLog('warning', `Failed to create role @${role.name}`, rCreateErr.message, 'cloning_roles');
-                }
 
-                await cancellableSleep(100, isCancelled);
+                    // Check for existing matching unmanaged role on target to reuse if configured
+                    if (reuseExistingRoles) {
+                        const match = targetGuild.roles.cache.find(r => 
+                            !r.managed && 
+                            r.name !== '@everyone' && 
+                            r.name.trim().toLowerCase() === (role.name || '').trim().toLowerCase() &&
+                            !Array.from(manifest.roleMap.values()).includes(r.id)
+                        );
+                        if (match) {
+                            processedRole = match;
+                            roleOutcome = 'reused';
+                            manifest.recordRole(role, match, 'reused', null, { durationMs: Date.now() - roleStartTime });
+                            createdRolesForPositioning.push({ role: match, sourcePos: role.position ?? 0 });
+                            emitLog('success', `Reused existing target role @${role.name}`, null, 'cloning_roles');
+                            continue;
+                        }
+                    }
+
+                    // 1. Primary Attempt: Full role creation with styling and permissions
+                    try {
+                        processedRole = await executeDiscordOperation({
+                            operationName: 'create_role',
+                            resourceType: 'role',
+                            resourceId: role.id,
+                            policy: OPERATION_POLICIES.CREATE,
+                            operationTimeoutMs: Math.min(8000, roleOperationTimeoutMs),
+                            retryPolicy: { maxAttempts: 1 },
+                            isCancelled,
+                            checkIdempotency: async () => {
+                                const mappedId = manifest.roleMap.get(role.id);
+                                if (mappedId) {
+                                    return targetGuild.roles.cache.get(mappedId) || null;
+                                }
+                                return null;
+                            },
+                            execute: async () => {
+                                const roleData = {
+                                    name: role.name || 'new-role',
+                                    color: role.color || 0,
+                                    hoist: Boolean(role.hoist),
+                                    mentionable: Boolean(role.mentionable)
+                                };
+
+                                if (role.permissions) {
+                                    roleData.permissions = role.permissions;
+                                }
+
+                                if (role.unicodeEmoji) {
+                                    roleData.unicodeEmoji = role.unicodeEmoji;
+                                }
+
+                                return await targetGuild.roles.create(roleData);
+                            },
+                            onRetry: makeRetryHandler('cloning_roles'),
+                            onRateLimit: makeRateLimitHandler('cloning_roles')
+                        });
+
+                        if (processedRole) {
+                            roleOutcome = 'created';
+                            manifest.recordRole(role, processedRole, 'created', null, { durationMs: Date.now() - roleStartTime });
+                            createdRolesForPositioning.push({ role: processedRole, sourcePos: role.position ?? 0 });
+                            emitLog('success', `Created role @${role.name}`, null, 'cloning_roles');
+                        }
+                    } catch (rCreateErr) {
+                        checkCancellation();
+                        // 2. Fallback Attempt: If creation failed (e.g. elevated permissions or invalid flags), create with basic parameters
+                        try {
+                            processedRole = await executeDiscordOperation({
+                                operationName: 'create_role_fallback',
+                                resourceType: 'role',
+                                resourceId: role.id,
+                                policy: OPERATION_POLICIES.CREATE,
+                                operationTimeoutMs: Math.min(6000, roleOperationTimeoutMs),
+                                retryPolicy: { maxAttempts: 1 },
+                                isCancelled,
+                                execute: async () => {
+                                    return await targetGuild.roles.create({
+                                        name: role.name || 'new-role',
+                                        color: role.color || 0,
+                                        hoist: Boolean(role.hoist),
+                                        mentionable: Boolean(role.mentionable)
+                                    });
+                                },
+                                onRetry: makeRetryHandler('cloning_roles'),
+                                onRateLimit: makeRateLimitHandler('cloning_roles')
+                            });
+
+                            if (processedRole) {
+                                roleOutcome = 'created';
+                                manifest.recordRole(role, processedRole, 'created', null, { durationMs: Date.now() - roleStartTime });
+                                createdRolesForPositioning.push({ role: processedRole, sourcePos: role.position ?? 0 });
+                                emitLog('warning', `Created role @${role.name} (permissions adapted for target server)`, rCreateErr.message, 'cloning_roles');
+                            }
+                        } catch (rFallbackErr) {
+                            checkCancellation();
+                            // 3. Ultra Fallback: create role with name only
+                            try {
+                                processedRole = await executeDiscordOperation({
+                                    operationName: 'create_role_minimal',
+                                    resourceType: 'role',
+                                    resourceId: role.id,
+                                    policy: OPERATION_POLICIES.CREATE,
+                                    operationTimeoutMs: Math.min(5000, roleOperationTimeoutMs),
+                                    retryPolicy: { maxAttempts: 1 },
+                                    isCancelled,
+                                    execute: async () => {
+                                        return await targetGuild.roles.create({
+                                            name: role.name || 'new-role'
+                                        });
+                                    },
+                                    onRetry: makeRetryHandler('cloning_roles'),
+                                    onRateLimit: makeRateLimitHandler('cloning_roles')
+                                });
+
+                                if (processedRole) {
+                                    roleOutcome = 'created';
+                                    manifest.recordRole(role, processedRole, 'created', null, { durationMs: Date.now() - roleStartTime });
+                                    createdRolesForPositioning.push({ role: processedRole, sourcePos: role.position ?? 0 });
+                                    emitLog('warning', `Created role @${role.name} with minimal parameters`, rFallbackErr.message, 'cloning_roles');
+                                }
+                            } catch (finalRoleErr) {
+                                throw finalRoleErr;
+                            }
+                        }
+                    }
+                } catch (roleErr) {
+                    if (isCancelled()) {
+                        throw roleErr;
+                    }
+                    roleError = roleErr;
+                    const isTimeout = roleErr.code === 'TIMEOUT' || (roleErr.message && roleErr.message.includes('timed out'));
+                    roleOutcome = isTimeout ? 'timedOut' : 'failed';
+                    manifest.recordRole(role, null, roleOutcome, roleErr, { durationMs: Date.now() - roleStartTime });
+                    emitLog('warning', `Failed to clone role @${role.name} (${isTimeout ? 'Timed out' : roleErr.message})`, roleErr.message, 'cloning_roles');
+
+                    if (!continueOnRoleError) {
+                        throw roleErr;
+                    }
+                } finally {
+                    const currentPct = 42 + Math.round((roleIdx / Math.max(1, totalRoles)) * 10);
+                    onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
+                    await cancellableSleep(150, isCancelled);
+                }
             }
-            emitLog('success', `Finished cloning roles (${manifest.roles.created} created, ${manifest.roles.failed} failed).`, null, 'cloning_roles');
+
+            emitLog('success', `Finished cloning roles (${manifest.roles.created} created, ${manifest.roles.reused} reused, ${manifest.roles.failed} failed).`, null, 'cloning_roles');
+
+            // ======================================================================
+            // 7b. RESTORING ROLE HIERARCHY (Dedicated Stage)
+            // ======================================================================
+            checkCancellation();
+            onStage('restoring_role_hierarchy', 'Restoring Role Hierarchy Positions', 52);
+            emitLog('info', 'Synchronizing role hierarchy positions on target server...', null, 'restoring_role_hierarchy');
+
+            const validRolesForPositioning = createdRolesForPositioning
+                .filter(item => item.role && item.role.id && !item.role.managed && item.role.name !== '@everyone');
+
+            if (validRolesForPositioning.length > 1 && typeof targetGuild.roles?.setPositions === 'function') {
+                try {
+                    const positionPayload = validRolesForPositioning
+                        .sort((a, b) => (a.sourcePos ?? 0) - (b.sourcePos ?? 0))
+                        .map((item, idx) => ({ role: item.role.id, position: idx + 1 }));
+
+                    await executeDiscordOperation({
+                        operationName: 'set_role_positions',
+                        resourceType: 'role_positions',
+                        resourceId: targetGuild.id,
+                        policy: OPERATION_POLICIES.UPDATE,
+                        operationTimeoutMs: 15000,
+                        isCancelled,
+                        execute: async () => {
+                            return await targetGuild.roles.setPositions(positionPayload);
+                        },
+                        onRetry: makeRetryHandler('restoring_role_hierarchy'),
+                        onRateLimit: makeRateLimitHandler('restoring_role_hierarchy')
+                    });
+                    emitLog('success', `Synchronized ${positionPayload.length} role hierarchy positions`, null, 'restoring_role_hierarchy');
+                } catch (posErr) {
+                    emitLog('warning', 'Role hierarchy adjustment limited by Discord permissions (non-blocking)', posErr.message, 'restoring_role_hierarchy');
+                }
+            }
+
+            // Refresh target roles cache safely
+            try {
+                await withTimeout(
+                    () => targetGuild.roles?.fetch?.(),
+                    10000,
+                    { operationName: 'fetch_target_roles_after_sync', isCancelled }
+                ).catch(() => {});
+            } catch (e) {}
+
+            onProgress(55, totalRoles, totalRoles, 'Role hierarchy complete');
         }
 
         // ======================================================================
         // 8. CLONING CATEGORIES
         // ======================================================================
+        const targetCategoryObjects = new Map(); // sourceId -> targetCategory Discord object
         if (options.cloneChannels) {
             checkCancellation();
-            onStage('cloning_categories', 'Building Category Containers', 60);
+            onStage('cloning_categories', 'Building Category Containers', 58);
             emitLog('info', 'Building category containers and structure...', null, 'cloning_categories');
 
             const sourceCategories = Array.from(sourceGuild.channels.cache.values())
@@ -441,7 +722,7 @@ export async function executeClone({
             for (const cat of sourceCategories) {
                 checkCancellation();
                 catIdx++;
-                const currentPct = 60 + Math.round((catIdx / Math.max(1, totalCats)) * 8);
+                const currentPct = 58 + Math.round((catIdx / Math.max(1, totalCats)) * 8);
                 onProgress(currentPct, catIdx, totalCats, `📁 ${cat.name}`);
 
                 try {
@@ -466,6 +747,7 @@ export async function executeClone({
 
                     if (newCat) {
                         manifest.recordCategory(cat, newCat, 'created');
+                        targetCategoryObjects.set(cat.id, newCat);
                         emitLog('success', `Created category [${cat.name}]`, null, 'cloning_categories');
                     }
                 } catch (catErr) {
@@ -473,7 +755,7 @@ export async function executeClone({
                     emitLog('warning', `Failed to create category [${cat.name}]`, catErr.message, 'cloning_categories');
                 }
 
-                await cancellableSleep(100, isCancelled);
+                await cancellableSleep(120, isCancelled);
             }
         }
 
@@ -483,8 +765,8 @@ export async function executeClone({
         const targetChannelObjects = new Map(); // sourceId -> targetChannel Discord object
         if (options.cloneChannels) {
             checkCancellation();
-            onStage('cloning_channels', 'Building Channels & Structure', 68);
-            emitLog('info', 'Creating text, voice, and announcement channels...', null, 'cloning_channels');
+            onStage('cloning_channels', 'Building Channels & Structure', 66);
+            emitLog('info', 'Creating text, voice, announcement, stage, and forum channels...', null, 'cloning_channels');
 
             const sourceChannels = Array.from(sourceGuild.channels.cache.values())
                 .filter(c => c.type !== 'GUILD_CATEGORY')
@@ -497,7 +779,7 @@ export async function executeClone({
             for (const ch of sourceChannels) {
                 checkCancellation();
                 chIdx++;
-                const currentPct = 68 + Math.round((chIdx / Math.max(1, totalChans)) * 14);
+                const currentPct = 66 + Math.round((chIdx / Math.max(1, totalChans)) * 14);
                 onProgress(currentPct, chIdx, totalChans, `#${ch.name}`);
 
                 const parentId = ch.parentId ? manifest.categoryMap.get(ch.parentId) : null;
@@ -543,7 +825,7 @@ export async function executeClone({
                 } catch (chErr) {
                     // Try graceful fallback with standard parameters
                     try {
-                        const fallbackType = ch.type === 'GUILD_VOICE' ? 'GUILD_VOICE' : 'GUILD_TEXT';
+                        const fallbackType = (ch.type === 'GUILD_VOICE' || ch.type === 'GUILD_STAGE_VOICE') ? 'GUILD_VOICE' : 'GUILD_TEXT';
                         const fallbackChannel = await executeDiscordOperation({
                             operationName: 'create_channel_fallback',
                             resourceType: 'channel',
@@ -571,7 +853,7 @@ export async function executeClone({
                     }
                 }
 
-                await cancellableSleep(100, isCancelled);
+                await cancellableSleep(120, isCancelled);
             }
 
             // Map System and AFK channels if configured on source
@@ -584,9 +866,7 @@ export async function executeClone({
                             await targetGuild.setAFKTimeout(sourceGuild.afkTimeout);
                         }
                         emitLog('success', 'Mapped AFK voice channel and timeout', null, 'cloning_channels');
-                    } catch (e) {
-                        // ignore afk channel mapping warning
-                    }
+                    } catch (e) {}
                 }
                 if (sourceGuild.systemChannelId && manifest.channelMap.has(sourceGuild.systemChannelId)) {
                     const mappedSysId = manifest.channelMap.get(sourceGuild.systemChannelId);
@@ -596,9 +876,7 @@ export async function executeClone({
                             await targetGuild.setSystemChannelFlags(sourceGuild.systemChannelFlags);
                         }
                         emitLog('success', 'Mapped System messages channel and notifications', null, 'cloning_channels');
-                    } catch (e) {
-                        // ignore system channel mapping warning
-                    }
+                    } catch (e) {}
                 }
             }
 
@@ -606,13 +884,66 @@ export async function executeClone({
         }
 
         // ======================================================================
-        // 10. APPLYING PERMISSION OVERWRITES
+        // 10. APPLYING PERMISSION OVERWRITES (CATEGORIES & CHANNELS)
         // ======================================================================
         if (options.clonePermissions && (options.cloneRoles || options.cloneChannels)) {
             checkCancellation();
-            onStage('applying_permissions', 'Applying Permission Overwrites', 82);
-            emitLog('info', 'Configuring channel privacy & role overwrites...', null, 'applying_permissions');
+            onStage('applying_permissions', 'Applying Permission Overwrites', 80);
+            emitLog('info', 'Configuring category & channel privacy and role overwrites...', null, 'applying_permissions');
 
+            // 10a. Category Permissions
+            for (const [sourceCatId, targetCat] of targetCategoryObjects.entries()) {
+                checkCancellation();
+                const sourceCat = sourceGuild.channels.cache.get(sourceCatId);
+                if (!sourceCat || !sourceCat.permissionOverwrites) continue;
+
+                const catOverwrites = [];
+                for (const [id, overwrite] of sourceCat.permissionOverwrites.cache.entries()) {
+                    manifest.permissions.planned++;
+                    let targetIdResolved = null;
+                    if (overwrite.type === 'role') {
+                        targetIdResolved = manifest.roleMap.get(id);
+                    } else if (overwrite.type === 'member') {
+                        if (id === client.user.id) {
+                            targetIdResolved = client.user.id;
+                        }
+                    }
+
+                    if (targetIdResolved) {
+                        catOverwrites.push({
+                            id: targetIdResolved,
+                            type: overwrite.type,
+                            allow: overwrite.allow,
+                            deny: overwrite.deny
+                        });
+                        manifest.permissions.applied++;
+                    } else {
+                        manifest.permissions.skipped++;
+                    }
+                }
+
+                if (catOverwrites.length > 0 && targetCat.permissionOverwrites) {
+                    try {
+                        await executeDiscordOperation({
+                            operationName: 'set_category_permission_overwrites',
+                            resourceType: 'category_permissions',
+                            resourceId: targetCat.id,
+                            policy: OPERATION_POLICIES.UPDATE,
+                            isCancelled,
+                            execute: async () => {
+                                await targetCat.permissionOverwrites.set(catOverwrites);
+                            },
+                            onRetry: makeRetryHandler('applying_permissions'),
+                            onRateLimit: makeRateLimitHandler('applying_permissions')
+                        });
+                    } catch (permErr) {
+                        manifest.permissions.failed++;
+                        emitLog('warning', `Failed to apply permissions to category [${targetCat.name}]`, permErr.message, 'applying_permissions');
+                    }
+                }
+            }
+
+            // 10b. Channel Permissions
             for (const [sourceChId, targetCh] of targetChannelObjects.entries()) {
                 checkCancellation();
                 const sourceCh = sourceGuild.channels.cache.get(sourceChId);
@@ -663,7 +994,7 @@ export async function executeClone({
                     }
                 }
             }
-            emitLog('success', `Applied ${manifest.permissions.applied} permission overwrites across channels (${manifest.permissions.skipped} skipped).`, null, 'applying_permissions');
+            emitLog('success', `Applied ${manifest.permissions.applied} permission overwrites across categories and channels (${manifest.permissions.skipped} skipped).`, null, 'applying_permissions');
         }
 
         // ======================================================================
@@ -695,6 +1026,7 @@ export async function executeClone({
                     });
 
                     if (sourceWebhooks && sourceWebhooks.size > 0) {
+                        manifest.webhooks.planned += sourceWebhooks.size;
                         for (const wh of sourceWebhooks.values()) {
                             checkCancellation();
                             try {
@@ -712,9 +1044,11 @@ export async function executeClone({
                                     onRetry: makeRetryHandler('cloning_webhooks'),
                                     onRateLimit: makeRateLimitHandler('cloning_webhooks')
                                 });
-                                emitLog('success', `Cloned webhook ${wh.name} in #${targetChannel.name}`, null, 'cloning_webhooks');
+                                manifest.recordWebhook('created');
+                                emitLog('success', `Cloned webhook "${wh.name}" in #${targetChannel.name}`, null, 'cloning_webhooks');
                             } catch (err) {
-                                emitLog('warning', `Failed to clone webhook ${wh.name}`, err.message, 'cloning_webhooks');
+                                manifest.recordWebhook('failed');
+                                emitLog('warning', `Failed to clone webhook "${wh.name}"`, err.message, 'cloning_webhooks');
                             }
                         }
                     }
@@ -930,6 +1264,9 @@ export async function executeClone({
         finalReport.rolesCreated = manifest.roles.created;
         finalReport.categoriesCreated = manifest.categories.created;
         finalReport.channelsCreated = manifest.channels.created;
+        finalReport.emojisCreated = manifest.emojis.created;
+        finalReport.stickersCreated = manifest.stickers.created;
+        finalReport.webhooksCreated = manifest.webhooks.created;
         finalReport.messagesCopied = manifest.messages.copied;
         finalReport.attachmentsCopied = manifest.attachments.copied;
         finalReport.warningsCount = manifest.warnings.length;

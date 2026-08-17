@@ -1133,16 +1133,10 @@
         tourCard.style.left = `${Math.max(10, left)}px`;
     }
 
-    let tourRepositionTimer = null;
     function handleTourReposition() {
         if (!isTourActive) return;
-        if (!tourRepositionTimer) {
-            tourRepositionTimer = requestAnimationFrame(() => {
-                const step = TOUR_STEPS[currentTourStep];
-                if (step) positionTourElements(step);
-                tourRepositionTimer = null;
-            });
-        }
+        const step = TOUR_STEPS[currentTourStep];
+        if (step) positionTourElements(step);
     }
 
     function nextTourStep() {
@@ -1829,7 +1823,8 @@
     });
 
     socket.on('job:state', (job) => {
-        if (currentJobId && job && job.id === currentJobId) {
+        if (job) {
+            currentJobId = job.id;
             hydrateJobState(job);
         }
     });
@@ -1852,25 +1847,20 @@
         appendLog('stage', `Stage: ${stageName}`, 'STAGE');
     });
 
-    let progressRaf = null;
     socket.on('clone:progress', (data) => {
         const rawPercent = data.percent !== undefined ? data.percent : (data.progress !== undefined ? data.progress : 0);
         const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
+        if (progressBar) progressBar.style.width = `${percent}%`;
+        if (progressText) progressText.textContent = `${percent}%`;
+        if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
 
-        cancelAnimationFrame(progressRaf);
-        progressRaf = requestAnimationFrame(() => {
-            if (progressBar) progressBar.style.width = `${percent}%`;
-            if (progressText) progressText.textContent = `${percent}%`;
-            if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
+        if (data.item && progressItemDetail) {
+            progressItemDetail.textContent = data.item;
+        }
 
-            if (data.item && progressItemDetail) {
-                progressItemDetail.textContent = data.item;
-            }
-
-            if (data.current !== undefined && data.total !== undefined && progressCounts) {
-                progressCounts.textContent = `${data.current} / ${data.total}`;
-            }
-        });
+        if (data.current !== undefined && data.total !== undefined && progressCounts) {
+            progressCounts.textContent = `${data.current} / ${data.total}`;
+        }
 
         updateEtaProgress(percent, data.current, data.total, stageLabel ? stageLabel.textContent : '');
     });
@@ -1979,61 +1969,24 @@
     }
 
     // ==========================================================================
-    // 7. Activity Console Engine (Ultra-Optimized Batch Stream)
+    // 7. Activity Console Engine
     // ==========================================================================
-
-    let pendingRenderQueue = [];
-    let logRenderRaf = null;
 
     function appendLog(level, message, detail, timestamp) {
         const timeStr = timestamp || formatCurrentTime();
         const logObj = { id: Date.now() + Math.random(), level, message, detail, timeStr };
         allLogs.push(logObj);
 
-        if (allLogs.length > 5000) {
-            allLogs.splice(0, 1000); // Efficient chunk trimming
+        if (allLogs.length > 2000) {
+            allLogs.shift();
         }
 
         updateLogCountBadge();
 
         if (matchesCurrentFilterAndSearch(logObj)) {
-            pendingRenderQueue.push(logObj);
-            scheduleLogBatchRender();
+            renderLogItem(logObj);
+            handleAutoScroll();
         }
-    }
-
-    function scheduleLogBatchRender() {
-        if (logRenderRaf) return;
-        logRenderRaf = requestAnimationFrame(() => {
-            flushPendingLogs();
-            logRenderRaf = null;
-        });
-    }
-
-    function flushPendingLogs() {
-        if (!logStream || pendingRenderQueue.length === 0) return;
-
-        const fragment = document.createDocumentFragment();
-        const batch = pendingRenderQueue;
-        pendingRenderQueue = [];
-
-        for (let i = 0; i < batch.length; i++) {
-            fragment.appendChild(createLogElement(batch[i]));
-        }
-
-        logStream.appendChild(fragment);
-
-        // Fast bulk prune if exceeding max DOM capacity
-        const excess = logStream.children.length - MAX_DOM_LOGS;
-        if (excess > 0) {
-            for (let i = 0; i < excess; i++) {
-                if (logStream.firstChild) {
-                    logStream.removeChild(logStream.firstChild);
-                }
-            }
-        }
-
-        handleAutoScroll();
     }
 
     function formatCurrentTime() {
@@ -2044,10 +1997,7 @@
         return `${h}:${m}:${s}`;
     }
 
-    function getIconForLevel(level, message, detail) {
-        if (level === 'delete' || level === 'deleted') return '🗑';
-        if (detail && detail.includes('DELETED')) return '🗑';
-        if (message && message.includes('[CLEANUP] Deleted')) return '🗑';
+    function getIconForLevel(level) {
         switch (level) {
             case 'success': return '✓';
             case 'warning': return '⚠';
@@ -2057,18 +2007,9 @@
         }
     }
 
-    function isDeleteLog(logObj) {
-        if (logObj.level === 'delete' || logObj.level === 'deleted') return true;
-        if (logObj.detail && logObj.detail.includes('DELETED')) return true;
-        if (logObj.message && (logObj.message.includes('[CLEANUP] Deleted') || logObj.message.includes('Purging'))) return true;
-        return false;
-    }
-
-    function createLogElement(logObj) {
+    function renderLogItem(logObj) {
         const entry = document.createElement('div');
-        const isDelete = isDeleteLog(logObj);
-        const actualLevel = isDelete ? 'delete' : logObj.level;
-        entry.className = `log-entry log-entry-${actualLevel}`;
+        entry.className = `log-entry log-entry-${logObj.level}`;
 
         const timeSpan = document.createElement('span');
         timeSpan.className = 'log-time font-mono';
@@ -2076,7 +2017,7 @@
 
         const iconSpan = document.createElement('span');
         iconSpan.className = 'log-icon-type';
-        iconSpan.textContent = getIconForLevel(actualLevel, logObj.message, logObj.detail);
+        iconSpan.textContent = getIconForLevel(logObj.level);
 
         const msgSpan = document.createElement('span');
         msgSpan.className = 'log-message';
@@ -2093,20 +2034,18 @@
         entry.appendChild(iconSpan);
         entry.appendChild(msgSpan);
 
-        return entry;
+        logStream.appendChild(entry);
+
+        while (logStream.children.length > MAX_DOM_LOGS) {
+            logStream.removeChild(logStream.firstChild);
+        }
     }
 
     function clearLogs() {
         allLogs = [];
-        pendingRenderQueue = [];
-        if (logRenderRaf) {
-            cancelAnimationFrame(logRenderRaf);
-            logRenderRaf = null;
-        }
-        if (logStream) logStream.innerHTML = '';
+        logStream.innerHTML = '';
         updateLogCountBadge();
         if (jumpLatestBtn) jumpLatestBtn.classList.add('hidden');
-        unreadLogsCount = 0;
     }
 
     if (clearLogsBtn) {
@@ -2129,14 +2068,9 @@
         });
     }
 
-    let logBadgeRaf = null;
     function updateLogCountBadge() {
-        if (!logCountPill) return;
-        if (!logBadgeRaf) {
-            logBadgeRaf = requestAnimationFrame(() => {
-                logCountPill.textContent = `${allLogs.length} entries`;
-                logBadgeRaf = null;
-            });
+        if (logCountPill) {
+            logCountPill.textContent = `${allLogs.length} entries`;
         }
     }
 
@@ -2150,24 +2084,19 @@
         });
     });
 
-    let logSearchTimer = null;
     if (logSearchInput) {
         logSearchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value.toLowerCase().trim();
-            cancelAnimationFrame(logSearchTimer);
-            logSearchTimer = requestAnimationFrame(() => {
-                rebuildVisibleLogs();
-            });
+            rebuildVisibleLogs();
         });
     }
 
     function matchesCurrentFilterAndSearch(logObj) {
         if (currentFilter !== 'all') {
-            const isDelete = isDeleteLog(logObj);
             if (currentFilter === 'warning' && logObj.level !== 'warning') return false;
             if (currentFilter === 'error' && logObj.level !== 'error') return false;
-            if (currentFilter === 'success' && logObj.level !== 'success' && !isDelete) return false;
-            if (currentFilter === 'info' && logObj.level !== 'info' && logObj.level !== 'stage' && !isDelete) return false;
+            if (currentFilter === 'success' && logObj.level !== 'success') return false;
+            if (currentFilter === 'info' && logObj.level !== 'info' && logObj.level !== 'stage') return false;
         }
 
         if (searchQuery) {
@@ -2180,59 +2109,31 @@
     }
 
     function rebuildVisibleLogs() {
-        if (!logStream) return;
-        pendingRenderQueue = [];
+        logStream.innerHTML = '';
         const filtered = allLogs.filter(matchesCurrentFilterAndSearch);
         const toRender = filtered.slice(-MAX_DOM_LOGS);
-
-        const fragment = document.createDocumentFragment();
-        for (let i = 0; i < toRender.length; i++) {
-            fragment.appendChild(createLogElement(toRender[i]));
-        }
-
-        logStream.innerHTML = '';
-        logStream.appendChild(fragment);
-
+        toRender.forEach(renderLogItem);
         if (isAutoScrollLocked && terminal) {
-            scrollToBottom();
+            terminal.scrollTop = terminal.scrollHeight;
         }
     }
 
     // Scroll & Jump to Latest
-    let isScrollTicking = false;
-
-    function scrollToBottom() {
-        if (!terminal) return;
-        terminal.scrollTop = terminal.scrollHeight;
-        requestAnimationFrame(() => {
-            if (terminal && isAutoScrollLocked) {
-                terminal.scrollTop = terminal.scrollHeight;
-            }
-        });
-    }
-
     if (terminal) {
         terminal.addEventListener('scroll', () => {
-            if (!isScrollTicking) {
-                requestAnimationFrame(() => {
-                    const scrollBottomDistance = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight;
-                    const isNearBottom = scrollBottomDistance < 80;
-                    isAutoScrollLocked = isNearBottom;
-                    if (isNearBottom && jumpLatestBtn) {
-                        jumpLatestBtn.classList.add('hidden');
-                        unreadLogsCount = 0;
-                    }
-                    isScrollTicking = false;
-                });
-                isScrollTicking = true;
+            const isNearBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
+            isAutoScrollLocked = isNearBottom;
+            if (isNearBottom && jumpLatestBtn) {
+                jumpLatestBtn.classList.add('hidden');
+                unreadLogsCount = 0;
             }
-        }, { passive: true });
+        });
     }
 
     function handleAutoScroll() {
         if (!terminal) return;
         if (isAutoScrollLocked) {
-            scrollToBottom();
+            terminal.scrollTop = terminal.scrollHeight;
         } else {
             unreadLogsCount++;
             if (jumpLatestBtn) {
@@ -2245,11 +2146,8 @@
     if (jumpLatestBtn) {
         jumpLatestBtn.addEventListener('click', () => {
             if (terminal) {
+                terminal.scrollTop = terminal.scrollHeight;
                 isAutoScrollLocked = true;
-                terminal.scrollTo({
-                    top: terminal.scrollHeight,
-                    behavior: 'smooth'
-                });
                 jumpLatestBtn.classList.add('hidden');
                 unreadLogsCount = 0;
             }
@@ -2454,11 +2352,9 @@
             .replace(/'/g, '&#039;');
     }
 
-    let sourceSearchTimer = null;
-    let targetSearchTimer = null;
-
     function renderSourceServers() {
         if (!sourceServersGrid) return;
+        sourceServersGrid.innerHTML = '';
 
         const filtered = loadedServers.filter(g => {
             if (!g.name.toLowerCase().includes(sourceQuery.toLowerCase())) return false;
@@ -2471,8 +2367,6 @@
             sourceServersGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No matching servers found.</div>';
             return;
         }
-
-        const fragment = document.createDocumentFragment();
 
         filtered.forEach(guild => {
             const isSelected = selectedSource && selectedSource.id === guild.id;
@@ -2509,11 +2403,8 @@
                 }
             });
 
-            fragment.appendChild(card);
+            sourceServersGrid.appendChild(card);
         });
-
-        sourceServersGrid.innerHTML = '';
-        sourceServersGrid.appendChild(fragment);
     }
 
     function selectSourceServer(guild) {
@@ -2549,6 +2440,7 @@
 
     function renderTargetServers() {
         if (!targetServersGrid) return;
+        targetServersGrid.innerHTML = '';
 
         const eligible = loadedServers.filter(g => {
             if (selectedSource && g.id === selectedSource.id) return false;
@@ -2563,8 +2455,6 @@
             targetServersGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No eligible target servers found with manage/admin permissions.</div>';
             return;
         }
-
-        const fragment = document.createDocumentFragment();
 
         eligible.forEach(guild => {
             const isSelected = selectedTarget && selectedTarget.id === guild.id;
@@ -2600,11 +2490,8 @@
                 }
             });
 
-            fragment.appendChild(card);
+            targetServersGrid.appendChild(card);
         });
-
-        targetServersGrid.innerHTML = '';
-        targetServersGrid.appendChild(fragment);
     }
 
     function selectTargetServer(guild) {
@@ -2632,20 +2519,14 @@
     if (sourceSearchInput) {
         sourceSearchInput.addEventListener('input', (e) => {
             sourceQuery = e.target.value;
-            cancelAnimationFrame(sourceSearchTimer);
-            sourceSearchTimer = requestAnimationFrame(() => {
-                renderSourceServers();
-            });
+            renderSourceServers();
         });
     }
 
     if (targetSearchInput) {
         targetSearchInput.addEventListener('input', (e) => {
             targetQuery = e.target.value;
-            cancelAnimationFrame(targetSearchTimer);
-            targetSearchTimer = requestAnimationFrame(() => {
-                renderTargetServers();
-            });
+            renderTargetServers();
         });
     }
 

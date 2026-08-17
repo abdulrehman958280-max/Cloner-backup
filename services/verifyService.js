@@ -3,6 +3,7 @@
  */
 
 import { VERIFICATION_STATUSES } from './configContract.js';
+import { withTimeout } from './reliability/index.js';
 
 export async function verifyTargetGuildMigration({
     targetGuild,
@@ -58,11 +59,19 @@ export async function verifyTargetGuildMigration({
     };
 
     try {
-        // Re-fetch target guild structure for fresh verification
-        await Promise.allSettled([
-            targetGuild.roles.fetch().catch(() => {}),
-            targetGuild.channels.fetch().catch(() => {})
-        ]);
+        // Re-fetch target guild structure for fresh verification with timeout
+        try {
+            await withTimeout(
+                () => Promise.allSettled([
+                    targetGuild.roles.fetch().catch(() => {}),
+                    targetGuild.channels.fetch().catch(() => {})
+                ]),
+                10000,
+                { operationName: 'verify_fetch_target_structures' }
+            );
+        } catch {
+            // fallback to cache if fetch fails or times out
+        }
 
         // 1. Role Verification
         if (options.cloneRoles) {

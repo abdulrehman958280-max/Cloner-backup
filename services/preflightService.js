@@ -5,6 +5,7 @@
 import { ERROR_CODES } from './configContract.js';
 import { createDiscordClient, authenticateClient, destroyClient } from './discordService.js';
 import { createCleanupPlan } from './cleaner/index.js';
+import { withTimeout } from './reliability/index.js';
 
 export async function runPreflightCheck({
     userToken,
@@ -138,12 +139,20 @@ export async function runPreflightCheck({
         }
 
         // 4. Pre-fetch Source Structure
-        await Promise.allSettled([
-            sourceGuild.roles.fetch().catch(() => {}),
-            sourceGuild.channels.fetch().catch(() => {}),
-            targetGuild.roles.fetch().catch(() => {}),
-            targetGuild.channels.fetch().catch(() => {})
-        ]);
+        try {
+            await withTimeout(
+                () => Promise.allSettled([
+                    sourceGuild.roles.fetch().catch(() => {}),
+                    sourceGuild.channels.fetch().catch(() => {}),
+                    targetGuild.roles.fetch().catch(() => {}),
+                    targetGuild.channels.fetch().catch(() => {})
+                ]),
+                10000,
+                { operationName: 'preflight_fetch_structures' }
+            );
+        } catch {
+            // fallback to cache if fetch times out
+        }
 
         const sourceRoles = Array.from(sourceGuild.roles.cache.values()).filter(r => !r.managed && r.name !== '@everyone');
         counts.roles = sourceRoles.length;

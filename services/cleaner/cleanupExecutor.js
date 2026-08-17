@@ -8,7 +8,8 @@ import {
     executeDiscordOperation,
     OPERATION_POLICIES,
     CONCURRENCY_LIMITS,
-    createConcurrencyLimiter
+    createConcurrencyLimiter,
+    withTimeout
 } from '../reliability/index.js';
 import { verifyRoleCleanupState } from './cleanupVerifier.js';
 
@@ -65,7 +66,7 @@ export async function executeCleanupPlan({
         items: channelItems
     };
 
-    // Track and log protected role entities
+    // Track protected role entities
     for (const protRole of protectedRoles) {
         roleItems.push({
             id: protRole.id,
@@ -74,10 +75,9 @@ export async function executeCleanupPlan({
             status: 'PROTECTED',
             reason: protRole.reason || 'Protected by policy'
         });
-        onLog('info', `[CLEANUP] Preserving role @${protRole.name} (${protRole.reason || 'Protected by policy'})`, 'PROTECTED', 'cleaning_target');
     }
 
-    // Track and log protected channel entities
+    // Track protected channel entities
     for (const protCh of protectedChannels) {
         channelItems.push({
             id: protCh.id,
@@ -86,7 +86,6 @@ export async function executeCleanupPlan({
             status: 'PROTECTED',
             reason: protCh.reason || 'Protected by policy'
         });
-        onLog('info', `[CLEANUP] Preserving channel #${protCh.name} (${protCh.reason || 'Protected by policy'})`, 'PROTECTED', 'cleaning_target');
     }
 
     // =========================================================================
@@ -98,7 +97,7 @@ export async function executeCleanupPlan({
     onLog(
         'info',
         `ROLE CLEANUP: ${totalRolesFound} roles found (Deletable: ${rolesToDelete.length}, Protected: ${protectedRoles.length}, Managed: ${managedRoles.length})`,
-        'ROLE DISCOVERY',
+        null,
         'cleaning_target'
     );
 
@@ -115,7 +114,7 @@ export async function executeCleanupPlan({
             if (pass > 1) {
                 onLog('info', `ROLE CLEANUP: Recursive pass ${pass} for remaining deletable roles...`, null, 'cleaning_target');
                 try {
-                    await targetGuild.roles?.fetch?.();
+                    await withTimeout(() => targetGuild.roles?.fetch?.(), 10000, { operationName: 'cleaner_fetch_roles' });
                 } catch (e) {}
                 
                 currentRolesToDelete = currentRolesToDelete.filter(item => {
@@ -142,6 +141,7 @@ export async function executeCleanupPlan({
                             resourceType: 'role',
                             resourceId: item.id,
                             policy: OPERATION_POLICIES.DELETE,
+                            operationTimeoutMs: 12000,
                             isCancelled,
                             checkIdempotency: async () => {
                                 const current = targetGuild.roles?.cache?.get(item.id);
@@ -166,7 +166,6 @@ export async function executeCleanupPlan({
                         });
 
                         totalSuccessfullyDeleted++;
-                        onLog('delete', `[CLEANUP] Deleted target role @${item.name}`, 'ROLE DELETED', 'cleaning_target');
                         if (pass === 1) {
                             roleStats.deleted++;
                             roleItems.push({
@@ -187,7 +186,6 @@ export async function executeCleanupPlan({
 
                         if (isAlreadyDeleted) {
                             totalSuccessfullyDeleted++;
-                            onLog('info', `[CLEANUP] Role @${item.name} was already removed`, 'ROLE VERIFIED', 'cleaning_target');
                             if (pass === 1) {
                                 roleStats.deleted++;
                                 roleItems.push({
@@ -209,7 +207,7 @@ export async function executeCleanupPlan({
                                     status: 'FAILED',
                                     error: rawMsg
                                 });
-                                onLog('warning', `[CLEANUP FAILED] Could not delete role @${item.name}: ${rawMsg}`, 'ROLE ERROR', 'cleaning_target');
+                                onLog('warning', `Could not delete role @${item.name}: ${rawMsg}`, null, 'cleaning_target');
                             }
                         }
                     } finally {
@@ -230,7 +228,7 @@ export async function executeCleanupPlan({
     onLog(
         roleStats.failed === 0 ? 'success' : 'warning',
         `ROLE CLEANUP COMPLETE: ${roleStats.deleted} deleted, ${roleStats.skipped} protected/skipped${roleStats.failed > 0 ? `, ${roleStats.failed} failed` : ''}`,
-        'ROLES FINISHED',
+        null,
         'cleaning_target'
     );
 
@@ -254,7 +252,7 @@ export async function executeCleanupPlan({
     onLog(
         'info',
         `CHANNEL CLEANUP: ${totalChannelsFound} channels/categories found (Deletable: ${channelsToDelete.length}, Protected: ${protectedChannels.length})`,
-        'CHANNEL DISCOVERY',
+        null,
         'cleaning_target'
     );
 
@@ -269,9 +267,6 @@ export async function executeCleanupPlan({
                 checkCancelled();
 
                 const ch = targetGuild.channels?.cache?.get(item.id);
-                const isCat = item.isCategory || (ch && (ch.type === 4 || ch.type === 'GUILD_CATEGORY' || ch.type === 'category'));
-                const kindLabel = isCat ? 'category container' : 'channel';
-
                 if (!ch) {
                     channelStats.skipped++;
                     channelItems.push({
@@ -281,39 +276,39 @@ export async function executeCleanupPlan({
                         status: 'SKIPPED',
                         reason: 'Channel no longer exists in target server'
                     });
-                    onLog('info', `[CLEANUP] Channel #${item.name} no longer exists in target`, 'SKIPPED', 'cleaning_target');
                     completedChannels++;
                     return;
                 }
 
-                try {
-                    await executeDiscordOperation({
-                        operationName: 'delete_channel',
-                        resourceType: 'channel',
-                        resourceId: item.id,
-                        policy: OPERATION_POLICIES.DELETE,
-                        isCancelled,
-                        checkIdempotency: async () => {
-                            const current = targetGuild.channels?.cache?.get(item.id);
-                            if (!current && !ch) {
-                                return { deleted: true, reason: 'Already deleted' };
+                    try {
+                        await executeDiscordOperation({
+                            operationName: 'delete_channel',
+                            resourceType: 'channel',
+                            resourceId: item.id,
+                            policy: OPERATION_POLICIES.DELETE,
+                            operationTimeoutMs: 12000,
+                            isCancelled,
+                            checkIdempotency: async () => {
+                                const current = targetGuild.channels?.cache?.get(item.id);
+                                if (!current && !ch) {
+                                    return { deleted: true, reason: 'Already deleted' };
+                                }
+                                return null;
+                            },
+                            execute: async () => {
+                                if (ch && typeof ch.delete === 'function') {
+                                    await ch.delete('Server cleanup before clone');
+                                } else if (targetGuild.channels?.delete) {
+                                    await targetGuild.channels.delete(item.id, 'Server cleanup before clone');
+                                }
+                            },
+                            onRetry: ({ attempt, maxAttempts, waitMs }) => {
+                                onLog('warning', `Retrying deletion of #${item.name} (${attempt}/${maxAttempts}) in ${waitMs}ms...`, null, 'cleaning_target');
+                            },
+                            onRateLimit: ({ retryAfterMs }) => {
+                                onLog('warning', `Rate-limited while deleting #${item.name}. Backing off for ${retryAfterMs}ms...`, null, 'cleaning_target');
                             }
-                            return null;
-                        },
-                        execute: async () => {
-                            if (ch && typeof ch.delete === 'function') {
-                                await ch.delete('Server cleanup before clone');
-                            } else if (targetGuild.channels?.delete) {
-                                await targetGuild.channels.delete(item.id, 'Server cleanup before clone');
-                            }
-                        },
-                        onRetry: ({ attempt, maxAttempts, waitMs }) => {
-                            onLog('warning', `Retrying deletion of #${item.name} (${attempt}/${maxAttempts}) in ${waitMs}ms...`, null, 'cleaning_target');
-                        },
-                        onRateLimit: ({ retryAfterMs }) => {
-                            onLog('warning', `Rate-limited while deleting #${item.name}. Backing off for ${retryAfterMs}ms...`, null, 'cleaning_target');
-                        }
-                    });
+                        });
 
                     channelStats.deleted++;
                     channelItems.push({
@@ -322,7 +317,6 @@ export async function executeCleanupPlan({
                         type: 'channel',
                         status: 'DELETED'
                     });
-                    onLog('delete', `[CLEANUP] Deleted target ${kindLabel} #${item.name}`, isCat ? 'CATEGORY DELETED' : 'CHANNEL DELETED', 'cleaning_target');
                 } catch (err) {
                     const rawMsg = err?.message || String(err);
                     const isAlreadyDeleted = (
@@ -341,7 +335,6 @@ export async function executeCleanupPlan({
                             status: 'DELETED',
                             note: 'Channel was already removed'
                         });
-                        onLog('info', `[CLEANUP] Channel #${item.name} was already removed`, 'CHANNEL VERIFIED', 'cleaning_target');
                     } else {
                         channelStats.failed++;
                         channelItems.push({
@@ -351,7 +344,7 @@ export async function executeCleanupPlan({
                             status: 'FAILED',
                             error: rawMsg
                         });
-                        onLog('warning', `[CLEANUP FAILED] Could not delete ${kindLabel} #${item.name}: ${rawMsg}`, 'CHANNEL ERROR', 'cleaning_target');
+                        onLog('warning', `Could not delete channel #${item.name}: ${rawMsg}`, null, 'cleaning_target');
                     }
                 } finally {
                     completedChannels++;
@@ -369,7 +362,7 @@ export async function executeCleanupPlan({
     onLog(
         channelStats.failed === 0 ? 'success' : 'warning',
         `CHANNEL CLEANUP COMPLETE: ${channelStats.deleted} deleted, ${channelStats.skipped} protected/skipped${channelStats.failed > 0 ? `, ${channelStats.failed} failed` : ''}`,
-        'CHANNELS FINISHED',
+        null,
         'cleaning_target'
     );
 
@@ -379,7 +372,7 @@ export async function executeCleanupPlan({
     checkCancelled();
     try {
         if (targetGuild.emojis?.fetch) {
-            const existingEmojis = await targetGuild.emojis.fetch().catch(() => null);
+            const existingEmojis = await withTimeout(() => targetGuild.emojis.fetch(), 10000, { operationName: 'cleaner_fetch_emojis' }).catch(() => null);
             if (existingEmojis && existingEmojis.size > 0) {
                 onLog('info', `ASSET CLEANUP: Purging ${existingEmojis.size} existing custom emojis from target...`, null, 'cleaning_target');
                 for (const em of existingEmojis.values()) {
@@ -390,21 +383,21 @@ export async function executeCleanupPlan({
                             resourceType: 'emoji',
                             resourceId: em.id,
                             policy: OPERATION_POLICIES.DELETE,
+                            operationTimeoutMs: 10000,
                             isCancelled,
                             execute: async () => {
                                 await em.delete('Clean target server before clone');
                             }
                         });
-                        onLog('delete', `[CLEANUP] Deleted target emoji :${em.name}:`, 'EMOJI DELETED', 'cleaning_target');
                     } catch (e) {
-                        onLog('warning', `[CLEANUP] Could not delete target emoji :${em.name}: ${e.message}`, 'EMOJI ERROR', 'cleaning_target');
+                        // ignore minor emoji deletion error
                     }
                 }
             }
         }
 
         if (targetGuild.stickers?.fetch) {
-            const existingStickers = await targetGuild.stickers.fetch().catch(() => null);
+            const existingStickers = await withTimeout(() => targetGuild.stickers.fetch(), 10000, { operationName: 'cleaner_fetch_stickers' }).catch(() => null);
             if (existingStickers && existingStickers.size > 0) {
                 onLog('info', `ASSET CLEANUP: Purging ${existingStickers.size} existing custom stickers from target...`, null, 'cleaning_target');
                 for (const st of existingStickers.values()) {
@@ -415,14 +408,14 @@ export async function executeCleanupPlan({
                             resourceType: 'sticker',
                             resourceId: st.id,
                             policy: OPERATION_POLICIES.DELETE,
+                            operationTimeoutMs: 10000,
                             isCancelled,
                             execute: async () => {
                                 await st.delete('Clean target server before clone');
                             }
                         });
-                        onLog('delete', `[CLEANUP] Deleted target sticker "${st.name}"`, 'STICKER DELETED', 'cleaning_target');
                     } catch (e) {
-                        onLog('warning', `[CLEANUP] Could not delete target sticker "${st.name}": ${e.message}`, 'STICKER ERROR', 'cleaning_target');
+                        // ignore minor sticker deletion error
                     }
                 }
             }
@@ -435,10 +428,14 @@ export async function executeCleanupPlan({
     // STAGE 5: OVERALL EVALUATION & SUMMARY STATUS
     // =========================================================================
     try {
-        await Promise.allSettled([
-            targetGuild.roles?.fetch?.().catch(() => {}),
-            targetGuild.channels?.fetch?.().catch(() => {})
-        ]);
+        await withTimeout(
+            () => Promise.allSettled([
+                targetGuild.roles?.fetch?.().catch(() => {}),
+                targetGuild.channels?.fetch?.().catch(() => {})
+            ]),
+            10000,
+            { operationName: 'cleaner_post_verify_fetch' }
+        );
     } catch (e) {}
 
     const hasFailures = roleStats.failed > 0 || channelStats.failed > 0;

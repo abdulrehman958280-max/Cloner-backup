@@ -25,9 +25,23 @@ export class MigrationManifest {
         this.createdChannelIds = new Set();
 
         // Itemized records
-        this.roles = { planned: 0, created: 0, skipped: 0, failed: 0, items: [] };
+        this.roles = {
+            planned: 0,
+            created: 0,
+            reused: 0,
+            skipped: 0,
+            failed: 0,
+            timedOut: 0,
+            totalDurationMs: 0,
+            averageDurationMs: 0,
+            slowestRole: null,
+            items: []
+        };
         this.categories = { planned: 0, created: 0, skipped: 0, failed: 0, items: [] };
         this.channels = { planned: 0, created: 0, skipped: 0, failed: 0, items: [] };
+        this.emojis = { planned: 0, created: 0, skipped: 0, failed: 0 };
+        this.stickers = { planned: 0, created: 0, skipped: 0, failed: 0 };
+        this.webhooks = { planned: 0, created: 0, skipped: 0, failed: 0 };
         this.permissions = { planned: 0, applied: 0, skipped: 0, failed: 0 };
         this.messages = { planned: 0, copied: 0, skipped: 0, failed: 0, retried: 0, items: [] };
         this.attachments = { planned: 0, copied: 0, skipped: 0, failed: 0 };
@@ -41,6 +55,7 @@ export class MigrationManifest {
             timeoutCount: 0,
             permissionErrorCount: 0,
             fatalErrorCount: 0,
+            slowOperationsCount: 0,
             operationsDelayed: 0,
             operationsFailedAfterRetry: 0
         };
@@ -68,21 +83,53 @@ export class MigrationManifest {
         else if (code === 'AUTHENTICATION_ERROR') this.telemetry.fatalErrorCount++;
     }
 
-    recordRole(sourceRole, targetRole, status = 'created', error = null) {
-        if (targetRole) {
+    recordRole(sourceRole, targetRole, status = 'created', error = null, meta = {}) {
+        if (targetRole && sourceRole) {
             this.roleMap.set(sourceRole.id, targetRole.id);
             this.createdRoleIds.add(targetRole.id);
         }
+
+        const durationMs = meta.durationMs || 0;
+        const attemptCount = meta.attemptCount || 1;
+
         if (status === 'created') this.roles.created++;
+        else if (status === 'reused') this.roles.reused++;
         else if (status === 'skipped') this.roles.skipped++;
-        else if (status === 'failed') this.roles.failed++;
+        else if (status === 'timedOut') {
+            this.roles.timedOut++;
+            this.roles.failed++;
+            this.telemetry.timeoutCount++;
+        } else if (status === 'failed') {
+            this.roles.failed++;
+        }
+
+        if (durationMs > 5000) {
+            this.telemetry.slowOperationsCount++;
+        }
+
+        this.roles.totalDurationMs += durationMs;
+        const totalProcessed = this.roles.created + this.roles.reused + this.roles.failed + this.roles.skipped;
+        if (totalProcessed > 0) {
+            this.roles.averageDurationMs = Math.round(this.roles.totalDurationMs / totalProcessed);
+        }
+
+        if (!this.roles.slowestRole || durationMs > (this.roles.slowestRole.durationMs || 0)) {
+            this.roles.slowestRole = {
+                name: sourceRole?.name || 'unknown',
+                id: sourceRole?.id || null,
+                durationMs
+            };
+        }
 
         this.roles.items.push({
-            sourceId: sourceRole.id,
-            sourceName: sourceRole.name,
+            sourceId: sourceRole?.id || null,
+            sourceName: sourceRole?.name || null,
             targetId: targetRole?.id || null,
             status,
-            error: error ? (error.message || String(error)) : null
+            durationMs,
+            attemptCount,
+            error: error ? (error.message || String(error)) : null,
+            timestamp: new Date().toISOString()
         });
     }
 
@@ -128,6 +175,24 @@ export class MigrationManifest {
         else this.permissions.skipped++;
     }
 
+    recordEmoji(status = 'created') {
+        if (status === 'created') this.emojis.created++;
+        else if (status === 'skipped') this.emojis.skipped++;
+        else if (status === 'failed') this.emojis.failed++;
+    }
+
+    recordSticker(status = 'created') {
+        if (status === 'created') this.stickers.created++;
+        else if (status === 'skipped') this.stickers.skipped++;
+        else if (status === 'failed') this.stickers.failed++;
+    }
+
+    recordWebhook(status = 'created') {
+        if (status === 'created') this.webhooks.created++;
+        else if (status === 'skipped') this.webhooks.skipped++;
+        else if (status === 'failed') this.webhooks.failed++;
+    }
+
     recordMessage(copied = true) {
         if (copied) this.messages.copied++;
         else this.messages.skipped++;
@@ -146,6 +211,9 @@ export class MigrationManifest {
             rolesCreated: this.roles.created,
             categoriesCreated: this.categories.created,
             channelsCreated: this.channels.created,
+            emojisCreated: this.emojis.created,
+            stickersCreated: this.stickers.created,
+            webhooksCreated: this.webhooks.created,
             permissionsApplied: this.permissions.applied,
             messagesCopied: this.messages.copied,
             attachmentsCopied: this.attachments.copied,
@@ -173,6 +241,9 @@ export class MigrationManifest {
             roles: this.roles,
             categories: this.categories,
             channels: this.channels,
+            emojis: this.emojis,
+            stickers: this.stickers,
+            webhooks: this.webhooks,
             permissions: this.permissions,
             messages: this.messages,
             attachments: this.attachments,

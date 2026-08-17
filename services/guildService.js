@@ -1,5 +1,6 @@
 import { createDiscordClient, authenticateClient, destroyClient } from './discordService.js';
 import { validateToken } from './validationService.js';
+import { withTimeout } from './reliability/index.js';
 
 /**
  * Fetches and audits user accessible guilds using selfbot client
@@ -15,7 +16,7 @@ export async function fetchUserGuilds(userToken) {
         await authenticateClient(client, userToken);
 
         try {
-            await client.guilds.fetch({ timeout: 10000 });
+            await withTimeout(() => client.guilds.fetch(), 10000, { operationName: 'fetch_user_guilds' });
         } catch {
             // fallback to cache
         }
@@ -25,7 +26,11 @@ export async function fetchUserGuilds(userToken) {
             let me = guild.members.cache.get(client.user.id);
             if (!me) {
                 try {
-                    me = await guild.members.fetch(client.user.id);
+                    me = await withTimeout(
+                        () => guild.members.fetch(client.user.id),
+                        3000,
+                        { operationName: 'fetch_guild_member_me' }
+                    );
                 } catch {
                     me = null;
                 }
@@ -62,3 +67,4 @@ export async function fetchUserGuilds(userToken) {
         destroyClient(client);
     }
 }
+

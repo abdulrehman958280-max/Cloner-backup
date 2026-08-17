@@ -22,6 +22,11 @@ export const DEFAULT_CONFIG = Object.freeze({
     msgLimit: 15,
     msgDelay: 1000, // 1000ms default migration delay
 
+    // Role Reliability options
+    continueOnRoleError: true,
+    reuseExistingRoles: true,
+    roleOperationTimeoutMs: 30000,
+
     // Range constraints
     limits: Object.freeze({
         minMsgLimit: 1,

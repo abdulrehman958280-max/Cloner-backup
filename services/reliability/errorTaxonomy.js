@@ -6,6 +6,7 @@
 
 import { ERROR_CODES } from '../configContract.js';
 import { sanitizeText } from '../../utils/logger.js';
+import { parseRetryAfter } from './rateLimiter.js';
 
 export const ERROR_CATEGORIES = Object.freeze({
     AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
@@ -150,15 +151,8 @@ export function classifyError(err, context = {}) {
         category = ERROR_CATEGORIES.RATE_LIMITED;
         retryable = true;
 
-        // Parse retry-after if available
-        if (typeof err?.retryAfter === 'number') {
-            retryAfterMs = err.retryAfter;
-        } else if (typeof err?.retry_after === 'number') {
-            retryAfterMs = err.retry_after > 100 ? err.retry_after : Math.round(err.retry_after * 1000);
-        } else if (err?.data?.retry_after) {
-            const val = Number(err.data.retry_after);
-            retryAfterMs = val > 100 ? val : Math.round(val * 1000);
-        }
+        // Parse retry-after if available using parseRetryAfter
+        retryAfterMs = parseRetryAfter(err);
 
         if (err?.global || err?.data?.global) {
             isGlobalRateLimit = true;

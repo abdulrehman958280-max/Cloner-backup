@@ -25,6 +25,11 @@ export {
 } from './operationExecutor.js';
 
 export {
+    withTimeout
+} from './timeout.js';
+
+
+export {
     CONCURRENCY_LIMITS,
     createConcurrencyLimiter,
     mapWithConcurrency
