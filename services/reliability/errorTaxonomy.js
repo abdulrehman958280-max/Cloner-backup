@@ -111,6 +111,8 @@ export function classifyError(err, context = {}) {
     if (
         status === 401 ||
         rawCode === 40001 ||
+        rawCode === 50014 || // Invalid authentication token
+        rawCode === 50024 || // Invalid OAuth2 access token
         rawCode === 0 ||
         lowerMsg.includes('an invalid token was provided') ||
         lowerMsg.includes('improper token') ||
@@ -127,6 +129,10 @@ export function classifyError(err, context = {}) {
         rawCode === 50013 || // Missing Permissions
         rawCode === 50001 || // Missing Access
         rawCode === 50028 || // Invalid Role
+        rawCode === 50005 || // Cannot edit another user's message
+        rawCode === 50007 || // Cannot send messages to this user
+        rawCode === 50008 || // Cannot send messages in a non-text channel
+        rawCode === 50009 || // Channel verification level is too high
         lowerMsg.includes('missing permissions') ||
         lowerMsg.includes('missing access') ||
         lowerMsg.includes('permission denied') ||
@@ -178,12 +184,16 @@ export function classifyError(err, context = {}) {
         retryable = true;
     }
 
-    // 6. Timeouts (Retryable within bounds)
+    // 6. Timeouts (Retryable within bounds - 5000ms, request timeout, gateway timeout)
     else if (
         rawCode === 'TIMEOUT' ||
+        rawCode === 'ETIMEDOUT' ||
+        rawCode === 'ESOCKETTIMEDOUT' ||
         lowerMsg.includes('timed out') ||
         lowerMsg.includes('timeout') ||
-        lowerMsg.includes('gateway connection timed out')
+        lowerMsg.includes('5000ms') ||
+        lowerMsg.includes('gateway connection timed out') ||
+        lowerMsg.includes('request timed out')
     ) {
         category = ERROR_CATEGORIES.TIMEOUT;
         retryable = true;
@@ -213,6 +223,7 @@ export function classifyError(err, context = {}) {
         rawCode === 30005 || // Maximum number of guilds reached
         rawCode === 30013 || // Maximum number of channels reached
         rawCode === 30007 || // Maximum number of webhooks reached
+        rawCode === 50074 || // Cannot delete channel required for Community
         lowerMsg.includes('maximum number of') ||
         lowerMsg.includes('already exists') ||
         lowerMsg.includes('conflict')
@@ -222,17 +233,22 @@ export function classifyError(err, context = {}) {
     }
 
     // 9. Discord 5xx Server Errors (Transient / Retryable)
-    else if (status >= 500 && status < 600) {
+    else if (status >= 500 && status < 600 || rawCode === 50000) {
         category = ERROR_CATEGORIES.DISCORD_API_ERROR;
         retryable = true;
     }
 
-    // 10. Validation Errors
+    // 10. Validation Errors & Discord 50000 series Form/Param Errors
     else if (
         lowerMsg.includes('invalid') ||
         lowerMsg.includes('validation') ||
         lowerMsg.includes('must be a valid') ||
-        rawCode === 50035 // Invalid Form Body
+        rawCode === 50035 || // Invalid Form Body
+        rawCode === 50034 || // Invalid Form Body or JSON
+        rawCode === 50006 || // Cannot send an empty message
+        rawCode === 50016 || // Invalid message count to delete
+        rawCode === 50080 || // Cannot edit voice channel status
+        rawCode === 50081    // Cannot edit server status
     ) {
         category = ERROR_CATEGORIES.VALIDATION_ERROR;
         retryable = false;
@@ -299,7 +315,11 @@ export function getFriendlyErrorMessage(classifiedErr) {
         case ERROR_CATEGORIES.NETWORK_ERROR:
             return 'Temporary connection problem with Discord Gateway. Reconnecting...';
         case ERROR_CATEGORIES.TIMEOUT:
-            return `Operation timed out for ${resType}${resId}. Retrying within safety budget...`;
+            return classifiedErr.message?.includes('timed out after')
+                ? `Operation timed out (${classifiedErr.message}). Retrying within safety budget...`
+                : `Operation timed out for ${resType}${resId}. Retrying within safety budget...`;
+        case ERROR_CATEGORIES.DISCORD_API_ERROR:
+            return 'Discord API encountered a temporary server error. Retrying with exponential backoff...';
         case ERROR_CATEGORIES.NOT_FOUND:
             return `The specified ${resType}${resId} was not found or was deleted during migration.`;
         case ERROR_CATEGORIES.CONFLICT:

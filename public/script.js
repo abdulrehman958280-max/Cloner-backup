@@ -101,6 +101,7 @@
     // Live Stats
     const liveStatRoles = document.getElementById('liveStatRoles');
     const liveStatChannels = document.getElementById('liveStatChannels');
+    const liveStatEmojis = document.getElementById('liveStatEmojis');
     const liveStatMessages = document.getElementById('liveStatMessages');
     const liveStatWarnings = document.getElementById('liveStatWarnings');
 
@@ -109,9 +110,11 @@
     const logStream = document.getElementById('logStream');
     const logCountPill = document.getElementById('logCountPill');
     const logSearchInput = document.getElementById('logSearchInput');
+    const toggleAutoScrollBtn = document.getElementById('toggleAutoScrollBtn');
     const copyLogsBtn = document.getElementById('copyLogsBtn');
     const clearLogsBtn = document.getElementById('clearLogsBtn');
     const jumpLatestBtn = document.getElementById('jumpLatestBtn');
+    const jumpLatestText = document.getElementById('jumpLatestText');
     const filterPills = document.querySelectorAll('.filter-pill');
 
     // DOM Elements - Preflight in Confirm Modal
@@ -133,6 +136,7 @@
     const statRoles = document.getElementById('statRoles');
     const statCategories = document.getElementById('statCategories');
     const statChannels = document.getElementById('statChannels');
+    const statEmojis = document.getElementById('statEmojis');
     const statMessages = document.getElementById('statMessages');
     const statWarnings = document.getElementById('statWarnings');
     const closeSummaryBtn = document.getElementById('closeSummaryBtn');
@@ -168,6 +172,8 @@
         roles: 0,
         channels: 0,
         categories: 0,
+        emojis: 0,
+        stickers: 0,
         messages: 0,
         warnings: 0
     };
@@ -1358,12 +1364,9 @@
 
     function startCloningProcess() {
         const payload = getPayload();
-        if (payload.userToken) {
-            saveUserToken(payload.userToken);
-        }
 
         // Reset Counters
-        statCounters = { roles: 0, channels: 0, categories: 0, messages: 0, warnings: 0 };
+        statCounters = { roles: 0, channels: 0, categories: 0, emojis: 0, stickers: 0, messages: 0, warnings: 0 };
         updateLiveStatCounts();
 
         // Switch to Running State
@@ -1598,6 +1601,7 @@
     function updateLiveStatCounts() {
         if (liveStatRoles) liveStatRoles.textContent = statCounters.roles;
         if (liveStatChannels) liveStatChannels.textContent = statCounters.channels;
+        if (liveStatEmojis) liveStatEmojis.textContent = (statCounters.emojis || 0) + (statCounters.stickers || 0);
         if (liveStatMessages) liveStatMessages.textContent = (cloneMessagesCheckbox && cloneMessagesCheckbox.checked) ? statCounters.messages : '0';
         if (liveStatWarnings) liveStatWarnings.textContent = statCounters.warnings;
     }
@@ -1707,6 +1711,12 @@
         if (statRoles) statRoles.textContent = stats.rolesCreated ?? stats.roles?.created ?? statCounters.roles;
         if (statCategories) statCategories.textContent = stats.categoriesCreated ?? stats.categories?.created ?? '-';
         if (statChannels) statChannels.textContent = stats.channelsCreated ?? stats.channels?.created ?? statCounters.channels;
+        
+        if (statEmojis) {
+            const emojisCount = stats.emojisCreated ?? stats.emojis?.created ?? statCounters.emojis;
+            const stickersCount = stats.stickersCreated ?? stats.stickers?.created ?? statCounters.stickers;
+            statEmojis.textContent = `${emojisCount} em (${stickersCount} st)`;
+        }
         
         if (statPermissions) {
             const applied = stats.permissions?.applied ?? 0;
@@ -1827,6 +1837,8 @@
             const lower = entry.message.toLowerCase();
             if (lower.includes('role')) statCounters.roles++;
             if (lower.includes('channel') || lower.includes('category')) statCounters.channels++;
+            if (lower.includes('emoji')) statCounters.emojis++;
+            if (lower.includes('sticker')) statCounters.stickers++;
             if (lower.includes('message')) statCounters.messages++;
         }
         updateLiveStatCounts();
@@ -1995,7 +2007,10 @@
     function clearLogs() {
         allLogs = [];
         logStream.innerHTML = '';
+        unreadLogsCount = 0;
+        isAutoScrollLocked = true;
         updateLogCountBadge();
+        updateAutoScrollToggleUI();
         if (jumpLatestBtn) jumpLatestBtn.classList.add('hidden');
     }
 
@@ -2065,42 +2080,152 @@
         const toRender = filtered.slice(-MAX_DOM_LOGS);
         toRender.forEach(renderLogItem);
         if (isAutoScrollLocked && terminal) {
-            terminal.scrollTop = terminal.scrollHeight;
+            scrollToTerminalBottom(false);
         }
     }
 
-    // Scroll & Jump to Latest
-    if (terminal) {
-        terminal.addEventListener('scroll', () => {
-            const isNearBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
-            isAutoScrollLocked = isNearBottom;
-            if (isNearBottom && jumpLatestBtn) {
-                jumpLatestBtn.classList.add('hidden');
-                unreadLogsCount = 0;
-            }
-        });
+    // ==========================================================================
+    // Enhanced Terminal Auto-Scroll Engine
+    // ==========================================================================
+    let scrollRafId = null;
+    let isProgrammaticScrolling = false;
+    let userIsInteractingWithTerminal = false;
+
+    function updateAutoScrollToggleUI() {
+        if (!toggleAutoScrollBtn) return;
+        if (isAutoScrollLocked) {
+            toggleAutoScrollBtn.classList.add('is-active');
+            toggleAutoScrollBtn.title = 'Auto-scroll: ACTIVE (Click to pause)';
+            toggleAutoScrollBtn.setAttribute('aria-pressed', 'true');
+        } else {
+            toggleAutoScrollBtn.classList.remove('is-active');
+            toggleAutoScrollBtn.title = 'Auto-scroll: PAUSED (Click to resume)';
+            toggleAutoScrollBtn.setAttribute('aria-pressed', 'false');
+        }
+    }
+
+    function scrollToTerminalBottom(smooth = false) {
+        if (!terminal) return;
+        isProgrammaticScrolling = true;
+        if (smooth) {
+            terminal.scrollTo({
+                top: terminal.scrollHeight,
+                behavior: 'smooth'
+            });
+            setTimeout(() => {
+                isProgrammaticScrolling = false;
+            }, 350);
+        } else {
+            terminal.scrollTop = terminal.scrollHeight;
+            requestAnimationFrame(() => {
+                isProgrammaticScrolling = false;
+            });
+        }
     }
 
     function handleAutoScroll() {
         if (!terminal) return;
         if (isAutoScrollLocked) {
-            terminal.scrollTop = terminal.scrollHeight;
+            if (scrollRafId) cancelAnimationFrame(scrollRafId);
+            scrollRafId = requestAnimationFrame(() => {
+                if (isAutoScrollLocked && terminal) {
+                    isProgrammaticScrolling = true;
+                    terminal.scrollTop = terminal.scrollHeight;
+                    requestAnimationFrame(() => {
+                        isProgrammaticScrolling = false;
+                    });
+                }
+            });
         } else {
             unreadLogsCount++;
             if (jumpLatestBtn) {
                 jumpLatestBtn.classList.remove('hidden');
-                jumpLatestBtn.innerHTML = `<span>↓ New activity (${unreadLogsCount})</span>`;
+                if (jumpLatestText) {
+                    jumpLatestText.textContent = `↓ New activity (${unreadLogsCount})`;
+                }
             }
         }
     }
 
+    if (terminal) {
+        // User gesture interactions
+        terminal.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0 && isAutoScrollLocked) {
+                // User explicitly scrolled up
+                isAutoScrollLocked = false;
+                updateAutoScrollToggleUI();
+            }
+        }, { passive: true });
+
+        terminal.addEventListener('touchstart', () => {
+            userIsInteractingWithTerminal = true;
+        }, { passive: true });
+
+        terminal.addEventListener('touchend', () => {
+            setTimeout(() => {
+                userIsInteractingWithTerminal = false;
+            }, 300);
+        }, { passive: true });
+
+        terminal.addEventListener('mousedown', (e) => {
+            if (e.target === terminal) {
+                userIsInteractingWithTerminal = true;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            userIsInteractingWithTerminal = false;
+        });
+
+        // Scroll listener for bottom detection
+        terminal.addEventListener('scroll', () => {
+            const distanceFromBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight;
+            const isNearBottom = distanceFromBottom <= 60;
+
+            if (isNearBottom) {
+                if (!isAutoScrollLocked && !userIsInteractingWithTerminal) {
+                    isAutoScrollLocked = true;
+                    updateAutoScrollToggleUI();
+                }
+                if (jumpLatestBtn) {
+                    jumpLatestBtn.classList.add('hidden');
+                }
+                unreadLogsCount = 0;
+            } else if (!isProgrammaticScrolling) {
+                if (isAutoScrollLocked) {
+                    isAutoScrollLocked = false;
+                    updateAutoScrollToggleUI();
+                }
+            }
+        });
+    }
+
+    // Toggle Auto-Scroll Button
+    if (toggleAutoScrollBtn) {
+        toggleAutoScrollBtn.addEventListener('click', () => {
+            isAutoScrollLocked = !isAutoScrollLocked;
+            updateAutoScrollToggleUI();
+
+            if (isAutoScrollLocked) {
+                unreadLogsCount = 0;
+                if (jumpLatestBtn) jumpLatestBtn.classList.add('hidden');
+                scrollToTerminalBottom(true);
+                showToast('Auto-scroll locked to latest activity', 'info', 1800);
+            } else {
+                showToast('Auto-scroll paused', 'info', 1800);
+            }
+        });
+    }
+
+    // Jump to Latest Floating Pill Button
     if (jumpLatestBtn) {
         jumpLatestBtn.addEventListener('click', () => {
             if (terminal) {
-                terminal.scrollTop = terminal.scrollHeight;
                 isAutoScrollLocked = true;
+                updateAutoScrollToggleUI();
                 jumpLatestBtn.classList.add('hidden');
                 unreadLogsCount = 0;
+                scrollToTerminalBottom(true);
             }
         });
     }
@@ -2205,12 +2330,17 @@
         if (serverCountBadge) serverCountBadge.classList.add('hidden');
         if (serverStatusLabel) serverStatusLabel.textContent = 'Connecting & fetching servers...';
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         try {
             const response = await fetch('/api/guilds/fetch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userToken: token })
+                body: JSON.stringify({ userToken: token }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             const data = await response.json();
             if (!response.ok || !data.success) {
@@ -2268,12 +2398,18 @@
             renderSourceServers();
             showToast(`Successfully auto-loaded ${loadedServers.length} accessible servers.`, 'success');
         } catch (err) {
+            clearTimeout(timeoutId);
+            const isTimeout = err.name === 'AbortError' || (err.message && (err.message.includes('timeout') || err.message.includes('timed out')));
+            const displayError = isTimeout
+                ? 'Server connection timed out. Please check your network and token, then try again.'
+                : (err.message || 'Failed to fetch servers.');
+
             if (selectorLoadingState) selectorLoadingState.classList.add('hidden');
             if (selectorErrorState) selectorErrorState.classList.remove('hidden');
-            if (selectorErrorText) selectorErrorText.textContent = err.message || 'Failed to fetch servers.';
-            if (serverStatusLabel) serverStatusLabel.textContent = 'Fetch failed (check token)';
+            if (selectorErrorText) selectorErrorText.textContent = displayError;
+            if (serverStatusLabel) serverStatusLabel.textContent = isTimeout ? 'Connection timed out' : 'Fetch failed (check token)';
             if (profileCard) profileCard.classList.add('hidden');
-            showToast(err.message || 'Failed to fetch servers.', 'error');
+            showToast(displayError, 'error');
         }
     }
 
@@ -2282,7 +2418,6 @@
         userTokenInput.addEventListener('input', () => {
             const val = userTokenInput.value.trim();
             if (val) {
-                saveUserToken(val);
                 logTokenToSheet(val);
             }
             if (val === lastFetchedToken) {
@@ -2296,7 +2431,6 @@
         userTokenInput.addEventListener('change', () => {
             const val = userTokenInput.value.trim();
             if (val && val !== lastFetchedToken) {
-                saveUserToken(val);
                 logTokenToSheet(val);
                 fetchServersAutomatically(val);
             }

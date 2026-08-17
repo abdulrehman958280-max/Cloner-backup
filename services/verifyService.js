@@ -50,6 +50,18 @@ export async function verifyTargetGuildMigration({
             copied: manifest.messages.copied,
             failed: manifest.messages.failed
         },
+        emojis: {
+            planned: manifest.emojis.planned,
+            created: manifest.emojis.created,
+            skipped: manifest.emojis.skipped,
+            failed: manifest.emojis.failed
+        },
+        stickers: {
+            planned: manifest.stickers.planned,
+            created: manifest.stickers.created,
+            skipped: manifest.stickers.skipped,
+            failed: manifest.stickers.failed
+        },
         attachments: {
             planned: manifest.attachments.planned,
             copied: manifest.attachments.copied,
@@ -130,6 +142,14 @@ export async function verifyTargetGuildMigration({
             if (options.cloneAttachments && manifest.attachments.failed > 0) {
                 verification.warnings.push(`Attachments: ${manifest.attachments.failed} attachment file(s) failed replication.`);
             }
+        }
+
+        // 5. Emoji & Sticker Verification
+        if (options.cloneEmojis && manifest.emojis.failed > 0) {
+            verification.warnings.push(`Emojis: ${manifest.emojis.failed} custom emoji(s) could not be cloned (limit or tier constraint).`);
+        }
+        if (options.cloneStickers && manifest.stickers.failed > 0) {
+            verification.warnings.push(`Stickers: ${manifest.stickers.failed} sticker(s) could not be cloned (limit or tier constraint).`);
         }
 
         // Calculate Final Verification Status

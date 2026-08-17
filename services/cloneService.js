@@ -29,6 +29,55 @@ function sanitizeMentions(text, policy = 'sanitize') {
 }
 
 /**
+ * Downloads binary image/sticker buffer with safety timeout
+ */
+async function downloadAssetBuffer(url, timeoutMs = 10000) {
+    if (!url || typeof url !== 'string') return null;
+    try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), timeoutMs);
+        const res = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+            }
+        });
+        clearTimeout(t);
+        if (!res.ok) return null;
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+    } catch {
+        return null;
+    }
+}
+
+function sanitizeEmojiName(name, fallback = 'emoji') {
+    if (!name || typeof name !== 'string') return fallback;
+    const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 32);
+    if (sanitized.length < 2) {
+        return (sanitized + '_custom').substring(0, 32);
+    }
+    return sanitized;
+}
+
+function sanitizeStickerName(name, fallback = 'sticker') {
+    if (!name || typeof name !== 'string') return fallback;
+    const sanitized = name.trim().substring(0, 30);
+    return sanitized.length < 2 ? (sanitized + ' cloned').substring(0, 30) : sanitized;
+}
+
+function sanitizeStickerTags(tags, name) {
+    if (tags && typeof tags === 'string' && tags.trim().length >= 2) {
+        return tags.trim().substring(0, 200);
+    }
+    if (name && typeof name === 'string' && name.trim().length >= 2) {
+        return name.trim().substring(0, 200);
+    }
+    return 'cloned, emoji';
+}
+
+/**
  * Executes a full Discord server cloning operation with verification and telemetry
  */
 export async function executeClone({
@@ -301,55 +350,105 @@ export async function executeClone({
         if (options.cloneEmojis) {
             checkCancellation();
             onStage('cloning_emojis', 'Cloning Emojis', 35);
-            emitLog('info', 'Cloning custom emojis (animated & static)...', null, 'cloning_emojis');
+            emitLog('info', 'Scanning and cloning custom emojis (animated & static)...', null, 'cloning_emojis');
 
             try {
-                const sourceEmojis = await sourceGuild.emojis.fetch();
-                manifest.emojis.planned = sourceEmojis.size;
-                let emojiIdx = 0;
-                const totalEmojis = sourceEmojis.size;
+                // Safely fetch source and target emojis
+                let sourceEmojis = [];
+                try {
+                    const fetchedEmojis = await withTimeout(
+                        () => sourceGuild.emojis.fetch(),
+                        15000,
+                        { operationName: 'fetch_source_emojis', isCancelled }
+                    );
+                    sourceEmojis = Array.from(fetchedEmojis.values());
+                } catch (fetchErr) {
+                    emitLog('warning', 'Could not refresh source emojis list via API, using cache', fetchErr.message, 'cloning_emojis');
+                    sourceEmojis = Array.from(sourceGuild.emojis.cache.values());
+                }
 
-                for (const emoji of sourceEmojis.values()) {
+                try {
+                    await withTimeout(
+                        () => targetGuild.emojis.fetch(),
+                        15000,
+                        { operationName: 'fetch_target_emojis', isCancelled }
+                    ).catch(() => {});
+                } catch {}
+
+                manifest.emojis.planned = sourceEmojis.length;
+                let emojiIdx = 0;
+                const totalEmojis = sourceEmojis.length;
+
+                if (totalEmojis === 0) {
+                    emitLog('info', 'No custom emojis found on source server.', null, 'cloning_emojis');
+                }
+
+                for (const emoji of sourceEmojis) {
                     checkCancellation();
                     emojiIdx++;
-                    onProgress(35 + Math.round((emojiIdx / Math.max(1, totalEmojis)) * 3), emojiIdx, totalEmojis, `:${emoji.name}:`);
+                    const cleanName = sanitizeEmojiName(emoji.name);
+                    onProgress(35 + Math.round((emojiIdx / Math.max(1, totalEmojis)) * 3), emojiIdx, totalEmojis, `:${cleanName}:`);
+
+                    // Check if already exists on target
+                    const existingOnTarget = targetGuild.emojis.cache.find(e => e.name === cleanName || e.name === emoji.name);
+                    if (existingOnTarget) {
+                        manifest.recordEmoji('skipped');
+                        emitLog('info', `Emoji :${cleanName}: already exists on target server (skipped duplicate)`, null, 'cloning_emojis');
+                        continue;
+                    }
+
+                    const emojiUrl = emoji.url || (emoji.id ? `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? 'gif' : 'png'}` : null);
+                    if (!emojiUrl) {
+                        manifest.recordEmoji('failed');
+                        emitLog('warning', `Skipping emoji :${cleanName}: - no valid image URL found`, null, 'cloning_emojis');
+                        continue;
+                    }
+
+                    // Download image buffer for rock-solid upload reliability
+                    const imageBuffer = await downloadAssetBuffer(emojiUrl, 10000);
 
                     try {
                         await executeDiscordOperation({
                             operationName: 'create_emoji',
                             resourceType: 'emoji',
-                            resourceId: emoji.name,
+                            resourceId: cleanName,
                             policy: OPERATION_POLICIES.CREATE,
+                            operationTimeoutMs: 15000,
                             isCancelled,
                             checkIdempotency: async () => {
-                                return targetGuild.emojis.cache.find(e => e.name === emoji.name);
+                                return targetGuild.emojis.cache.find(e => e.name === cleanName || e.name === emoji.name);
                             },
                             execute: async () => {
-                                return await targetGuild.emojis.create({
-                                    attachment: emoji.url,
-                                    name: emoji.name
-                                });
+                                // discord.js-selfbot-v13 GuildEmojiManager.prototype.create: (attachment, name, options)
+                                return await targetGuild.emojis.create(
+                                    imageBuffer || emojiUrl,
+                                    cleanName
+                                );
                             },
                             onRetry: makeRetryHandler('cloning_emojis'),
                             onRateLimit: makeRateLimitHandler('cloning_emojis')
                         });
                         manifest.recordEmoji('created');
-                        emitLog('success', `Cloned emoji :${emoji.name}:`, null, 'cloning_emojis');
+                        emitLog('success', `Cloned emoji :${cleanName}: (${emoji.animated ? 'animated' : 'static'})`, null, 'cloning_emojis');
                     } catch (err) {
                         manifest.recordEmoji('failed');
-                        if (err.message && (err.message.includes('30016') || err.message.includes('Maximum number of emojis'))) {
-                            emitLog('warning', `Server emoji limit reached: cannot upload :${emoji.name}:`, err.message, 'cloning_emojis');
+                        const errMsg = err.message || '';
+                        if (errMsg.includes('30016') || errMsg.includes('Maximum number of emojis')) {
+                            emitLog('warning', `Server emoji limit reached: cannot upload :${cleanName}:`, errMsg, 'cloning_emojis');
                             break; // Avoid spamming when emoji slots are capped
+                        } else if (errMsg.includes('50013') || errMsg.includes('Missing Permissions')) {
+                            emitLog('warning', `Missing Manage Emojis and Stickers permission on target server`, errMsg, 'cloning_emojis');
+                            break;
                         } else {
-                            emitLog('warning', `Failed to clone emoji :${emoji.name}:`, err.message, 'cloning_emojis');
+                            emitLog('warning', `Failed to clone emoji :${cleanName}:`, errMsg, 'cloning_emojis');
                         }
                     }
 
-                    await cancellableSleep(150, isCancelled);
+                    await cancellableSleep(200, isCancelled);
                 }
-                emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
+                emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.skipped} skipped, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
-                emitLog('error', 'Failed to fetch source emojis', err.message, 'cloning_emojis');
+                emitLog('error', 'Failed during emoji migration stage', err.message, 'cloning_emojis');
             }
         }
 
@@ -359,57 +458,110 @@ export async function executeClone({
         if (options.cloneStickers) {
             checkCancellation();
             onStage('cloning_stickers', 'Cloning Stickers', 38);
-            emitLog('info', 'Cloning custom stickers...', null, 'cloning_stickers');
+            emitLog('info', 'Scanning and cloning custom stickers...', null, 'cloning_stickers');
 
             try {
-                const sourceStickers = await sourceGuild.stickers.fetch();
-                manifest.stickers.planned = sourceStickers.size;
-                let stickerIdx = 0;
-                const totalStickers = sourceStickers.size;
+                // Safely fetch source and target stickers
+                let sourceStickers = [];
+                try {
+                    const fetchedStickers = await withTimeout(
+                        () => sourceGuild.stickers.fetch(),
+                        15000,
+                        { operationName: 'fetch_source_stickers', isCancelled }
+                    );
+                    sourceStickers = Array.from(fetchedStickers.values());
+                } catch (fetchErr) {
+                    emitLog('warning', 'Could not refresh source stickers list via API, using cache', fetchErr.message, 'cloning_stickers');
+                    sourceStickers = Array.from(sourceGuild.stickers.cache.values());
+                }
 
-                for (const sticker of sourceStickers.values()) {
+                try {
+                    await withTimeout(
+                        () => targetGuild.stickers.fetch(),
+                        15000,
+                        { operationName: 'fetch_target_stickers', isCancelled }
+                    ).catch(() => {});
+                } catch {}
+
+                manifest.stickers.planned = sourceStickers.length;
+                let stickerIdx = 0;
+                const totalStickers = sourceStickers.length;
+
+                if (totalStickers === 0) {
+                    emitLog('info', 'No custom stickers found on source server.', null, 'cloning_stickers');
+                }
+
+                for (const sticker of sourceStickers) {
                     checkCancellation();
                     stickerIdx++;
-                    onProgress(38 + Math.round((stickerIdx / Math.max(1, totalStickers)) * 4), stickerIdx, totalStickers, sticker.name);
+                    const cleanName = sanitizeStickerName(sticker.name);
+                    const cleanTags = sanitizeStickerTags(sticker.tags, sticker.name);
+                    onProgress(38 + Math.round((stickerIdx / Math.max(1, totalStickers)) * 4), stickerIdx, totalStickers, cleanName);
+
+                    // Check if already exists on target
+                    const existingOnTarget = targetGuild.stickers.cache.find(s => s.name === cleanName || s.name === sticker.name);
+                    if (existingOnTarget) {
+                        manifest.recordSticker('skipped');
+                        emitLog('info', `Sticker "${cleanName}" already exists on target server (skipped duplicate)`, null, 'cloning_stickers');
+                        continue;
+                    }
+
+                    const stickerUrl = sticker.url || (sticker.id ? `https://media.discordapp.net/stickers/${sticker.id}.png` : null);
+                    if (!stickerUrl) {
+                        manifest.recordSticker('failed');
+                        emitLog('warning', `Skipping sticker "${cleanName}" - no valid file URL found`, null, 'cloning_stickers');
+                        continue;
+                    }
+
+                    // Download sticker buffer for rock-solid upload reliability
+                    const stickerBuffer = await downloadAssetBuffer(stickerUrl, 10000);
 
                     try {
                         await executeDiscordOperation({
                             operationName: 'create_sticker',
                             resourceType: 'sticker',
-                            resourceId: sticker.name,
+                            resourceId: cleanName,
                             policy: OPERATION_POLICIES.CREATE,
+                            operationTimeoutMs: 15000,
                             isCancelled,
                             checkIdempotency: async () => {
-                                return targetGuild.stickers.cache.find(s => s.name === sticker.name);
+                                return targetGuild.stickers.cache.find(s => s.name === cleanName || s.name === sticker.name);
                             },
                             execute: async () => {
-                                return await targetGuild.stickers.create({
-                                    file: sticker.url,
-                                    name: sticker.name,
-                                    tags: sticker.tags || 'cloned',
-                                    description: sticker.description || ''
-                                });
+                                // discord.js-selfbot-v13 GuildStickerManager.prototype.create: (file, name, tags, options)
+                                return await targetGuild.stickers.create(
+                                    stickerBuffer || stickerUrl,
+                                    cleanName,
+                                    cleanTags,
+                                    { description: sticker.description || '' }
+                                );
                             },
                             onRetry: makeRetryHandler('cloning_stickers'),
                             onRateLimit: makeRateLimitHandler('cloning_stickers')
                         });
                         manifest.recordSticker('created');
-                        emitLog('success', `Cloned sticker "${sticker.name}"`, null, 'cloning_stickers');
+                        emitLog('success', `Cloned sticker "${cleanName}"`, null, 'cloning_stickers');
                     } catch (err) {
                         manifest.recordSticker('failed');
-                        if (err.message && (err.message.includes('30039') || err.message.includes('Maximum number of stickers'))) {
-                            emitLog('warning', `Server sticker capacity reached: cannot upload "${sticker.name}"`, err.message, 'cloning_stickers');
+                        const errMsg = err.message || '';
+                        if (errMsg.includes('30039') || errMsg.includes('Maximum number of stickers')) {
+                            emitLog('warning', `Server sticker capacity reached: cannot upload "${cleanName}"`, errMsg, 'cloning_stickers');
                             break;
+                        } else if (errMsg.includes('50013') || errMsg.includes('Missing Permissions')) {
+                            emitLog('warning', `Missing Manage Emojis and Stickers permission on target server`, errMsg, 'cloning_stickers');
+                            break;
+                        } else if (errMsg.includes('50035') || errMsg.includes('Invalid Form Body') || errMsg.includes('LOTTIE')) {
+                            emitLog('warning', `Sticker "${cleanName}" format or tags not supported by server tier`, errMsg, 'cloning_stickers');
                         } else {
-                            emitLog('warning', `Failed to clone sticker "${sticker.name}"`, err.message, 'cloning_stickers');
+                            emitLog('warning', `Failed to clone sticker "${cleanName}"`, errMsg, 'cloning_stickers');
                         }
                     }
 
-                    await cancellableSleep(200, isCancelled);
+                    await cancellableSleep(250, isCancelled);
                 }
-                emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
+                emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.skipped} skipped, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {
-                emitLog('error', 'Failed to fetch source stickers', err.message, 'cloning_stickers');
+                emitLog('error', 'Failed during sticker migration stage', err.message, 'cloning_stickers');
             }
         }
 

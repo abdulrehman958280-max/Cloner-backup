@@ -2295,43 +2295,191 @@ a {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
+    padding-top: 6px;
 }
 
-.filter-chips-scroll {
+.meniscus-dock {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 5px 8px;
+    border-radius: 28px;
+    background-color: var(--surface-inset);
+    border: var(--bevel-top);
+    box-shadow: var(--shadow-inset);
+    overflow-x: auto;
+    overflow-y: visible;
+    position: relative;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.meniscus-dock::-webkit-scrollbar {
+    display: none;
+}
+
+.meniscus-tab.filter-pill {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 3px 5px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    border-radius: 18px;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+    color: var(--text-muted);
+}
+
+.meniscus-tab .dock-bead {
     display: flex;
     align-items: center;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    -webkit-overflow-scrolling: touch;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    transition: all 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
 }
 
-.filter-pill {
-    padding: 4px 10px;
-    border-radius: var(--radius-full);
-    background-color: var(--surface-raised);
-    box-shadow: var(--shadow-raised-sm);
-    border: 1px solid var(--border-subtle);
-    font-size: 11.5px;
+.meniscus-tab .dock-svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    stroke-width: 2;
+    transition: all 0.2s ease;
+}
+
+.meniscus-tab .dock-label {
+    font-size: 9.5px;
     font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
     color: var(--text-muted);
+    transition: all 0.2s ease;
     white-space: nowrap;
-    cursor: pointer;
-    transition: all var(--transition-fast);
+    pointer-events: none;
 }
 
-.filter-pill:hover {
+.meniscus-tab:hover:not(.active) {
     color: var(--text-primary);
-    box-shadow: var(--shadow-raised-hover);
+    transform: translateY(-2px);
 }
 
-.filter-pill.active {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(46, 84, 230, 0.35);
-    border-color: transparent;
+.meniscus-tab:hover:not(.active) .dock-svg {
+    stroke: var(--text-primary);
+}
+
+.meniscus-tab:hover:not(.active) .dock-label {
+    color: var(--text-primary);
+}
+
+/* Active Meniscus Bubble Effect - Theme Matched */
+.meniscus-tab.filter-pill.active {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.meniscus-tab.filter-pill.active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #60A5FA 0%, #3B82F6 48%, #1D4ED8 100%);
+    box-shadow: 
+        0 0 14px rgba(37, 99, 235, 0.6),
+        0 4px 10px rgba(29, 78, 216, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.85),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+    transform: translateY(-6px) scale(1.15);
+    z-index: 2;
+}
+
+.meniscus-tab.filter-pill.active .dock-svg {
+    stroke: #FFFFFF;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.meniscus-tab.filter-pill.active .dock-label {
+    color: var(--primary);
+    font-weight: 700;
+    transform: translateY(-1px);
+}
+
+/* Specific Category Bubble Accents (Theme Matching) */
+.meniscus-tab.filter-pill[data-filter="info"].active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #38BDF8 0%, #0284C7 50%, #0369A1 100%);
+    box-shadow: 
+        0 0 14px rgba(2, 132, 199, 0.6),
+        0 4px 10px rgba(3, 105, 161, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.85),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+}
+.meniscus-tab.filter-pill[data-filter="info"].active .dock-label {
+    color: #0284C7;
+}
+
+.meniscus-tab.filter-pill[data-filter="success"].active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #4ADE80 0%, #10B981 50%, #047857 100%);
+    box-shadow: 
+        0 0 14px rgba(16, 185, 129, 0.6),
+        0 4px 10px rgba(4, 120, 87, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.85),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+}
+.meniscus-tab.filter-pill[data-filter="success"].active .dock-label {
+    color: #10B981;
+}
+
+.meniscus-tab.filter-pill[data-filter="warning"].active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #FCD34D 0%, #F59E0B 50%, #B45309 100%);
+    box-shadow: 
+        0 0 14px rgba(245, 158, 11, 0.6),
+        0 4px 10px rgba(180, 83, 9, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.85),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+}
+.meniscus-tab.filter-pill[data-filter="warning"].active .dock-label {
+    color: #F59E0B;
+}
+
+.meniscus-tab.filter-pill[data-filter="error"].active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #F87171 0%, #EF4444 50%, #B91C1C 100%);
+    box-shadow: 
+        0 0 14px rgba(239, 68, 68, 0.6),
+        0 4px 10px rgba(185, 28, 28, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.85),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+}
+.meniscus-tab.filter-pill[data-filter="error"].active .dock-label {
+    color: #EF4444;
+}
+
+/* Dark Mode Theme Tuning for Meniscus Dock */
+[data-theme="dark"] .meniscus-dock {
+    background-color: var(--surface-inset);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.85), inset -2px -2px 6px rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .meniscus-tab.filter-pill.active .dock-bead {
+    background: radial-gradient(circle at 35% 28%, #81A1FF 0%, #5E77FF 48%, #304BDD 100%);
+    box-shadow: 
+        0 0 16px rgba(94, 119, 255, 0.75),
+        0 5px 12px rgba(0, 0, 0, 0.6),
+        inset 0 2px 2px rgba(255, 255, 255, 0.75),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .meniscus-tab.filter-pill.active .dock-label {
+    color: var(--accent);
+    text-shadow: 0 0 8px rgba(94, 119, 255, 0.45);
 }
 
 .console-actions-group {
@@ -2417,7 +2565,7 @@ a {
     padding: 12px;
     overflow-y: auto;
     overflow-x: hidden;
-    scroll-behavior: smooth;
+    overscroll-behavior: contain;
 }
 
 .neu-terminal-container::-webkit-scrollbar {
@@ -2433,10 +2581,15 @@ a {
     border-radius: 4px;
 }
 
+.neu-terminal-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
 .log-stream {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    min-height: 100%;
 }
 
 .log-entry {
@@ -2494,6 +2647,33 @@ a {
 .log-entry-error .log-icon-type { color: var(--danger); }
 .log-entry-stage { font-weight: 600; color: var(--accent); }
 
+/* Autoscroll Toolbar Toggle Button */
+.autoscroll-toggle-btn {
+    position: relative;
+    transition: all var(--transition-fast);
+}
+
+.autoscroll-toggle-btn .autoscroll-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.autoscroll-toggle-btn.is-active {
+    color: var(--accent);
+    box-shadow: var(--shadow-pressed);
+}
+
+.autoscroll-toggle-btn.is-active .autoscroll-dot {
+    background-color: var(--success);
+    box-shadow: 0 0 6px var(--success);
+}
+
 /* Floating Jump to Latest Button */
 .jump-latest-pill {
     position: sticky;
@@ -2502,28 +2682,40 @@ a {
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     padding: 8px 16px;
     border-radius: var(--radius-full);
     background: var(--primary-gradient);
     color: var(--primary-text);
-    box-shadow: var(--shadow-raised), 0 4px 12px var(--primary-glow);
+    box-shadow: var(--shadow-raised), 0 4px 14px var(--primary-glow);
     border-top: 1px solid rgba(255, 255, 255, 0.4);
     border-bottom: 1px solid rgba(0, 0, 0, 0.25);
     border-left: 1px solid rgba(255, 255, 255, 0.15);
     border-right: 1px solid rgba(255, 255, 255, 0.15);
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     z-index: 10;
     animation: fadeInCentered 0.2s ease;
     cursor: pointer;
-    transition: transform var(--transition-fast);
+    transition: transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
+    user-select: none;
+}
+
+.jump-latest-pill .jump-pill-icon {
+    width: 14px;
+    height: 14px;
+    animation: jumpArrowBounce 1.5s infinite ease-in-out;
+}
+
+@keyframes jumpArrowBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(2px); }
 }
 
 .jump-latest-pill:hover {
-    filter: brightness(1.05);
-    box-shadow: var(--shadow-raised-hover), 0 6px 16px var(--primary-glow);
-    transform: translateX(-50%) translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-raised-hover), 0 6px 18px var(--primary-glow);
+    transform: translateX(-50%) translateY(-2px);
 }
 
 .jump-latest-pill:active {
@@ -4964,10 +5156,19 @@ a {
         min-height: 44px;
     }
 
-    .filter-pill,
+    .filter-pill:not(.meniscus-tab),
     .filter-chip {
         min-height: 44px;
         display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .meniscus-tab.filter-pill {
+        min-height: 40px;
+        min-width: 44px;
+        display: inline-flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
     }

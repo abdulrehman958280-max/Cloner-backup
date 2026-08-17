@@ -25,7 +25,8 @@ export {
 } from './operationExecutor.js';
 
 export {
-    withTimeout
+    withTimeout,
+    TimeoutError
 } from './timeout.js';
 
 

@@ -6,6 +6,27 @@
 
 import { ClassifiedError, ERROR_CATEGORIES } from './errorTaxonomy.js';
 
+export class TimeoutError extends ClassifiedError {
+    constructor({
+        message,
+        operationName = 'operation',
+        timeoutMs = 30000,
+        resourceType = null,
+        resourceId = null
+    } = {}) {
+        super({
+            code: ERROR_CATEGORIES.TIMEOUT,
+            message: message || `Operation "${operationName}" timed out after ${timeoutMs}ms.`,
+            operation: operationName,
+            resourceType,
+            resourceId,
+            retryable: true
+        });
+        this.name = 'TimeoutError';
+        this.timeoutMs = timeoutMs;
+    }
+}
+
 /**
  * Wraps a promise or async executor function with a hard deadline and cancellation listener.
  *
@@ -41,13 +62,12 @@ export async function withTimeout(promiseOrFn, timeoutMs = 30000, options = {}) 
 
     const timeoutPromise = new Promise((_, reject) => {
         timer = setTimeout(() => {
-            reject(new ClassifiedError({
-                code: ERROR_CATEGORIES.TIMEOUT,
+            reject(new TimeoutError({
                 message: customMessage || `Operation "${operationName}" timed out after ${timeoutMs}ms.`,
-                operation: operationName,
+                operationName,
+                timeoutMs,
                 resourceType,
-                resourceId,
-                retryable: true
+                resourceId
             }));
         }, Math.max(10, timeoutMs));
 

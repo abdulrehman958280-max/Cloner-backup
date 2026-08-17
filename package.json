@@ -6,13 +6,13 @@
   "type": "module",
   "scripts": {
     "build": "node --check server.js",
-    "lint": "node --check server.js services/jobManager.js services/cloneService.js services/discordService.js services/validationService.js utils/logger.js",
+    "lint": "node --check server.js utils/logger.js services/*.js services/cleaner/*.js services/reliability/*.js",
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test"
   },
   "dependencies": {
-    "discord.js-selfbot-v13": "latest",
+    "discord.js-selfbot-v13": "^3.7.1",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
   }

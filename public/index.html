@@ -659,6 +659,10 @@
                                 <span class="stat-pill-val font-mono" id="liveStatChannels">0</span>
                             </div>
                             <div class="stat-pill">
+                                <span class="stat-pill-label">Emojis / Stickers</span>
+                                <span class="stat-pill-val font-mono" id="liveStatEmojis">0</span>
+                            </div>
+                            <div class="stat-pill">
                                 <span class="stat-pill-label">Messages</span>
                                 <span class="stat-pill-val font-mono" id="liveStatMessages">0</span>
                             </div>
@@ -683,12 +687,56 @@
 
                         <!-- Toolbar: Filters & Actions -->
                         <div class="console-toolbar">
-                            <div class="filter-chips-scroll" role="tablist" aria-label="Log severity filter">
-                                <button type="button" class="filter-pill active" data-filter="all">All</button>
-                                <button type="button" class="filter-pill" data-filter="info">Info</button>
-                                <button type="button" class="filter-pill" data-filter="success">Success</button>
-                                <button type="button" class="filter-pill" data-filter="warning">Warnings</button>
-                                <button type="button" class="filter-pill" data-filter="error">Errors</button>
+                            <div class="meniscus-dock filter-chips-scroll" role="tablist" aria-label="Log severity filter">
+                                <button type="button" class="meniscus-tab filter-pill active" data-filter="all" title="View all logs">
+                                    <span class="dock-bead">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dock-svg">
+                                            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                                            <polyline points="2 17 12 22 22 17"/>
+                                            <polyline points="2 12 12 17 22 12"/>
+                                        </svg>
+                                    </span>
+                                    <span class="dock-label">All</span>
+                                </button>
+                                <button type="button" class="meniscus-tab filter-pill" data-filter="info" title="View informational logs">
+                                    <span class="dock-bead">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dock-svg">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="12" y1="16" x2="12" y2="12"/>
+                                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                        </svg>
+                                    </span>
+                                    <span class="dock-label">Info</span>
+                                </button>
+                                <button type="button" class="meniscus-tab filter-pill" data-filter="success" title="View successful events">
+                                    <span class="dock-bead">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dock-svg">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                            <polyline points="22 4 12 14.01 9 11.01"/>
+                                        </svg>
+                                    </span>
+                                    <span class="dock-label">Success</span>
+                                </button>
+                                <button type="button" class="meniscus-tab filter-pill" data-filter="warning" title="View warning alerts">
+                                    <span class="dock-bead">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dock-svg">
+                                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                            <line x1="12" y1="9" x2="12" y2="13"/>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                        </svg>
+                                    </span>
+                                    <span class="dock-label">Warnings</span>
+                                </button>
+                                <button type="button" class="meniscus-tab filter-pill" data-filter="error" title="View error events">
+                                    <span class="dock-bead">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dock-svg">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="15" y1="9" x2="9" y2="15"/>
+                                            <line x1="9" y1="9" x2="15" y2="15"/>
+                                        </svg>
+                                    </span>
+                                    <span class="dock-label">Errors</span>
+                                </button>
                             </div>
 
                             <div class="console-actions-group">
@@ -699,6 +747,12 @@
                                     </svg>
                                     <input type="text" id="logSearchInput" placeholder="Filter logs..." aria-label="Search activity logs">
                                 </div>
+                                <button type="button" class="neu-action-btn autoscroll-toggle-btn is-active" id="toggleAutoScrollBtn" title="Auto-scroll: ON (Click to Pause)" aria-label="Toggle auto-scroll lock">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                                    </svg>
+                                    <span class="autoscroll-dot"></span>
+                                </button>
                                 <button type="button" class="neu-action-btn" id="copyLogsBtn" title="Copy logs to clipboard" aria-label="Copy logs">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -726,8 +780,11 @@
                         </div>
 
                         <!-- Floating Jump to Latest Button -->
-                        <button type="button" class="jump-latest-pill hidden" id="jumpLatestBtn">
-                            <span>↓ New activity received</span>
+                        <button type="button" class="jump-latest-pill hidden" id="jumpLatestBtn" title="Scroll to newest log entries">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="jump-pill-icon">
+                                <path d="M12 5v14M19 12l-7 7-7-7"/>
+                            </svg>
+                            <span id="jumpLatestText">↓ New activity (1)</span>
                         </button>
                     </div>
                 </div>
@@ -852,6 +909,10 @@
                     <div class="stat-card-raised">
                         <span class="stat-card-label">Channels</span>
                         <span class="stat-card-val font-mono" id="statChannels">0</span>
+                    </div>
+                    <div class="stat-card-raised">
+                        <span class="stat-card-label">Emojis / Stickers</span>
+                        <span class="stat-card-val font-mono" id="statEmojis">0</span>
                     </div>
                     <div class="stat-card-raised">
                         <span class="stat-card-label">Permissions</span>

@@ -19,6 +19,8 @@ export async function runPreflightCheck({
         roles: 0,
         categories: 0,
         channels: 0,
+        emojis: 0,
+        stickers: 0,
         textChannels: 0,
         voiceChannels: 0,
         announcementChannels: 0,
@@ -144,8 +146,12 @@ export async function runPreflightCheck({
                 () => Promise.allSettled([
                     sourceGuild.roles.fetch().catch(() => {}),
                     sourceGuild.channels.fetch().catch(() => {}),
+                    sourceGuild.emojis?.fetch ? sourceGuild.emojis.fetch().catch(() => {}) : null,
+                    sourceGuild.stickers?.fetch ? sourceGuild.stickers.fetch().catch(() => {}) : null,
                     targetGuild.roles.fetch().catch(() => {}),
-                    targetGuild.channels.fetch().catch(() => {})
+                    targetGuild.channels.fetch().catch(() => {}),
+                    targetGuild.emojis?.fetch ? targetGuild.emojis.fetch().catch(() => {}) : null,
+                    targetGuild.stickers?.fetch ? targetGuild.stickers.fetch().catch(() => {}) : null
                 ]),
                 10000,
                 { operationName: 'preflight_fetch_structures' }
@@ -156,6 +162,8 @@ export async function runPreflightCheck({
 
         const sourceRoles = Array.from(sourceGuild.roles.cache.values()).filter(r => !r.managed && r.name !== '@everyone');
         counts.roles = sourceRoles.length;
+        counts.emojis = sourceGuild.emojis?.cache ? sourceGuild.emojis.cache.size : 0;
+        counts.stickers = sourceGuild.stickers?.cache ? sourceGuild.stickers.cache.size : 0;
 
         const sourceChannels = Array.from(sourceGuild.channels.cache.values());
         for (const ch of sourceChannels) {
