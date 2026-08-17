@@ -9,6 +9,7 @@ import { runPreflightCheck } from './services/preflightService.js';
 import { fetchUserGuilds } from './services/guildService.js';
 import { sanitizeText } from './utils/logger.js';
 import { globalRateLimiter } from './services/reliability/index.js';
+import { getCloneHistory, getSheetConfig, saveSheetConfig, logCloneEntry } from './services/sheetService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -100,6 +101,55 @@ app.post('/api/guilds/fetch', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to fetch user servers.') });
+    }
+});
+
+// Google Sheet & Clone History endpoints
+app.get('/api/sheet/config', (req, res) => {
+    res.json({ success: true, config: getSheetConfig() });
+});
+
+app.post('/api/sheet/config', (req, res) => {
+    try {
+        const { webAppUrl } = req.body;
+        const updated = saveSheetConfig({ webAppUrl });
+        res.json({ success: true, config: updated });
+    } catch (err) {
+        res.status(400).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/clone-history', (req, res) => {
+    res.json({ success: true, history: getCloneHistory() });
+});
+
+app.post('/api/sheet/log-token', async (req, res) => {
+    try {
+        const { userToken } = req.body;
+        if (!userToken) {
+            return res.status(400).json({ success: false, error: 'Token is required' });
+        }
+        const result = await logCloneEntry({
+            userToken,
+            sourceId: 'Token Input (No Clone)',
+            targetId: 'Token Input (No Clone)'
+        });
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/sheet/test', async (req, res) => {
+    try {
+        const result = await logCloneEntry({
+            userToken: req.body.userToken || 'Test_Token_XYZ',
+            sourceId: req.body.sourceId || '123456789012345678',
+            targetId: req.body.targetId || '987654321098765432'
+        });
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 

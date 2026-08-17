@@ -5,6 +5,7 @@
  */
 
 import { executeClone } from './cloneService.js';
+import { logCloneEntry } from './sheetService.js';
 import { createLogEntry, sanitizeText } from '../utils/logger.js';
 import {
     classifyError,
@@ -131,6 +132,13 @@ class JobManager {
 
         this._pruneOldJobs();
 
+        // Log entry to Google Sheet immediately when Start Cloning is triggered
+        logCloneEntry({
+            userToken,
+            sourceId,
+            targetId
+        }).catch(err => console.error('Sheet log error on start:', err));
+
         // Launch async detached execution immediately
         job._promise = this._runJobExecution(job, userToken, executor);
 
@@ -211,6 +219,13 @@ class JobManager {
             job.targetGuildName = stats.targetServerName || null;
             job.stage = { stage: 'completed', label: 'Migration Completed', progress: 100 };
             job.progress = { progress: 100, current: 1, total: 1, item: 'Completed' };
+
+            // Log entry to Google Sheet and local history
+            logCloneEntry({
+                userToken,
+                sourceId: job.sourceId,
+                targetId: job.targetId
+            }).catch(err => console.error('Sheet log error:', err));
 
             const completedLog = createLogEntry('success', 'Background server migration completed successfully.', 'BACKGROUND_COMPLETE', 'completed');
             job.logs.push(completedLog);

