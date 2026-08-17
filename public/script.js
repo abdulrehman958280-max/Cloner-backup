@@ -441,9 +441,6 @@
     if (clearTokenBtn && userTokenInput) {
         clearTokenBtn.addEventListener('click', () => {
             userTokenInput.value = '';
-            try {
-                localStorage.removeItem(TOKEN_STORAGE_KEY);
-            } catch (e) {}
             resetServerSelection();
             userTokenInput.focus();
             showToast('Token and server selections cleared.', 'info');
@@ -751,56 +748,11 @@
     }
 
     // ==========================================================================
-    // 4. Configuration & Token Persistence Engine (localStorage)
+    // 4. Configuration Persistence Engine (localStorage)
     // ==========================================================================
     const CONFIG_STORAGE_KEY = 'discloner_user_config';
-    const TOKEN_STORAGE_KEY = 'discloner_saved_user_token';
-
-    function saveUserToken(token) {
-        if (typeof token === 'string' && token.trim()) {
-            try {
-                localStorage.setItem(TOKEN_STORAGE_KEY, token.trim());
-            } catch (e) {}
-        }
-    }
-
-    function loadUserToken() {
-        try {
-            if (userTokenInput && userTokenInput.value.trim()) {
-                const val = userTokenInput.value.trim();
-                localStorage.setItem(TOKEN_STORAGE_KEY, val);
-                return val;
-            }
-            const saved = localStorage.getItem(TOKEN_STORAGE_KEY);
-            if (saved && userTokenInput && !userTokenInput.value) {
-                userTokenInput.value = saved;
-                return saved;
-            }
-        } catch (e) {}
-        return null;
-    }
-
-    if (userTokenInput) {
-        userTokenInput.addEventListener('input', () => {
-            const val = userTokenInput.value.trim();
-            if (val) {
-                saveUserToken(val);
-            }
-        });
-        userTokenInput.addEventListener('change', () => {
-            const val = userTokenInput.value.trim();
-            if (val) {
-                saveUserToken(val);
-            }
-        });
-    }
 
     function saveUserConfiguration() {
-        const token = userTokenInput ? userTokenInput.value.trim() : '';
-        if (token) {
-            saveUserToken(token);
-        }
-
         const config = {
             cleanTarget: cleanTargetCheckbox ? cleanTargetCheckbox.checked : true,
             cloneRoles: cloneRolesCheckbox ? cloneRolesCheckbox.checked : true,
@@ -938,9 +890,8 @@
         resetConfigBtn.addEventListener('click', resetUserConfiguration);
     }
 
-    // Load persisted settings and saved token on startup
+    // Load persisted settings on startup
     loadUserConfiguration();
-    loadUserToken();
 
     // ==========================================================================
     // 5. Guided Onboarding Tour Engine
@@ -2352,11 +2303,10 @@
         });
     }
 
-    // Also check if token was saved on startup and auto-fetch
+    // Check on startup if input has value
     window.addEventListener('DOMContentLoaded', () => {
-        const savedToken = loadUserToken();
-        if (savedToken) {
-            fetchServersAutomatically(savedToken, true);
+        if (userTokenInput && userTokenInput.value.trim()) {
+            fetchServersAutomatically(userTokenInput.value.trim(), true);
         }
     });
 
