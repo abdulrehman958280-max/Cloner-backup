@@ -32,6 +32,20 @@ jobManager.setSocketServer(io);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Google Search Console Site Verification route
+app.get('/google9dd587690182db74.html', (req, res) => {
+    res.type('text/html').send('google-site-verification: google9dd587690182db74.html\n');
+});
+
+// SEO robots and sitemap routes
+app.get('/robots.txt', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
 // Health status route
 app.get('/api/health', (req, res) => {
     res.json({
