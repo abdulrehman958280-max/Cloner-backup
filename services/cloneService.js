@@ -444,7 +444,7 @@ export async function executeClone({
                         }
                     }
 
-                    await cancellableSleep(200, isCancelled);
+                    await cancellableSleep(75, isCancelled);
                 }
                 emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.skipped} skipped, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
@@ -557,7 +557,7 @@ export async function executeClone({
                         }
                     }
 
-                    await cancellableSleep(250, isCancelled);
+                    await cancellableSleep(60, isCancelled);
                 }
                 emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.skipped} skipped, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {
@@ -801,7 +801,7 @@ export async function executeClone({
                 } finally {
                     const currentPct = 42 + Math.round((roleIdx / Math.max(1, totalRoles)) * 10);
                     onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
-                    await cancellableSleep(150, isCancelled);
+                    await cancellableSleep(60, isCancelled);
                 }
             }
 
@@ -907,7 +907,7 @@ export async function executeClone({
                     emitLog('warning', `Failed to create category [${cat.name}]`, catErr.message, 'cloning_categories');
                 }
 
-                await cancellableSleep(120, isCancelled);
+                await cancellableSleep(75, isCancelled);
             }
         }
 
@@ -1005,7 +1005,7 @@ export async function executeClone({
                     }
                 }
 
-                await cancellableSleep(120, isCancelled);
+                await cancellableSleep(60, isCancelled);
             }
 
             // Map System and AFK channels if configured on source
@@ -1213,26 +1213,56 @@ export async function executeClone({
         // ======================================================================
         // 12. CLONING MESSAGES (OPTIONAL)
         // =====================================================================
-        if (options.cloneMessages && options.cloneChannels && targetChannelObjects.size > 0) {
+        if (options.cloneMessages) {
             checkCancellation();
-            const limit = options.msgLimit || 15;
-            const delay = options.msgDelay || 1000;
+            const limit = Math.max(1, Math.min(1000, options.msgLimit || 15));
+            const rawDelay = (typeof options.msgDelay === 'number') ? options.msgDelay : parseInt(options.msgDelay, 10);
+            const delay = (!isNaN(rawDelay) && rawDelay >= 0) ? rawDelay : 250;
 
             onStage('cloning_messages', `Cloning Message History (Up to ${limit}/channel)`, 88);
-            emitLog('info', `Syncing chat logs via webhooks (${limit} msgs/channel, ${delay}ms pacing)...`, null, 'cloning_messages');
+            emitLog('info', `Syncing chat logs (${limit} msgs/channel, ${delay}ms pacing)...`, null, 'cloning_messages');
 
-            const textChannelsToSync = Array.from(targetChannelObjects.entries()).filter(([srcId, tgtCh]) => {
-                const src = sourceGuild.channels.cache.get(srcId);
-                return src && src.isText() && tgtCh && tgtCh.isText();
-            });
+            // Find all matching text channels
+            let textChannelsToSync = [];
+            if (targetChannelObjects && targetChannelObjects.size > 0) {
+                textChannelsToSync = Array.from(targetChannelObjects.entries())
+                    .map(([srcId, tgtCh]) => {
+                        const src = sourceGuild.channels.cache.get(srcId);
+                        return { src, tgt: tgtCh };
+                    })
+                    .filter(pair => {
+                        const isSrcText = pair.src && (typeof pair.src.isText === 'function' ? pair.src.isText() : (pair.src.type === 'GUILD_TEXT' || pair.src.type === 0 || pair.src.type === 'GUILD_NEWS' || pair.src.type === 5));
+                        const isTgtText = pair.tgt && (typeof pair.tgt.isText === 'function' ? pair.tgt.isText() : (pair.tgt.type === 'GUILD_TEXT' || pair.tgt.type === 0 || pair.tgt.type === 'GUILD_NEWS' || pair.tgt.type === 5));
+                        return isSrcText && isTgtText;
+                    });
+            }
+
+            // Fallback: match by channel name if targetChannelObjects was empty or incomplete
+            if (textChannelsToSync.length === 0) {
+                const srcTextChannels = Array.from(sourceGuild.channels.cache.values()).filter(c => 
+                    c && (typeof c.isText === 'function' ? c.isText() : (c.type === 'GUILD_TEXT' || c.type === 0 || c.type === 'GUILD_NEWS' || c.type === 5))
+                );
+                for (const srcCh of srcTextChannels) {
+                    const tgtCh = targetGuild.channels.cache.find(c => 
+                        c && c.name && c.name.toLowerCase() === srcCh.name.toLowerCase() && 
+                        (typeof c.isText === 'function' ? c.isText() : (c.type === 'GUILD_TEXT' || c.type === 0 || c.type === 'GUILD_NEWS' || c.type === 5))
+                    );
+                    if (tgtCh) {
+                        textChannelsToSync.push({ src: srcCh, tgt: tgtCh });
+                    }
+                }
+            }
 
             let syncedChannelsCount = 0;
             const totalTextChannels = textChannelsToSync.length;
 
-            for (const [srcId, targetChannel] of textChannelsToSync) {
+            if (totalTextChannels === 0) {
+                emitLog('info', 'No matching text channels available for message cloning.', null, 'cloning_messages');
+            }
+
+            for (const { src: sourceChannel, tgt: targetChannel } of textChannelsToSync) {
                 checkCancellation();
                 syncedChannelsCount++;
-                const sourceChannel = sourceGuild.channels.cache.get(srcId);
                 onProgress(
                     88 + Math.round((syncedChannelsCount / Math.max(1, totalTextChannels)) * 6),
                     syncedChannelsCount,
@@ -1241,27 +1271,48 @@ export async function executeClone({
                 );
 
                 try {
-                    let messages = null;
-                    try {
-                        messages = await executeDiscordOperation({
-                            operationName: 'fetch_messages',
-                            resourceType: 'channel_messages',
-                            resourceId: srcId,
-                            policy: OPERATION_POLICIES.READ,
-                            isCancelled,
-                            execute: async () => {
-                                return await sourceChannel.messages.fetch({ limit });
-                            },
-                            onRetry: makeRetryHandler('cloning_messages'),
-                            onRateLimit: makeRateLimitHandler('cloning_messages')
-                        });
-                    } catch (fetchErr) {
-                        emitLog('warning', `Could not fetch messages from #${sourceChannel.name}`, fetchErr.message, 'cloning_messages');
-                        continue;
+                    // Fetch messages up to requested limit
+                    let allFetched = [];
+                    let lastId = null;
+                    let remaining = limit;
+
+                    while (remaining > 0) {
+                        checkCancellation();
+                        const fetchBatchSize = Math.min(100, remaining);
+                        const fetchOptions = { limit: fetchBatchSize };
+                        if (lastId) fetchOptions.before = lastId;
+
+                        let batch = null;
+                        try {
+                            batch = await executeDiscordOperation({
+                                operationName: 'fetch_messages',
+                                resourceType: 'channel_messages',
+                                resourceId: sourceChannel.id,
+                                policy: OPERATION_POLICIES.READ,
+                                isCancelled,
+                                execute: async () => {
+                                    return await sourceChannel.messages.fetch(fetchOptions);
+                                },
+                                onRetry: makeRetryHandler('cloning_messages'),
+                                onRateLimit: makeRateLimitHandler('cloning_messages')
+                            });
+                        } catch (fetchErr) {
+                            emitLog('warning', `Could not fetch messages from #${sourceChannel.name}`, fetchErr.message, 'cloning_messages');
+                            break;
+                        }
+
+                        if (!batch || batch.size === 0) break;
+                        const batchArr = Array.from(batch.values());
+                        allFetched.push(...batchArr);
+                        lastId = batchArr[batchArr.length - 1].id;
+                        remaining -= batchArr.length;
+                        if (batchArr.length < fetchBatchSize) break;
                     }
 
-                    if (messages && messages.size > 0) {
+                    if (allFetched.length > 0) {
                         let webhook = null;
+                        let useDirectChannel = false;
+
                         try {
                             webhook = await executeDiscordOperation({
                                 operationName: 'create_webhook',
@@ -1282,11 +1333,16 @@ export async function executeClone({
                                 activeWebhooks.push(webhook);
                             }
                         } catch (whErr) {
-                            emitLog('warning', `Could not create webhook in #${targetChannel.name} (Missing Manage Webhooks permission)`, whErr.message, 'cloning_messages');
-                            continue;
+                            // If webhook creation fails, gracefully fall back to direct channel chat messages
+                            useDirectChannel = true;
+                            emitLog('info', `Using direct chat synchronization for #${targetChannel.name}`, null, 'cloning_messages');
                         }
 
-                        const msgArray = Array.from(messages.values()).reverse();
+                        if (!webhook) {
+                            useDirectChannel = true;
+                        }
+
+                        const msgArray = allFetched.reverse();
                         manifest.messages.planned += msgArray.length;
 
                         try {
@@ -1301,9 +1357,11 @@ export async function executeClone({
 
                                 const hasAttachments = options.cloneAttachments && msg.attachments && msg.attachments.size > 0;
                                 const hasEmbeds = msg.embeds && msg.embeds.length > 0;
+                                const authorName = msg.author ? (msg.author.username || 'User').substring(0, 32) : 'User';
+
                                 if (msg.content || hasAttachments || hasEmbeds) {
                                     const files = hasAttachments
-                                        ? msg.attachments.map(a => a.url).filter(Boolean)
+                                        ? Array.from(msg.attachments.values()).map(a => a.url).filter(Boolean)
                                         : [];
                                     const rawEmbeds = hasEmbeds
                                         ? msg.embeds.map(e => (typeof e.toJSON === 'function' ? e.toJSON() : e)).filter(Boolean)
@@ -1314,39 +1372,91 @@ export async function executeClone({
                                     }
 
                                     const safeContent = sanitizeMentions(msg.content, options.mentionPolicy);
+                                    let sentSuccessfully = false;
 
-                                    try {
-                                        await executeDiscordOperation({
-                                            operationName: 'send_webhook_message',
-                                            resourceType: 'message',
-                                            resourceId: msg.id,
-                                            policy: OPERATION_POLICIES.MESSAGE,
-                                            isCancelled,
-                                            execute: async () => {
-                                                const payload = {
-                                                    content: safeContent || (rawEmbeds.length > 0 ? '' : ' '),
-                                                    username: msg.author ? msg.author.username.substring(0, 32) : 'User',
-                                                    avatarURL: msg.author && msg.author.displayAvatarURL ? msg.author.displayAvatarURL({ dynamic: true }) : undefined,
-                                                    files: files.slice(0, 10)
-                                                };
-                                                if (rawEmbeds.length > 0) {
-                                                    payload.embeds = rawEmbeds.slice(0, 10);
-                                                }
-                                                await webhook.send(payload);
-                                            },
-                                            onRetry: makeRetryHandler('cloning_messages'),
-                                            onRateLimit: makeRateLimitHandler('cloning_messages')
-                                        });
+                                    // Method 1: Webhook Message Delivery
+                                    if (webhook && !useDirectChannel) {
+                                        try {
+                                            await executeDiscordOperation({
+                                                operationName: 'send_webhook_message',
+                                                resourceType: 'message',
+                                                resourceId: msg.id,
+                                                policy: OPERATION_POLICIES.MESSAGE,
+                                                isCancelled,
+                                                execute: async () => {
+                                                    const payload = {
+                                                        content: safeContent || (rawEmbeds.length > 0 ? '' : ' '),
+                                                        username: authorName,
+                                                        avatarURL: msg.author && msg.author.displayAvatarURL ? msg.author.displayAvatarURL({ dynamic: true }) : undefined
+                                                    };
+                                                    if (files.length > 0) {
+                                                        payload.files = files.slice(0, 10);
+                                                    }
+                                                    if (rawEmbeds.length > 0) {
+                                                        payload.embeds = rawEmbeds.slice(0, 10);
+                                                    }
+                                                    await webhook.send(payload);
+                                                },
+                                                onRetry: makeRetryHandler('cloning_messages'),
+                                                onRateLimit: makeRateLimitHandler('cloning_messages')
+                                            });
+                                            sentSuccessfully = true;
+                                        } catch {
+                                            useDirectChannel = true;
+                                        }
+                                    }
 
+                                    // Method 2: Direct Channel Fallback Delivery
+                                    if (!sentSuccessfully) {
+                                        try {
+                                            await executeDiscordOperation({
+                                                operationName: 'send_channel_message',
+                                                resourceType: 'message',
+                                                resourceId: msg.id,
+                                                policy: OPERATION_POLICIES.MESSAGE,
+                                                isCancelled,
+                                                execute: async () => {
+                                                    let directText = `**[${authorName}]**: ${safeContent || ''}`.trim();
+                                                    if (!directText && rawEmbeds.length === 0 && files.length === 0) {
+                                                        directText = `**[${authorName}]**`;
+                                                    }
+
+                                                    const sendPayload = {};
+                                                    if (directText) sendPayload.content = directText;
+                                                    if (rawEmbeds.length > 0) sendPayload.embeds = rawEmbeds.slice(0, 10);
+
+                                                    if (files.length > 0) {
+                                                        try {
+                                                            sendPayload.files = files.slice(0, 5);
+                                                            await targetChannel.send(sendPayload);
+                                                            return;
+                                                        } catch {
+                                                            directText += '\n' + files.map(f => `📎 ${f}`).join('\n');
+                                                            sendPayload.content = directText;
+                                                            delete sendPayload.files;
+                                                        }
+                                                    }
+
+                                                    await targetChannel.send(sendPayload);
+                                                },
+                                                onRetry: makeRetryHandler('cloning_messages'),
+                                                onRateLimit: makeRateLimitHandler('cloning_messages')
+                                            });
+                                            sentSuccessfully = true;
+                                        } catch (directErr) {
+                                            manifest.messages.failed++;
+                                            if (files.length > 0) manifest.attachments.failed += files.length;
+                                            emitLog('warning', `Failed to copy message from ${authorName}`, directErr.message, 'cloning_messages');
+                                        }
+                                    }
+
+                                    if (sentSuccessfully) {
                                         manifest.messageMap.set(msg.id, true);
                                         manifest.messages.copied++;
                                         manifest.attachments.copied += files.length;
-                                        await cancellableSleep(delay, isCancelled);
-
-                                    } catch (sendErr) {
-                                        manifest.messages.failed++;
-                                        if (files.length > 0) manifest.attachments.failed += files.length;
-                                        emitLog('warning', `Failed to copy message from ${msg.author?.username || 'user'}`, sendErr.message, 'cloning_messages');
+                                        if (delay > 0) {
+                                            await cancellableSleep(delay, isCancelled);
+                                        }
                                     }
                                 }
                             }

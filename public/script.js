@@ -322,10 +322,10 @@
             if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = true;
             syncMessageOptionUI();
             if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = true;
-            if (msgLimitInput) msgLimitInput.value = 25;
-            if (limitBadge) limitBadge.textContent = '25';
-            if (msgDelayInput) msgDelayInput.value = 1000;
-            if (delayBadge) delayBadge.textContent = '1000ms';
+            if (msgLimitInput) msgLimitInput.value = 100;
+            if (limitBadge) limitBadge.textContent = '100';
+            if (msgDelayInput) msgDelayInput.value = 0;
+            if (delayBadge) delayBadge.textContent = '0ms (Turbo)';
             showToast('Applied preset: Complete Server Archive', 'warning');
         } else if (preset === 'roles-only') {
             if (cleanTargetCheckbox) cleanTargetCheckbox.checked = true;
@@ -769,8 +769,8 @@
                 cloneWebhooks: document.getElementById("cloneWebhooks") ? document.getElementById("cloneWebhooks").checked : true,
             cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
             cloneAttachments: cloneAttachmentsCheckbox ? cloneAttachmentsCheckbox.checked : false,
-            msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) || 15) : 15,
-            msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) || 1000) : 1000,
+            msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
+            msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0,
             savedAt: Date.now()
         };
 
@@ -1228,8 +1228,8 @@
                 cloneWebhooks: document.getElementById("cloneWebhooks") ? document.getElementById("cloneWebhooks").checked : true,
                 cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
                 cloneAttachments: cloneMessagesCheckbox && cloneAttachmentsCheckbox ? (cloneMessagesCheckbox.checked && cloneAttachmentsCheckbox.checked) : false,
-                msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) || 15) : 15,
-                msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) || 1000) : 1000
+                msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
+                msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0
             }
         };
     }
@@ -1400,8 +1400,8 @@
         const isChannels = cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : true;
         const isMessages = cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false;
         const isPermissions = clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : true;
-        const msgLimit = msgLimitInput ? (parseInt(msgLimitInput.value, 10) || 15) : 15;
-        const msgDelay = msgDelayInput ? (parseInt(msgDelayInput.value, 10) || 1000) : 1000;
+        const msgLimit = msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000;
+        const msgDelay = msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0;
 
         let baseSec = 3.5;
         if (isClean) baseSec += bench.cleanSecTarget;

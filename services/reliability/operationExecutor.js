@@ -48,11 +48,11 @@ export const OPERATION_POLICIES = Object.freeze({
     MESSAGE: Object.freeze({
         name: 'MESSAGE',
         maxAttempts: 3,
-        baseDelayMs: 800,
-        maxDelayMs: 10000,
-        maxTotalRetryTimeMs: 30000,
-        operationTimeoutMs: 25000,
-        jitterFactor: 0.25
+        baseDelayMs: 300,
+        maxDelayMs: 8000,
+        maxTotalRetryTimeMs: 25000,
+        operationTimeoutMs: 15000,
+        jitterFactor: 0.15
     }),
     VERIFICATION: Object.freeze({
         name: 'VERIFICATION',
