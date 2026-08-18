@@ -324,8 +324,8 @@
             if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = true;
             if (msgLimitInput) msgLimitInput.value = 100;
             if (limitBadge) limitBadge.textContent = '100';
-            if (msgDelayInput) msgDelayInput.value = 0;
-            if (delayBadge) delayBadge.textContent = '0ms (Turbo)';
+            if (msgDelayInput) msgDelayInput.value = 750;
+            if (delayBadge) delayBadge.textContent = '750ms (Stealth)';
             showToast('Applied preset: Complete Server Archive', 'warning');
         } else if (preset === 'roles-only') {
             if (cleanTargetCheckbox) cleanTargetCheckbox.checked = true;
@@ -658,7 +658,16 @@
 
     if (msgDelayInput && delayBadge) {
         msgDelayInput.addEventListener('input', (e) => {
-            delayBadge.textContent = `${e.target.value}ms`;
+            const val = parseInt(e.target.value, 10);
+            if (val === 750) {
+                delayBadge.textContent = '750ms (Stealth)';
+            } else if (val < 500) {
+                delayBadge.textContent = `${val}ms (Fast)`;
+            } else if (val >= 1200) {
+                delayBadge.textContent = `${val}ms (Safe)`;
+            } else {
+                delayBadge.textContent = `${val}ms`;
+            }
             updateRangePresetHighlights('msgDelay', e.target.value);
         });
     }
@@ -770,7 +779,7 @@
             cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
             cloneAttachments: cloneAttachmentsCheckbox ? cloneAttachmentsCheckbox.checked : false,
             msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
-            msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0,
+            msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 750) : 750,
             savedAt: Date.now()
         };
 
@@ -872,9 +881,9 @@
             updateRangePresetHighlights('msgLimit', 1000);
         }
         if (msgDelayInput) {
-            msgDelayInput.value = 0;
-            if (delayBadge) delayBadge.textContent = '0ms';
-            updateRangePresetHighlights('msgDelay', 0);
+            msgDelayInput.value = 750;
+            if (delayBadge) delayBadge.textContent = '750ms (Stealth)';
+            updateRangePresetHighlights('msgDelay', 750);
         }
 
         syncMessageOptionUI();
@@ -1229,7 +1238,7 @@
                 cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
                 cloneAttachments: cloneMessagesCheckbox && cloneAttachmentsCheckbox ? (cloneMessagesCheckbox.checked && cloneAttachmentsCheckbox.checked) : false,
                 msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
-                msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0
+                msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 750) : 750
             }
         };
     }
@@ -1401,7 +1410,7 @@
         const isMessages = cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false;
         const isPermissions = clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : true;
         const msgLimit = msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000;
-        const msgDelay = msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 0) : 0;
+        const msgDelay = msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 750) : 750;
 
         let baseSec = 3.5;
         if (isClean) baseSec += bench.cleanSecTarget;

@@ -50,5 +50,5 @@ test('DEFAULT_CONFIG enforces product defaults', () => {
     assert.equal(DEFAULT_CONFIG.cloneMessages, false);
     assert.equal(DEFAULT_CONFIG.cloneAttachments, false);
     assert.equal(DEFAULT_CONFIG.msgLimit, 15);
-    assert.equal(DEFAULT_CONFIG.msgDelay, 250);
+    assert.equal(DEFAULT_CONFIG.msgDelay, 750);
 });

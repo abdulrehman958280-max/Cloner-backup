@@ -14,6 +14,7 @@ import {
     executeDiscordOperation,
     OPERATION_POLICIES,
     cancellableSleep,
+    jitteredSleep,
     globalRateLimiter,
     withTimeout
 } from './reliability/index.js';
@@ -444,7 +445,7 @@ export async function executeClone({
                         }
                     }
 
-                    await cancellableSleep(75, isCancelled);
+                    await jitteredSleep(220, isCancelled, 0.2);
                 }
                 emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.skipped} skipped, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
@@ -557,7 +558,7 @@ export async function executeClone({
                         }
                     }
 
-                    await cancellableSleep(60, isCancelled);
+                    await jitteredSleep(220, isCancelled, 0.2);
                 }
                 emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.skipped} skipped, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {
@@ -801,7 +802,7 @@ export async function executeClone({
                 } finally {
                     const currentPct = 42 + Math.round((roleIdx / Math.max(1, totalRoles)) * 10);
                     onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
-                    await cancellableSleep(60, isCancelled);
+                    await jitteredSleep(240, isCancelled, 0.2);
                 }
             }
 
@@ -907,7 +908,7 @@ export async function executeClone({
                     emitLog('warning', `Failed to create category [${cat.name}]`, catErr.message, 'cloning_categories');
                 }
 
-                await cancellableSleep(75, isCancelled);
+                await jitteredSleep(220, isCancelled, 0.2);
             }
         }
 
@@ -1005,7 +1006,7 @@ export async function executeClone({
                     }
                 }
 
-                await cancellableSleep(60, isCancelled);
+                await jitteredSleep(220, isCancelled, 0.2);
             }
 
             // Map System and AFK channels if configured on source
@@ -1144,6 +1145,7 @@ export async function executeClone({
                         manifest.permissions.failed++;
                         emitLog('warning', `Failed to apply permissions to #${targetCh.name}`, permErr.message, 'applying_permissions');
                     }
+                    await jitteredSleep(160, isCancelled, 0.15);
                 }
             }
             emitLog('success', `Applied ${manifest.permissions.applied} permission overwrites across categories and channels (${manifest.permissions.skipped} skipped).`, null, 'applying_permissions');
@@ -1454,9 +1456,8 @@ export async function executeClone({
                                         manifest.messageMap.set(msg.id, true);
                                         manifest.messages.copied++;
                                         manifest.attachments.copied += files.length;
-                                        if (delay > 0) {
-                                            await cancellableSleep(delay, isCancelled);
-                                        }
+                                        const actualDelay = Math.max(350, delay > 0 ? delay : 750);
+                                        await jitteredSleep(actualDelay, isCancelled, 0.2);
                                     }
                                 }
                             }

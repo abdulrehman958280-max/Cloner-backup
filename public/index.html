@@ -523,17 +523,17 @@
 
                                                         <div class="form-group">
                                                             <div class="range-header">
-                                                                <label for="msgDelay" class="range-label">Webhook Migration Pacing</label>
-                                                                <span class="range-val-badge" id="delayBadge">0ms</span>
+                                                                <label for="msgDelay" class="range-label">Message Migration Pacing (Anti-Rate-Limit)</label>
+                                                                <span class="range-val-badge" id="delayBadge">750ms (Stealth)</span>
                                                             </div>
                                                             <div class="neu-range-wrapper">
-                                                                <input type="range" id="msgDelay" min="0" max="5000" step="50" value="0" class="neu-range-slider" aria-label="Webhook migration pacing delay">
+                                                                <input type="range" id="msgDelay" min="300" max="5000" step="50" value="750" class="neu-range-slider" aria-label="Message migration pacing delay">
                                                             </div>
                                                             <div class="range-preset-row">
-                                                                <button type="button" class="range-preset-chip active" data-target="msgDelay" data-val="0">0ms (Turbo)</button>
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="250">250ms</button>
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="500">500ms</button>
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="1000">1000ms (Safe)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="350">350ms (Fast)</button>
+                                                                <button type="button" class="range-preset-chip active" data-target="msgDelay" data-val="750">750ms (Stealth)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="1200">1200ms (Safe)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="2000">2000ms (Max)</button>
                                                             </div>
                                                         </div>
                                                     </div>

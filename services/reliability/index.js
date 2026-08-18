@@ -21,6 +21,7 @@ export {
 export {
     OPERATION_POLICIES,
     cancellableSleep,
+    jitteredSleep,
     executeDiscordOperation
 } from './operationExecutor.js';
 

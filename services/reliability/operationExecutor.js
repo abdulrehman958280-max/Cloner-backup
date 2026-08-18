@@ -48,11 +48,11 @@ export const OPERATION_POLICIES = Object.freeze({
     MESSAGE: Object.freeze({
         name: 'MESSAGE',
         maxAttempts: 3,
-        baseDelayMs: 300,
+        baseDelayMs: 600,
         maxDelayMs: 8000,
         maxTotalRetryTimeMs: 25000,
         operationTimeoutMs: 15000,
-        jitterFactor: 0.15
+        jitterFactor: 0.2
     }),
     VERIFICATION: Object.freeze({
         name: 'VERIFICATION',
@@ -64,6 +64,17 @@ export const OPERATION_POLICIES = Object.freeze({
         jitterFactor: 0.15
     })
 });
+
+/**
+ * Sleeps for ms with random humanized jitter to prevent Cloudflare/Discord bot detection
+ */
+export function jitteredSleep(baseMs, isCancelled = () => false, jitterFactor = 0.2, signal = null) {
+    const safeBase = Math.max(0, baseMs);
+    if (safeBase === 0) return Promise.resolve();
+    const jitter = (Math.random() * 2 - 1) * jitterFactor * safeBase;
+    const finalMs = Math.max(10, Math.round(safeBase + jitter));
+    return cancellableSleep(finalMs, isCancelled, signal);
+}
 
 /**
  * Sleeps for ms, but aborts immediately if cancelled or aborted
