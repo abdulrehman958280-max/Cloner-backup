@@ -4,6 +4,7 @@
  * global active job limits, stale job heartbeat monitoring, and safe telemetry broadcast.
  */
 
+import { EventEmitter } from 'events';
 import { executeClone } from './cloneService.js';
 import { logCloneEntry } from './sheetService.js';
 import { createLogEntry, sanitizeText } from '../utils/logger.js';
@@ -15,8 +16,10 @@ import {
 } from './reliability/index.js';
 import { RELIABILITY_CONFIG } from './configContract.js';
 
-class JobManager {
+class JobManager extends EventEmitter {
     constructor() {
+        super();
+        this.setMaxListeners(100);
         this.jobs = new Map();
         this.socketJobMap = new Map(); // socketId -> activeJobId
         this.io = null;
@@ -154,6 +157,7 @@ class JobManager {
         const onStage = (stage, label, progress) => {
             job.lastActivityAt = Date.now();
             job.stage = { stage, label, progress };
+            this.emit(`job:${jobId}`, { event: 'clone:stage', data: { stage, label, progress, jobId } });
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:stage', { stage, label, progress, jobId });
             }
@@ -162,14 +166,16 @@ class JobManager {
         const onProgress = (progress, current, total, item) => {
             job.lastActivityAt = Date.now();
             job.progress = { progress, current, total, item: sanitizeText(item) };
+            const payload = {
+                progress,
+                current,
+                total,
+                item: sanitizeText(item),
+                jobId
+            };
+            this.emit(`job:${jobId}`, { event: 'clone:progress', data: payload });
             if (this.io) {
-                this.io.to(`job:${jobId}`).emit('clone:progress', {
-                    progress,
-                    current,
-                    total,
-                    item: sanitizeText(item),
-                    jobId
-                });
+                this.io.to(`job:${jobId}`).emit('clone:progress', payload);
                 // Legacy compatibility event
                 this.io.to(`job:${jobId}`).emit('progress', progress);
             }
@@ -191,6 +197,7 @@ class JobManager {
                 if (lower.includes('message')) job.statCounters.messages++;
             }
 
+            this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...logEntry, jobId } });
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:log', { ...logEntry, jobId });
                 
@@ -230,6 +237,8 @@ class JobManager {
             const completedLog = createLogEntry('success', 'Background server migration completed successfully.', 'BACKGROUND_COMPLETE', 'completed');
             job.logs.push(completedLog);
 
+            this.emit(`job:${jobId}`, { event: 'clone:completed', data: { success: true, stats, jobId } });
+            this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...completedLog, jobId } });
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:completed', {
                     success: true,
@@ -251,6 +260,8 @@ class JobManager {
                 const cancelLog = createLogEntry('warning', 'Clone sequence was cancelled by the user.', 'BACKGROUND_CANCEL', 'cancelled');
                 job.logs.push(cancelLog);
 
+                this.emit(`job:${jobId}`, { event: 'clone:cancelled', data: { message: 'Operation cancelled by user.', jobId } });
+                this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...cancelLog, jobId } });
                 if (this.io) {
                     this.io.to(`job:${jobId}`).emit('clone:cancelled', { message: 'Operation cancelled by user.', jobId });
                     this.io.to(`job:${jobId}`).emit('clone:log', { ...cancelLog, jobId });
@@ -268,6 +279,16 @@ class JobManager {
                 const errorLog = createLogEntry('error', friendlyMessage, classified.code, 'error');
                 job.logs.push(errorLog);
 
+                this.emit(`job:${jobId}`, {
+                    event: 'clone:error',
+                    data: {
+                        message: friendlyMessage,
+                        code: classified.code,
+                        details: safeSerialized,
+                        jobId
+                    }
+                });
+                this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...errorLog, jobId } });
                 if (this.io) {
                     this.io.to(`job:${jobId}`).emit('clone:error', {
                         message: friendlyMessage,

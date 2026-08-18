@@ -5,16 +5,16 @@
  */
 
 export const CONCURRENCY_LIMITS = Object.freeze({
-    GLOBAL_MAX_JOBS: 3,
-    ROLES: 2,
-    CATEGORIES: 2,
-    CHANNELS: 3,
-    PERMISSIONS: 3,
-    MESSAGES: 1, // Messages strictly paced
-    CLEANER: 2,  // Conservative deletion concurrency
-    CLEANER_ROLE_CONCURRENCY: 2, // Maximum safe role deletion concurrency
-    CLEANER_CHANNEL_CONCURRENCY: 3, // Safe channel deletion concurrency
-    READ: 4
+    GLOBAL_MAX_JOBS: 5,
+    ROLES: 3,
+    CATEGORIES: 3,
+    CHANNELS: 4,
+    PERMISSIONS: 4,
+    MESSAGES: 2, // Safe concurrent message piping
+    CLEANER: 3,  // Responsive deletion concurrency
+    CLEANER_ROLE_CONCURRENCY: 3, // Fast safe role deletion concurrency
+    CLEANER_CHANNEL_CONCURRENCY: 4, // Fast safe channel deletion concurrency
+    READ: 6
 });
 
 /**

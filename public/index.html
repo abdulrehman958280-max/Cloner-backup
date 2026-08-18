@@ -116,12 +116,26 @@
                     <a href="#appRoot" class="nav-link active" id="navHome">Home</a>
                     <button type="button" class="nav-link-btn" id="navTourBtn" title="Start Guided Tour">Tour</button>
                     <button type="button" class="nav-link-btn" id="navTemplatesBtn">Presets</button>
+                    <button type="button" class="nav-link-btn" id="navUtilitiesBtn" title="Server Blueprint Exporter & Member Scraper">Utilities</button>
                     <button type="button" class="nav-link-btn" id="navGuidesBtn">Guides</button>
                     <button type="button" class="nav-link-btn" id="navSupportBtn">About</button>
                 </nav>
 
                 <!-- Header Actions: Status & Merged Theme Toggle -->
                 <div class="header-actions">
+                    <!-- Audio FX Toggle -->
+                    <button type="button" class="neu-btn-icon-subtle" id="audioToggleBtn" title="Toggle audio chime notifications on complete" aria-label="Toggle audio chime notifications">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="audio-icon-on" id="audioIconOn" style="width:16px;height:16px;">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="audio-icon-off hidden" id="audioIconOff" style="width:16px;height:16px;">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <line x1="23" y1="9" x2="17" y2="15"/>
+                            <line x1="17" y1="9" x2="23" y2="15"/>
+                        </svg>
+                    </button>
+
                     <!-- Connection Status Pill -->
                     <div class="conn-status-pill" id="connStatus" title="Socket.IO Gateway Status">
                         <span class="status-dot"></span>
@@ -586,17 +600,41 @@
 
                                                         <div class="form-group">
                                                             <div class="range-header">
-                                                                <label for="msgDelay" class="range-label">Message Migration Pacing (Anti-Rate-Limit)</label>
-                                                                <span class="range-val-badge" id="delayBadge">750ms (Stealth)</span>
+                                                                <label for="msgDelay" class="range-label">Message Migration Pacing (Speed / Anti-Rate-Limit)</label>
+                                                                <span class="range-val-badge" id="delayBadge">250ms (Fast)</span>
                                                             </div>
                                                             <div class="neu-range-wrapper">
-                                                                <input type="range" id="msgDelay" min="300" max="5000" step="50" value="750" class="neu-range-slider" aria-label="Message migration pacing delay">
+                                                                <input type="range" id="msgDelay" min="50" max="3000" step="25" value="250" class="neu-range-slider" aria-label="Message migration pacing delay">
                                                             </div>
                                                             <div class="range-preset-row">
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="350">350ms (Fast)</button>
-                                                                <button type="button" class="range-preset-chip active" data-target="msgDelay" data-val="750">750ms (Stealth)</button>
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="1200">1200ms (Safe)</button>
-                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="2000">2000ms (Max)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="100">100ms (Turbo)</button>
+                                                                <button type="button" class="range-preset-chip active" data-target="msgDelay" data-val="250">250ms (Fast)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="500">500ms (Stealth)</button>
+                                                                <button type="button" class="range-preset-chip" data-target="msgDelay" data-val="1000">1000ms (Safe)</button>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Smart Sanitization & Rebranding -->
+                                                        <div class="form-group" style="grid-column: 1 / -1; border-top: 1px solid var(--border-subtle); padding-top: 12px; margin-top: 6px;">
+                                                            <div class="flex-row-between" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                                                <div>
+                                                                    <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Strip Discord Invite Links</span>
+                                                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 0 0;">Censors discord.gg / discord.com/invite links from cloned messages</p>
+                                                                </div>
+                                                                <div class="neu-toggle">
+                                                                    <input type="checkbox" id="stripInvites" aria-label="Toggle strip invite links">
+                                                                    <span class="neu-toggle-slider"></span>
+                                                                </div>
+                                                            </div>
+                                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                                                                <div>
+                                                                    <label for="customFind" style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Find Text / Old Server Name</label>
+                                                                    <input type="text" id="customFind" placeholder="e.g. OldServer" class="neu-input font-mono" style="font-size:0.8rem; padding: 6px 10px; width: 100%; border-radius: 8px;" />
+                                                                </div>
+                                                                <div>
+                                                                    <label for="customReplace" style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Replace With / New Name</label>
+                                                                    <input type="text" id="customReplace" placeholder="e.g. MyNewServer" class="neu-input font-mono" style="font-size:0.8rem; padding: 6px 10px; width: 100%; border-radius: 8px;" />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -945,6 +983,14 @@
                 </div>
             </div>
             <div class="modal-actions-row">
+                <button type="button" class="neu-btn-secondary" id="exportReportBtn" title="Download structured migration report as JSON">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export JSON
+                </button>
                 <button type="button" class="neu-btn-secondary" id="viewLogsSummaryBtn">View Activity Log</button>
                 <button type="button" class="neu-btn-primary" id="closeSummaryBtn">Done</button>
             </div>
@@ -1037,6 +1083,84 @@
             </div>
             <div class="modal-actions-row">
                 <button type="button" class="neu-btn-secondary" id="dismissTemplatesBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4b. Server Utilities Modal (Blueprint Export & Member Scraper) -->
+    <div class="modal-backdrop hidden" id="utilitiesModal" role="dialog" aria-modal="true" aria-labelledby="utilitiesTitle">
+        <div class="neu-modal-card template-modal">
+            <div class="modal-header-simple">
+                <div class="guide-title-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-title-icon">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </svg>
+                    <h3 class="modal-title" id="utilitiesTitle">Server Utilities & Tools</h3>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeUtilitiesBtn" aria-label="Close utilities modal">✕</button>
+            </div>
+            <div class="modal-scroll-body">
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 16px;">
+                    Use your active token and selected source server to export an offline server blueprint template or scrape guild members.
+                </p>
+
+                <div class="template-grid" style="display:flex; flex-direction:column; gap:12px;">
+                    <!-- Card 1: Server Blueprint Exporter -->
+                    <div class="stat-card-raised" style="padding:16px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--brand-primary);">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                <strong style="font-size:0.95rem; color:var(--text-primary);">Export Server Blueprint (.JSON)</strong>
+                            </div>
+                            <span class="badge-tag">OFFLINE TEMPLATE</span>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">
+                            Generates a complete offline template including all roles, categories, channels, permissions, overwrites, and emojis.
+                        </p>
+                        <div style="margin-top:6px;">
+                            <button type="button" class="neu-btn-primary" id="btnExportTemplate" style="width:100%; justify-content:center;">
+                                <span id="exportTemplateBtnText">Download JSON Blueprint</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Member List Scraper -->
+                    <div class="stat-card-raised" style="padding:16px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--brand-primary);">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                                <strong style="font-size:0.95rem; color:var(--text-primary);">Scrape Guild Members (.CSV / .JSON)</strong>
+                            </div>
+                            <span class="badge-tag">MEMBER AUDIT</span>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">
+                            Scrapes all guild members with username, display name, Snowflake ID, roles, avatar URL, and joined timestamp.
+                        </p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;">
+                            <button type="button" class="neu-btn-secondary" id="btnScrapeMembersCsv" style="width:100%; justify-content:center;">
+                                <span id="scrapeCsvBtnText">Export CSV</span>
+                            </button>
+                            <button type="button" class="neu-btn-secondary" id="btnScrapeMembersJson" style="width:100%; justify-content:center;">
+                                <span id="scrapeJsonBtnText">Export JSON</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="validation-feedback" id="utilitiesFeedback" style="margin-top:12px;"></div>
+            </div>
+            <div class="modal-actions-row">
+                <button type="button" class="neu-btn-secondary" id="dismissUtilitiesBtn">Close</button>
             </div>
         </div>
     </div>

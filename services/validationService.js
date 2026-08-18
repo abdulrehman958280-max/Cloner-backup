@@ -79,6 +79,9 @@ export function normalizeCloneOptions(options = {}) {
         cleanupMode,
         msgLimit,
         msgDelay,
+        stripInvites: options.stripInvites === true,
+        customFind: typeof options.customFind === 'string' ? options.customFind.slice(0, 100) : '',
+        customReplace: typeof options.customReplace === 'string' ? options.customReplace.slice(0, 100) : '',
         mentionPolicy: options.mentionPolicy === 'allow' ? 'allow' : DEFAULT_CONFIG.mentionPolicy,
         conflictPolicy: ['skip', 'update', 'create'].includes(options.conflictPolicy) 
             ? options.conflictPolicy 

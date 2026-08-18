@@ -20,7 +20,7 @@ export const DEFAULT_CONFIG = Object.freeze({
 
     // Message tuning defaults
     msgLimit: 15,
-    msgDelay: 750, // 750ms safe stealth default pacing (anti-rate-limit)
+    msgDelay: 250, // 250ms fast responsive default pacing
 
     // Role Reliability options
     continueOnRoleError: true,
@@ -34,7 +34,7 @@ export const DEFAULT_CONFIG = Object.freeze({
         defaultMsgLimit: 1000,
         minMsgDelay: 0,
         maxMsgDelay: 5000,
-        defaultMsgDelay: 750
+        defaultMsgDelay: 250
     }),
 
     // Safety policies

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { validateClonePayload } from './services/validationService.js';
 import { jobManager } from './services/jobManager.js';
 import { runPreflightCheck } from './services/preflightService.js';
-import { fetchUserGuilds } from './services/guildService.js';
+import { fetchUserGuilds, exportGuildTemplate, scrapeGuildMembers } from './services/guildService.js';
 import { sanitizeText } from './utils/logger.js';
 import { globalRateLimiter } from './services/reliability/index.js';
 import { getCloneHistory, getSheetConfig, saveSheetConfig, logCloneEntry } from './services/sheetService.js';
@@ -72,6 +72,49 @@ app.get('/api/jobs/:jobId', (req, res) => {
     res.json({ success: true, job });
 });
 
+// Server-Sent Events (SSE) stream endpoint (Vercel & proxy resilient)
+app.get('/api/jobs/:jobId/events', (req, res) => {
+    const { jobId } = req.params;
+    const job = jobManager.getJobSnapshot(jobId);
+    if (!job) {
+        return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    });
+
+    // Send initial snapshot
+    res.write(`data: ${JSON.stringify({ event: 'job:snapshot', data: job })}\n\n`);
+
+    const onJobEvent = (payload) => {
+        try {
+            res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        } catch {
+            // Socket write failed
+        }
+    };
+
+    jobManager.on(`job:${jobId}`, onJobEvent);
+
+    // Keep-alive heartbeat every 10s to prevent Vercel gateway timeout
+    const keepAlive = setInterval(() => {
+        try {
+            res.write(': keep-alive\n\n');
+        } catch {
+            clearInterval(keepAlive);
+        }
+    }, 10000);
+
+    req.on('close', () => {
+        clearInterval(keepAlive);
+        jobManager.off(`job:${jobId}`, onJobEvent);
+    });
+});
+
 // Start Job via REST
 app.post('/api/jobs/start', (req, res) => {
     const validation = validateClonePayload(req.body);
@@ -115,6 +158,28 @@ app.post('/api/guilds/fetch', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to fetch user servers.') });
+    }
+});
+
+// Export Server Template Blueprint (.json)
+app.post('/api/guilds/template/export', async (req, res) => {
+    const { userToken, sourceId } = req.body;
+    try {
+        const result = await exportGuildTemplate(userToken, sourceId);
+        res.json(result);
+    } catch (err) {
+        res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to export server template.') });
+    }
+});
+
+// Scrape Guild Member List
+app.post('/api/guilds/members/scrape', async (req, res) => {
+    const { userToken, sourceId } = req.body;
+    try {
+        const result = await scrapeGuildMembers(userToken, sourceId);
+        res.json(result);
+    } catch (err) {
+        res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to scrape server members.') });
     }
 });
 

@@ -13,6 +13,7 @@
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const navTourBtn = document.getElementById('navTourBtn');
     const navTemplatesBtn = document.getElementById('navTemplatesBtn');
+    const navUtilitiesBtn = document.getElementById('navUtilitiesBtn');
     const navGuidesBtn = document.getElementById('navGuidesBtn');
     const navSupportBtn = document.getElementById('navSupportBtn');
 
@@ -38,6 +39,9 @@
     const cloneWebhooksCheckbox = document.getElementById('cloneWebhooks');
     const cloneMessagesCheckbox = document.getElementById('cloneMessages');
     const cloneAttachmentsCheckbox = document.getElementById('cloneAttachments');
+    const stripInvitesCheckbox = document.getElementById('stripInvites');
+    const customFindInput = document.getElementById('customFind');
+    const customReplaceInput = document.getElementById('customReplace');
     const attachmentsRow = document.getElementById('attachmentsRow');
     const attachmentsBadge = document.getElementById('attachmentsBadge');
     const attachmentsDesc = document.getElementById('attachmentsDesc');
@@ -149,6 +153,17 @@
     const templatesModal = document.getElementById('templatesModal');
     const closeTemplatesBtn = document.getElementById('closeTemplatesBtn');
     const dismissTemplatesBtn = document.getElementById('dismissTemplatesBtn');
+
+    const utilitiesModal = document.getElementById('utilitiesModal');
+    const closeUtilitiesBtn = document.getElementById('closeUtilitiesBtn');
+    const dismissUtilitiesBtn = document.getElementById('dismissUtilitiesBtn');
+    const btnExportTemplate = document.getElementById('btnExportTemplate');
+    const exportTemplateBtnText = document.getElementById('exportTemplateBtnText');
+    const btnScrapeMembersCsv = document.getElementById('btnScrapeMembersCsv');
+    const scrapeCsvBtnText = document.getElementById('scrapeCsvBtnText');
+    const btnScrapeMembersJson = document.getElementById('btnScrapeMembersJson');
+    const scrapeJsonBtnText = document.getElementById('scrapeJsonBtnText');
+    const utilitiesFeedback = document.getElementById('utilitiesFeedback');
 
     const supportModal = document.getElementById('supportModal');
     const closeSupportBtn = document.getElementById('closeSupportBtn');
@@ -283,9 +298,149 @@
     if (closeTemplatesBtn) closeTemplatesBtn.addEventListener('click', () => closeModal(templatesModal));
     if (dismissTemplatesBtn) dismissTemplatesBtn.addEventListener('click', () => closeModal(templatesModal));
 
+    if (navUtilitiesBtn) navUtilitiesBtn.addEventListener('click', () => openModal(utilitiesModal));
+    if (closeUtilitiesBtn) closeUtilitiesBtn.addEventListener('click', () => closeModal(utilitiesModal));
+    if (dismissUtilitiesBtn) dismissUtilitiesBtn.addEventListener('click', () => closeModal(utilitiesModal));
+
     if (navSupportBtn) navSupportBtn.addEventListener('click', () => openModal(supportModal));
     if (closeSupportBtn) closeSupportBtn.addEventListener('click', () => closeModal(supportModal));
     if (dismissSupportBtn) dismissSupportBtn.addEventListener('click', () => closeModal(supportModal));
+
+    // Utilities Actions: Blueprint Export & Member Scraper
+    function downloadBlobFile(filename, content, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    if (btnExportTemplate) {
+        btnExportTemplate.addEventListener('click', async () => {
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
+            const guildId = sourceIdInput ? sourceIdInput.value.trim() : '';
+
+            if (!token) {
+                showToast('Please enter your Discord authorization token first.', 'warning');
+                if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--status-danger);">⚠️ Token required to export blueprint.</span>';
+                return;
+            }
+            if (!guildId) {
+                showToast('Please select a source server first.', 'warning');
+                if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--status-danger);">⚠️ Source server must be selected.</span>';
+                return;
+            }
+
+            try {
+                if (btnExportTemplate) btnExportTemplate.disabled = true;
+                if (exportTemplateBtnText) exportTemplateBtnText.textContent = 'Generating Blueprint...';
+                if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--brand-primary);">⏳ Fetching guild blueprint (roles, channels, emojis)...</span>';
+
+                const res = await fetch('/api/guilds/template/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userToken: token, guildId })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to export server blueprint');
+                }
+
+                const filename = `blueprint_${(data.guildName || 'guild').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.json`;
+                downloadBlobFile(filename, JSON.stringify(data.template, null, 2), 'application/json');
+                
+                if (utilitiesFeedback) utilitiesFeedback.innerHTML = `<span style="color:var(--status-success);">✓ Successfully exported template for "${escapeHtml(data.guildName || 'Guild')}" (${data.stats?.roles || 0} roles, ${data.stats?.channels || 0} channels, ${data.stats?.emojis || 0} emojis)</span>`;
+                playChime('success');
+                showToast('Server blueprint exported successfully!', 'success');
+            } catch (err) {
+                if (utilitiesFeedback) utilitiesFeedback.innerHTML = `<span style="color:var(--status-danger);">⚠️ Error: ${escapeHtml(err.message)}</span>`;
+                playChime('error');
+                showToast(err.message, 'error');
+            } finally {
+                if (btnExportTemplate) btnExportTemplate.disabled = false;
+                if (exportTemplateBtnText) exportTemplateBtnText.textContent = 'Download JSON Blueprint';
+            }
+        });
+    }
+
+    async function handleMemberScraping(format) {
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
+        const guildId = sourceIdInput ? sourceIdInput.value.trim() : '';
+
+        if (!token) {
+            showToast('Please enter your Discord authorization token first.', 'warning');
+            if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--status-danger);">⚠️ Token required to scrape members.</span>';
+            return;
+        }
+        if (!guildId) {
+            showToast('Please select a source server first.', 'warning');
+            if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--status-danger);">⚠️ Source server must be selected.</span>';
+            return;
+        }
+
+        const isCsv = format === 'csv';
+        const targetBtn = isCsv ? btnScrapeMembersCsv : btnScrapeMembersJson;
+        const targetText = isCsv ? scrapeCsvBtnText : scrapeJsonBtnText;
+
+        try {
+            if (targetBtn) targetBtn.disabled = true;
+            if (targetText) targetText.textContent = 'Scraping...';
+            if (utilitiesFeedback) utilitiesFeedback.innerHTML = '<span style="color:var(--brand-primary);">⏳ Scraping guild member roster...</span>';
+
+            const res = await fetch('/api/guilds/members/scrape', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userToken: token, guildId })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Failed to scrape guild members');
+            }
+
+            const members = data.members || [];
+            const safeName = (data.guildName || 'guild').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+            if (isCsv) {
+                // Generate clean CSV
+                const headers = ['ID', 'Username', 'Discriminator', 'Display Name', 'Is Bot', 'Joined At', 'Roles'];
+                const rows = members.map(m => [
+                    `"${m.id || ''}"`,
+                    `"${(m.username || '').replace(/"/g, '""')}"`,
+                    `"${m.discriminator || '0'}"`,
+                    `"${(m.displayName || '').replace(/"/g, '""')}"`,
+                    m.isBot ? 'TRUE' : 'FALSE',
+                    `"${m.joinedAt ? new Date(m.joinedAt).toISOString() : ''}"`,
+                    `"${(m.roles || []).join(', ').replace(/"/g, '""')}"`
+                ]);
+                const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                downloadBlobFile(`members_${safeName}_${Date.now()}.csv`, csvContent, 'text/csv;charset=utf-8;');
+            } else {
+                downloadBlobFile(`members_${safeName}_${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
+            }
+
+            if (utilitiesFeedback) utilitiesFeedback.innerHTML = `<span style="color:var(--status-success);">✓ Scraped ${data.totalScraped || members.length} members from "${escapeHtml(data.guildName || 'Guild')}"</span>`;
+            playChime('success');
+            showToast(`Scraped ${data.totalScraped || members.length} members successfully!`, 'success');
+        } catch (err) {
+            if (utilitiesFeedback) utilitiesFeedback.innerHTML = `<span style="color:var(--status-danger);">⚠️ Error: ${escapeHtml(err.message)}</span>`;
+            playChime('error');
+            showToast(err.message, 'error');
+        } finally {
+            if (targetBtn) targetBtn.disabled = false;
+            if (targetText) targetText.textContent = isCsv ? 'Export CSV' : 'Export JSON';
+        }
+    }
+
+    if (btnScrapeMembersCsv) {
+        btnScrapeMembersCsv.addEventListener('click', () => handleMemberScraping('csv'));
+    }
+    if (btnScrapeMembersJson) {
+        btnScrapeMembersJson.addEventListener('click', () => handleMemberScraping('json'));
+    }
 
     // Preset selection in Templates Modal
     const templateCards = document.querySelectorAll('.template-item-card');
@@ -659,14 +814,14 @@
     if (msgDelayInput && delayBadge) {
         msgDelayInput.addEventListener('input', (e) => {
             const val = parseInt(e.target.value, 10);
-            if (val === 750) {
-                delayBadge.textContent = '750ms (Stealth)';
-            } else if (val < 500) {
+            if (val <= 100) {
+                delayBadge.textContent = `${val}ms (Turbo)`;
+            } else if (val <= 350) {
                 delayBadge.textContent = `${val}ms (Fast)`;
-            } else if (val >= 1200) {
-                delayBadge.textContent = `${val}ms (Safe)`;
+            } else if (val <= 750) {
+                delayBadge.textContent = `${val}ms (Stealth)`;
             } else {
-                delayBadge.textContent = `${val}ms`;
+                delayBadge.textContent = `${val}ms (Safe)`;
             }
             updateRangePresetHighlights('msgDelay', e.target.value);
         });
@@ -773,11 +928,14 @@
             cloneChannels: cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : true,
             clonePermissions: clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : true,
             cloneProfile: cloneProfileCheckbox ? cloneProfileCheckbox.checked : true,
-                cloneEmojis: document.getElementById("cloneEmojis") ? document.getElementById("cloneEmojis").checked : true,
-                cloneStickers: document.getElementById("cloneStickers") ? document.getElementById("cloneStickers").checked : true,
-                cloneWebhooks: document.getElementById("cloneWebhooks") ? document.getElementById("cloneWebhooks").checked : true,
+            cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : true,
+            cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : true,
+            cloneWebhooks: cloneWebhooksCheckbox ? cloneWebhooksCheckbox.checked : true,
             cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
             cloneAttachments: cloneAttachmentsCheckbox ? cloneAttachmentsCheckbox.checked : false,
+            stripInvites: stripInvitesCheckbox ? stripInvitesCheckbox.checked : false,
+            customFind: customFindInput ? customFindInput.value : '',
+            customReplace: customReplaceInput ? customReplaceInput.value : '',
             msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
             msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 750) : 750,
             savedAt: Date.now()
@@ -840,6 +998,15 @@
             if (cloneAttachmentsCheckbox && typeof config.cloneAttachments === 'boolean') {
                 cloneAttachmentsCheckbox.checked = config.cloneAttachments;
             }
+            if (stripInvitesCheckbox && typeof config.stripInvites === 'boolean') {
+                stripInvitesCheckbox.checked = config.stripInvites;
+            }
+            if (customFindInput && typeof config.customFind === 'string') {
+                customFindInput.value = config.customFind;
+            }
+            if (customReplaceInput && typeof config.customReplace === 'string') {
+                customReplaceInput.value = config.customReplace;
+            }
             if (msgLimitInput && config.msgLimit) {
                 msgLimitInput.value = config.msgLimit;
                 if (limitBadge) limitBadge.textContent = config.msgLimit;
@@ -875,6 +1042,9 @@
         if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
         if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
         if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = false;
+        if (stripInvitesCheckbox) stripInvitesCheckbox.checked = false;
+        if (customFindInput) customFindInput.value = '';
+        if (customReplaceInput) customReplaceInput.value = '';
         if (msgLimitInput) {
             msgLimitInput.value = 1000;
             if (limitBadge) limitBadge.textContent = '1000';
@@ -1232,11 +1402,14 @@
                 cloneChannels: cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : true,
                 clonePermissions: clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : true,
                 cloneProfile: cloneProfileCheckbox ? cloneProfileCheckbox.checked : true,
-                cloneEmojis: document.getElementById("cloneEmojis") ? document.getElementById("cloneEmojis").checked : true,
-                cloneStickers: document.getElementById("cloneStickers") ? document.getElementById("cloneStickers").checked : true,
-                cloneWebhooks: document.getElementById("cloneWebhooks") ? document.getElementById("cloneWebhooks").checked : true,
+                cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : true,
+                cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : true,
+                cloneWebhooks: cloneWebhooksCheckbox ? cloneWebhooksCheckbox.checked : true,
                 cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
                 cloneAttachments: cloneMessagesCheckbox && cloneAttachmentsCheckbox ? (cloneMessagesCheckbox.checked && cloneAttachmentsCheckbox.checked) : false,
+                stripInvites: stripInvitesCheckbox ? stripInvitesCheckbox.checked : false,
+                customFind: customFindInput ? customFindInput.value.trim() : '',
+                customReplace: customReplaceInput ? customReplaceInput.value.trim() : '',
                 msgLimit: msgLimitInput ? (parseInt(msgLimitInput.value, 10) >= 1 ? parseInt(msgLimitInput.value, 10) : 1000) : 1000,
                 msgDelay: msgDelayInput ? (parseInt(msgDelayInput.value, 10) >= 0 ? parseInt(msgDelayInput.value, 10) : 750) : 750
             }
@@ -1622,7 +1795,10 @@
         }
     }
 
+    let latestMigrationStats = null;
+
     function showCompletedModal(stats, startedAt) {
+        latestMigrationStats = { ...stats, timestamp: new Date().toISOString() };
         const durationSec = Math.round((stats.durationMs || (startedAt ? Date.now() - startedAt : 0)) / 1000);
         if (statDuration) statDuration.textContent = `${durationSec}s`;
         if (statRoles) statRoles.textContent = stats.rolesCreated ?? stats.roles?.created ?? statCounters.roles;
@@ -1661,6 +1837,7 @@
         }
         if (statWarnings) statWarnings.textContent = stats.warningsCount ?? statCounters.warnings;
 
+        playChime('success');
         openModal(summaryModal);
     }
 
@@ -1683,10 +1860,117 @@
         }
     });
 
+    let sseSource = null;
+    let jobPollTimer = null;
+
+    function connectJobEventSource(jobId) {
+        if (!jobId) return;
+        if (sseSource) {
+            try { sseSource.close(); } catch (e) {}
+            sseSource = null;
+        }
+
+        if (typeof EventSource !== 'undefined') {
+            try {
+                sseSource = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+                sseSource.onmessage = (event) => {
+                    if (!event.data || event.data.trim() === '') return;
+                    try {
+                        const parsed = JSON.parse(event.data);
+                        if (parsed.event === 'job:snapshot') {
+                            hydrateJobState(parsed.data);
+                        } else if (parsed.event === 'clone:stage') {
+                            const data = parsed.data;
+                            const stageName = data.label || data.stage || 'Processing...';
+                            if (stageLabel) stageLabel.textContent = stageName;
+                            appendLog('stage', `Stage: ${stageName}`, 'STAGE');
+                        } else if (parsed.event === 'clone:progress') {
+                            const data = parsed.data;
+                            const rawPercent = data.percent !== undefined ? data.percent : (data.progress !== undefined ? data.progress : 0);
+                            const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
+                            if (progressBar) progressBar.style.width = `${percent}%`;
+                            if (progressText) progressText.textContent = `${percent}%`;
+                            if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
+                            if (data.item && progressItemDetail) progressItemDetail.textContent = data.item;
+                            if (data.current !== undefined && data.total !== undefined && progressCounts) {
+                                progressCounts.textContent = `${data.current} / ${data.total}`;
+                            }
+                            updateEtaProgress(percent, data.current, data.total, stageLabel ? stageLabel.textContent : '');
+                        } else if (parsed.event === 'clone:log') {
+                            const entry = parsed.data;
+                            const level = entry.level || entry.type || 'info';
+                            appendLog(level, entry.message, entry.detail, entry.timestamp);
+                        } else if (parsed.event === 'clone:completed') {
+                            setRunningState(false);
+                            if (progressBar) progressBar.style.width = '100%';
+                            if (progressText) progressText.textContent = '100%';
+                            if (stageLabel) stageLabel.textContent = 'Completed';
+                            if (etaTimer) etaTimer.textContent = '00:00';
+                            const stats = parsed.data.stats || parsed.data || {};
+                            showCompletedModal(stats, operationStartTime);
+                            stopJobPolling();
+                        } else if (parsed.event === 'clone:cancelled') {
+                            setRunningState(false);
+                            if (stageLabel) stageLabel.textContent = 'Cancelled';
+                            stopJobPolling();
+                        } else if (parsed.event === 'clone:error') {
+                            setRunningState(false);
+                            if (stageLabel) stageLabel.textContent = 'Error Encountered';
+                            stopJobPolling();
+                        }
+                    } catch (e) {}
+                };
+
+                sseSource.onerror = () => {
+                    // Fall back to HTTP polling if SSE encounters issues
+                    startJobPolling(jobId);
+                };
+            } catch (err) {
+                startJobPolling(jobId);
+            }
+        } else {
+            startJobPolling(jobId);
+        }
+    }
+
+    function startJobPolling(jobId) {
+        if (!jobId || jobPollTimer) return;
+        jobPollTimer = setInterval(async () => {
+            if (!isRunning && !currentJobId) {
+                stopJobPolling();
+                return;
+            }
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.job) {
+                        hydrateJobState(data.job);
+                        if (data.job.status !== 'running') {
+                            stopJobPolling();
+                        }
+                    }
+                }
+            } catch (e) {}
+        }, 1500);
+    }
+
+    function stopJobPolling() {
+        if (jobPollTimer) {
+            clearInterval(jobPollTimer);
+            jobPollTimer = null;
+        }
+        if (sseSource) {
+            try { sseSource.close(); } catch (e) {}
+            sseSource = null;
+        }
+    }
+
     // Socket Connection & Background Sync
     socket.on('connect', () => {
         if (currentJobId) {
             socket.emit('job:subscribe', { jobId: currentJobId });
+            connectJobEventSource(currentJobId);
         } else {
             socket.emit('job:query_active');
         }
@@ -1704,6 +1988,9 @@
         if (job) {
             currentJobId = job.id;
             hydrateJobState(job);
+            if (job.status === 'running') {
+                connectJobEventSource(job.id);
+            }
         }
     });
 
@@ -1713,10 +2000,12 @@
             try {
                 localStorage.setItem('discloner_active_job_id', payload.jobId);
             } catch (e) {}
+            connectJobEventSource(payload.jobId);
         }
         operationStartTime = payload.startedAt || Date.now();
         setRunningState(true);
         resetEtaCalculation();
+        playChime('start');
     });
 
     socket.on('clone:stage', (data) => {
@@ -1793,6 +2082,7 @@
         const errMessage = data.message || data.error || 'An unexpected failure occurred during cloning.';
         appendLog('error', errMessage, 'ERROR');
         showToast(errMessage, 'error');
+        playChime('error');
         try {
             localStorage.removeItem('discloner_active_job_id');
             currentJobId = null;
@@ -2628,6 +2918,173 @@
         });
     }
 
+    // =========================================================================
+    // 8. God-Level Audio Feedback System (Pure Web Audio Synthesis)
+    // =========================================================================
+    let audioContext = null;
+    let isAudioEnabled = localStorage.getItem('discloner_audio_enabled') !== 'false';
 
+    const audioToggleBtn = document.getElementById('audioToggleBtn');
+    const audioIconOn = document.getElementById('audioIconOn');
+    const audioIconOff = document.getElementById('audioIconOff');
+
+    function updateAudioUI() {
+        if (audioIconOn && audioIconOff) {
+            if (isAudioEnabled) {
+                audioIconOn.classList.remove('hidden');
+                audioIconOff.classList.add('hidden');
+                if (audioToggleBtn) audioToggleBtn.setAttribute('title', 'Audio Chimes: Enabled (Click to Mute)');
+            } else {
+                audioIconOn.classList.add('hidden');
+                audioIconOff.classList.remove('hidden');
+                if (audioToggleBtn) audioToggleBtn.setAttribute('title', 'Audio Chimes: Muted (Click to Enable)');
+            }
+        }
+    }
+    updateAudioUI();
+
+    if (audioToggleBtn) {
+        audioToggleBtn.addEventListener('click', () => {
+            isAudioEnabled = !isAudioEnabled;
+            localStorage.setItem('discloner_audio_enabled', isAudioEnabled ? 'true' : 'false');
+            updateAudioUI();
+            if (isAudioEnabled) {
+                playChime('start');
+                showToast('Audio notifications enabled', 'info');
+            } else {
+                showToast('Audio notifications muted', 'info');
+            }
+        });
+    }
+
+    function playChime(type) {
+        if (!isAudioEnabled) return;
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            if (!audioContext) {
+                audioContext = new AudioCtx();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            const now = audioContext.currentTime;
+
+            if (type === 'start') {
+                // Two gentle warm ascending sine tones (523Hz -> 659Hz)
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.12);
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.exponentialRampToValueAtTime(0.12, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'success') {
+                // Harmonic celebratory chime (C5 -> E5 -> G5)
+                const freqs = [523.25, 659.25, 783.99, 1046.50];
+                freqs.forEach((freq, idx) => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const startT = now + (idx * 0.09);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startT);
+                    gain.gain.setValueAtTime(0.001, startT);
+                    gain.gain.exponentialRampToValueAtTime(0.14, startT + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, startT + 0.45);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.start(startT);
+                    osc.stop(startT + 0.48);
+                });
+            } else if (type === 'error') {
+                // Soft warning descending interval
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(392.00, now);
+                osc.frequency.exponentialRampToValueAtTime(311.13, now + 0.18);
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.exponentialRampToValueAtTime(0.15, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start(now);
+                osc.stop(now + 0.38);
+            }
+        } catch (e) {
+            // Audio synthesis gracefully ignored if browser blocked
+        }
+    }
+
+    // =========================================================================
+    // 9. Structured Migration Report Exporter
+    // =========================================================================
+    const exportReportBtn = document.getElementById('exportReportBtn');
+    if (exportReportBtn) {
+        exportReportBtn.addEventListener('click', () => {
+            const reportData = {
+                generator: 'Discloner Studio v3.2',
+                exportedAt: new Date().toISOString(),
+                stats: latestMigrationStats || statCounters,
+                options: {
+                    cleanTarget: cleanTargetCheckbox ? cleanTargetCheckbox.checked : false,
+                    cloneRoles: cloneRolesCheckbox ? cloneRolesCheckbox.checked : false,
+                    cloneChannels: cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : false,
+                    clonePermissions: clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : false,
+                    cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : false,
+                    cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : false,
+                    cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
+                },
+                recentLogs: allLogs.slice(-200)
+            };
+
+            try {
+                const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `discloner-migration-report-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Migration report exported as JSON!', 'success');
+            } catch (err) {
+                showToast('Could not generate export file.', 'error');
+            }
+        });
+    }
+
+    // =========================================================================
+    // 10. Global Keyboard Shortcuts
+    // =========================================================================
+    document.addEventListener('keydown', (e) => {
+        // Escape closes any active modal
+        if (e.key === 'Escape') {
+            const openModals = [confirmModal, summaryModal, helpModal, templatesModal, utilitiesModal, tourOverlay];
+            openModals.forEach(m => {
+                if (m && !m.classList.contains('hidden')) {
+                    closeModal(m);
+                }
+            });
+        }
+
+        // Ctrl+Enter or Cmd+Enter triggers Start / Confirm
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            if (confirmModal && !confirmModal.classList.contains('hidden')) {
+                e.preventDefault();
+                if (proceedConfirmBtn) proceedConfirmBtn.click();
+            } else if (!isRunning && startBtn && (!confirmModal || confirmModal.classList.contains('hidden'))) {
+                e.preventDefault();
+                startBtn.click();
+            }
+        }
+    });
 
 })();

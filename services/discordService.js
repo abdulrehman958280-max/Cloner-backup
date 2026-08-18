@@ -7,8 +7,16 @@ import { Client } from 'discord.js-selfbot-v13';
 export function createDiscordClient() {
     return new Client({ 
         checkUpdate: false,
-        restRequestTimeout: 15000,
-        retryLimit: 2
+        restRequestTimeout: 30000,
+        retryLimit: 3,
+        restTimeOffset: 100,
+        ws: {
+            properties: {
+                $os: 'Windows',
+                $browser: 'Discord Client',
+                $device: 'desktop'
+            }
+        }
     });
 }
 

@@ -408,6 +408,33 @@ a {
     50% { opacity: 0.75; filter: drop-shadow(0 0 8px var(--success)); }
 }
 
+/* Audio FX Toggle Button */
+.neu-btn-icon-subtle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    background-color: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    outline: none;
+    transition: background-color var(--transition-smooth), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.neu-btn-icon-subtle:hover {
+    color: var(--accent);
+    transform: scale(1.05);
+}
+
+.neu-btn-icon-subtle:active {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-inset-deep);
+}
+
 /* Seamless Merged Theme Toggle Pill */
 .theme-toggle-merged {
     position: relative;
