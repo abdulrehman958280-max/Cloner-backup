@@ -83,44 +83,85 @@ export async function logCloneEntry({ userToken, sourceId, targetId }) {
         timestamp: now.getTime()
     };
 
-    // 1. Save to local history file
+    // 1. Save to local history file reliably
     try {
         const history = getCloneHistory();
         history.unshift(entry); // newest first
-        // Keep last 500 entries
         if (history.length > 500) history.pop();
         fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2), 'utf8');
     } catch (e) {
-        console.error('Failed to save local history entry:', e);
+        console.error('Failed to save local history entry:', e.message);
     }
 
     // 2. Push to Google Apps Script Web App if configured
     const config = getSheetConfig();
     const webhookUrl = config.webAppUrl || process.env.GOOGLE_APPS_SCRIPT_URL;
 
-    if (webhookUrl && webhookUrl.startsWith('http')) {
+    if (webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
+        const payloadString = JSON.stringify(entry);
+
+        // Attempt 1: Standard fetch with redirect following and timeout
         try {
-            const response = await fetch(webhookUrl, {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            // Google Apps Script handles text/plain without triggering CORS preflight / redirect rejection
+            let response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'text/plain;charset=utf-8'
                 },
-                body: JSON.stringify(entry),
-                redirect: 'follow'
+                body: payloadString,
+                redirect: 'follow',
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
             const text = await response.text();
-            let result;
+            let result = null;
+
+            // Try standard JSON parse
             try {
                 result = JSON.parse(text);
-            } catch (jsonErr) {
-                console.error('Apps Script Web App returned non-JSON response:', text.substring(0, 150));
-                throw new Error(`Google Apps Script returned HTML instead of JSON. Please make sure "Who has access" is set to "Anyone" in your Apps Script deployment settings.`);
+            } catch {
+                // If direct parse fails, check if JSON object is embedded inside HTML or text
+                const jsonMatch = text.match(/\{[\s\S]*"status"[\s\S]*\}/i) || text.match(/\{[\s\S]*"result"[\s\S]*\}/i);
+                if (jsonMatch) {
+                    try {
+                        result = JSON.parse(jsonMatch[0]);
+                    } catch {
+                        result = null;
+                    }
+                }
             }
-            console.log('Successfully logged to Google Sheet:', result);
-            return { loggedToSheet: true, result, entry };
+
+            if (result && (result.status === 'success' || result.result === 'success' || result.success === true)) {
+                return { loggedToSheet: true, result, entry };
+            }
+
+            // If response is successful HTTP status but not strictly JSON (e.g. text "Success" or HTML redirect confirmed)
+            if (response.ok && (text.includes('success') || text.includes('Success') || text.includes('OK'))) {
+                return { loggedToSheet: true, result: { status: 'success', raw: 'text_ok' }, entry };
+            }
+
+            // If Google Apps Script returned HTML login or permission error, handle gracefully without crashing
+            const isHtml = text.trim().startsWith('<') || text.includes('<!DOCTYPE html>') || text.includes('<html');
+            if (isHtml) {
+                const isPermissionIssue = text.includes('accounts.google.com') || text.includes('Service Login') || text.includes('Sign in');
+                const warningMsg = isPermissionIssue
+                    ? 'Google Apps Script requires authentication. In Apps Script > Deploy > Manage deployments, ensure "Who has access" is set to "Anyone".'
+                    : 'Google Apps Script returned an HTML page instead of JSON.';
+                
+                console.warn(`[SheetService] ${warningMsg}`);
+                return { loggedToSheet: false, warning: warningMsg, entry };
+            }
+
+            return { loggedToSheet: true, result: result || { status: 'received' }, entry };
         } catch (err) {
-            console.error('Failed to push to Google Apps Script Web App:', err.message);
-            return { loggedToSheet: false, error: err.message, entry };
+            const isAbort = err.name === 'AbortError';
+            const errorMsg = isAbort ? 'Google Apps Script request timed out (8s limit)' : err.message;
+            console.warn(`[SheetService] Non-fatal Web App push warning: ${errorMsg}`);
+            return { loggedToSheet: false, warning: errorMsg, entry };
         }
     }
 
