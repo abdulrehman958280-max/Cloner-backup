@@ -26,7 +26,7 @@ class JobManager extends EventEmitter {
         this.MAX_RETAINED_JOBS = 50;
         this.MAX_LOGS_PER_JOB = 1000;
         this.MAX_ACTIVE_JOBS = RELIABILITY_CONFIG.concurrency.maxJobs || 3;
-        this.STALE_JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes of zero activity
+        this.STALE_JOB_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of zero activity for large migrations
 
         // Periodic stale job sweeper
         this._staleSweeperInterval = setInterval(() => {

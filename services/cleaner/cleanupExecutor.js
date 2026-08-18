@@ -88,6 +88,10 @@ export async function executeCleanupPlan({
         });
     }
 
+    if (protectedRoles.length > 0 || protectedChannels.length > 0) {
+        onLog('info', `[CLEANUP] Retaining ${protectedRoles.length} protected roles and ${protectedChannels.length} protected channels`, 'PRESERVED', 'cleaning_target');
+    }
+
     // =========================================================================
     // STAGE 1: DISCOVER & DELETE TARGET ROLES (ROLE-FIRST)
     // =========================================================================
@@ -175,6 +179,7 @@ export async function executeCleanupPlan({
                                 status: 'DELETED'
                             });
                         }
+                        onLog('info', `[CLEANUP] Deleted target role @${item.name}`, 'ROLE_PURGED', 'cleaning_target');
                     } catch (err) {
                         const rawMsg = err?.message || String(err);
                         const isAlreadyDeleted = (
@@ -196,6 +201,7 @@ export async function executeCleanupPlan({
                                     note: 'Role was already removed'
                                 });
                             }
+                            onLog('info', `[CLEANUP] Role @${item.name} was already removed`, 'ALREADY_REMOVED', 'cleaning_target');
                         } else {
                             passFailedItems.push(item);
                             if (pass === maxRecursivePasses) {
@@ -207,7 +213,7 @@ export async function executeCleanupPlan({
                                     status: 'FAILED',
                                     error: rawMsg
                                 });
-                                onLog('warning', `Could not delete role @${item.name}: ${rawMsg}`, null, 'cleaning_target');
+                                onLog('warning', `[CLEANUP] Could not delete role @${item.name}: ${rawMsg}`, 'FAILED', 'cleaning_target');
                             }
                         }
                     } finally {
@@ -317,6 +323,9 @@ export async function executeCleanupPlan({
                         type: 'channel',
                         status: 'DELETED'
                     });
+                    const itemType = item.type === 'GUILD_CATEGORY' || item.type === 4 ? 'category' : 'channel';
+                    const prefix = itemType === 'category' ? `category [${item.name}]` : `channel #${item.name}`;
+                    onLog('info', `[CLEANUP] Deleted target ${prefix}`, 'PURGED', 'cleaning_target');
                 } catch (err) {
                     const rawMsg = err?.message || String(err);
                     const isAlreadyDeleted = (
@@ -335,6 +344,9 @@ export async function executeCleanupPlan({
                             status: 'DELETED',
                             note: 'Channel was already removed'
                         });
+                        const itemType = item.type === 'GUILD_CATEGORY' || item.type === 4 ? 'category' : 'channel';
+                        const prefix = itemType === 'category' ? `category [${item.name}]` : `channel #${item.name}`;
+                        onLog('info', `[CLEANUP] Target ${prefix} was already removed`, 'ALREADY_REMOVED', 'cleaning_target');
                     } else {
                         channelStats.failed++;
                         channelItems.push({
@@ -344,7 +356,7 @@ export async function executeCleanupPlan({
                             status: 'FAILED',
                             error: rawMsg
                         });
-                        onLog('warning', `Could not delete channel #${item.name}: ${rawMsg}`, null, 'cleaning_target');
+                        onLog('warning', `[CLEANUP] Could not delete channel #${item.name}: ${rawMsg}`, 'FAILED', 'cleaning_target');
                     }
                 } finally {
                     completedChannels++;

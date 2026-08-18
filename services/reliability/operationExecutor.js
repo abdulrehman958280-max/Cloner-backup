@@ -11,56 +11,56 @@ import { withTimeout } from './timeout.js';
 export const OPERATION_POLICIES = Object.freeze({
     READ: Object.freeze({
         name: 'READ',
-        maxAttempts: 4,
+        maxAttempts: 5,
         baseDelayMs: 400,
-        maxDelayMs: 6000,
-        maxTotalRetryTimeMs: 25000,
-        operationTimeoutMs: 15000,
+        maxDelayMs: 8000,
+        maxTotalRetryTimeMs: 60000,
+        operationTimeoutMs: 25000,
         jitterFactor: 0.2
     }),
     CREATE: Object.freeze({
         name: 'CREATE',
-        maxAttempts: 3,
+        maxAttempts: 4,
         baseDelayMs: 600,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 35000,
-        operationTimeoutMs: 30000,
+        maxDelayMs: 12000,
+        maxTotalRetryTimeMs: 120000,
+        operationTimeoutMs: 45000,
         jitterFactor: 0.25
     }),
     UPDATE: Object.freeze({
         name: 'UPDATE',
-        maxAttempts: 3,
+        maxAttempts: 4,
         baseDelayMs: 500,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 25000,
-        operationTimeoutMs: 20000,
+        maxDelayMs: 10000,
+        maxTotalRetryTimeMs: 90000,
+        operationTimeoutMs: 30000,
         jitterFactor: 0.2
     }),
     DELETE: Object.freeze({
         name: 'DELETE',
-        maxAttempts: 3,
+        maxAttempts: 4,
         baseDelayMs: 500,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 25000,
-        operationTimeoutMs: 20000,
+        maxDelayMs: 10000,
+        maxTotalRetryTimeMs: 90000,
+        operationTimeoutMs: 30000,
         jitterFactor: 0.2
     }),
     MESSAGE: Object.freeze({
         name: 'MESSAGE',
-        maxAttempts: 3,
+        maxAttempts: 4,
         baseDelayMs: 600,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 25000,
-        operationTimeoutMs: 15000,
+        maxDelayMs: 10000,
+        maxTotalRetryTimeMs: 90000,
+        operationTimeoutMs: 30000,
         jitterFactor: 0.2
     }),
     VERIFICATION: Object.freeze({
         name: 'VERIFICATION',
         maxAttempts: 3,
         baseDelayMs: 400,
-        maxDelayMs: 5000,
-        maxTotalRetryTimeMs: 15000,
-        operationTimeoutMs: 12000,
+        maxDelayMs: 6000,
+        maxTotalRetryTimeMs: 45000,
+        operationTimeoutMs: 20000,
         jitterFactor: 0.15
     })
 });
@@ -209,21 +209,6 @@ export async function executeDiscordOperation({
         const routeKey = `${operationName}:${resourceType || 'global'}`;
         const proactiveWait = rateLimiter.getRemainingWaitMs(routeKey);
         if (proactiveWait > 0) {
-            const remainingBudget = maxTotalRetryTimeMs - (Date.now() - opStartTime);
-            if (proactiveWait > remainingBudget) {
-                rateLimiter.recordExhausted();
-                throw new ClassifiedError({
-                    code: ERROR_CATEGORIES.TIMEOUT,
-                    message: `Rate limit wait (${proactiveWait}ms) for "${operationName}" exceeds remaining operation deadline (${remainingBudget}ms).`,
-                    operation: operationName,
-                    resourceType,
-                    resourceId,
-                    retryable: false,
-                    attempt,
-                    maxAttempts
-                });
-            }
-
             rateLimiter.recordDelayed();
             onRateLimit({
                 operation: operationName,
@@ -233,6 +218,7 @@ export async function executeDiscordOperation({
                 attempt,
                 maxAttempts
             });
+            // Safely wait out the rate-limit
             await cancellableSleep(proactiveWait, isCancelled, signal);
         }
 
@@ -255,7 +241,7 @@ export async function executeDiscordOperation({
             }
 
             // 4. Perform actual Discord operation with hard timeout boundary
-            const remainingForThisAttempt = Math.max(10, Math.min(singleOpTimeoutMs, maxTotalRetryTimeMs - (Date.now() - opStartTime)));
+            const remainingForThisAttempt = Math.max(5000, singleOpTimeoutMs);
             
             const result = await withTimeout(
                 () => execute({ attempt }),
@@ -300,24 +286,7 @@ export async function executeDiscordOperation({
                 throw classified;
             }
 
-            // 8. Check if total deadline exceeded
-            const elapsed = Date.now() - opStartTime;
-            if (elapsed >= maxTotalRetryTimeMs) {
-                rateLimiter.recordExhausted();
-                throw new ClassifiedError({
-                    code: ERROR_CATEGORIES.TIMEOUT,
-                    message: `Operation "${operationName}" exceeded maximum retry deadline (${maxTotalRetryTimeMs}ms).`,
-                    operation: operationName,
-                    resourceType,
-                    resourceId,
-                    retryable: false,
-                    attempt,
-                    maxAttempts,
-                    originalError: rawErr
-                });
-            }
-
-            // 9. Calculate Delay (Priority: Server Retry-After -> Exponential Backoff)
+            // 8. Calculate Delay (Priority: Server Retry-After -> Exponential Backoff)
             let waitMs = 0;
             const parsedRetryAfter = parseRetryAfter(rawErr) || classified.retryAfterMs;
 
@@ -341,23 +310,6 @@ export async function executeDiscordOperation({
                 });
             }
 
-            // Check if wait exceeds remaining total retry deadline
-            const remainingDeadline = maxTotalRetryTimeMs - (Date.now() - opStartTime);
-            if (waitMs > remainingDeadline) {
-                rateLimiter.recordExhausted();
-                throw new ClassifiedError({
-                    code: ERROR_CATEGORIES.TIMEOUT,
-                    message: `Retry wait (${waitMs}ms) for "${operationName}" exceeds remaining operation deadline (${remainingDeadline}ms).`,
-                    operation: operationName,
-                    resourceType,
-                    resourceId,
-                    retryable: false,
-                    attempt,
-                    maxAttempts,
-                    originalError: rawErr
-                });
-            }
-
             rateLimiter.recordRetry(attempt);
 
             onRetry({
@@ -370,7 +322,6 @@ export async function executeDiscordOperation({
                 error: classified
             });
 
-            // 10. Wait delay (cancellable)
             await cancellableSleep(waitMs, isCancelled, signal);
         }
     }

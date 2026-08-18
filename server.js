@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { validateClonePayload } from './services/validationService.js';
 import { jobManager } from './services/jobManager.js';
@@ -29,7 +30,8 @@ const io = new Server(server, {
 jobManager.setSocketServer(io);
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Google Search Console Site Verification route
@@ -230,6 +232,32 @@ app.post('/api/sheet/test', async (req, res) => {
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
+});
+
+// Background Audio Track Management endpoints
+app.post('/api/audio/upload-bgm', (req, res) => {
+    try {
+        const { audioData } = req.body;
+        if (!audioData) {
+            return res.status(400).json({ success: false, error: 'No audio data provided' });
+        }
+        const base64Data = audioData.replace(/^data:audio\/[a-z0-9]+;base64,/, '').replace(/^data:application\/octet-stream;base64,/, '');
+        const audioDir = path.join(__dirname, 'public', 'audio');
+        if (!fs.existsSync(audioDir)) {
+            fs.mkdirSync(audioDir, { recursive: true });
+        }
+        const filePath = path.join(audioDir, 'bgm.mp3');
+        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        res.json({ success: true, url: '/audio/bgm.mp3?t=' + Date.now() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/audio/status', (req, res) => {
+    const audioPath = path.join(__dirname, 'public', 'audio', 'bgm.mp3');
+    const exists = fs.existsSync(audioPath);
+    res.json({ hasCustomAudio: exists, url: exists ? '/audio/bgm.mp3' : null });
 });
 
 io.on('connection', (socket) => {
