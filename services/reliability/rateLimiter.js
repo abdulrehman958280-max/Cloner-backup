@@ -82,19 +82,42 @@ export function calculateBackoff({
 
 /**
  * Adaptive Rate Limiter: tracks global and route/operation-level rate-limit states
+ * Provides dynamic pacing calculation, event subscriptions, and real-time telemetry.
  */
 export class AdaptiveRateLimiter {
     constructor() {
         this.globalBlockedUntil = 0;
         this.routeBlockedUntil = new Map();
+        this.listeners = new Set();
+        this.consecutiveSuccesses = 0;
         this.stats = {
             rateLimitEvents: 0,
             totalRateLimitWaitMs: 0,
             operationsDelayed: 0,
             retryCount: 0,
             maxRetryCount: 0,
-            operationsFailedAfterRetry: 0
+            operationsFailedAfterRetry: 0,
+            successfulOperations: 0
         };
+    }
+
+    /**
+     * Subscribe to real-time rate limiter changes
+     */
+    subscribe(callback) {
+        if (typeof callback === 'function') {
+            this.listeners.add(callback);
+            return () => this.listeners.delete(callback);
+        }
+        return () => {};
+    }
+
+    notifyListeners() {
+        if (this.listeners.size === 0) return;
+        const snapshot = this.getCapacitySnapshot();
+        for (const cb of this.listeners) {
+            try { cb(snapshot); } catch {}
+        }
     }
 
     /**
@@ -106,6 +129,7 @@ export class AdaptiveRateLimiter {
 
         this.stats.rateLimitEvents++;
         this.stats.totalRateLimitWaitMs += duration;
+        this.consecutiveSuccesses = 0;
 
         if (isGlobal) {
             this.globalBlockedUntil = Math.max(this.globalBlockedUntil, until);
@@ -114,6 +138,7 @@ export class AdaptiveRateLimiter {
             this.routeBlockedUntil.set(routeKey, Math.max(current, until));
         }
 
+        this.notifyListeners();
         return duration;
     }
 
@@ -141,21 +166,59 @@ export class AdaptiveRateLimiter {
         return wait;
     }
 
+    /**
+     * Records a successful operation to gradually heal and restore capacity
+     */
+    recordSuccess() {
+        this.stats.successfulOperations++;
+        this.consecutiveSuccesses++;
+        if (this.consecutiveSuccesses % 5 === 0) {
+            this.notifyListeners();
+        }
+    }
+
     recordRetry(attempt) {
         this.stats.retryCount++;
         this.stats.maxRetryCount = Math.max(this.stats.maxRetryCount, attempt);
+        this.consecutiveSuccesses = 0;
+        this.notifyListeners();
     }
 
     recordDelayed() {
         this.stats.operationsDelayed++;
+        this.notifyListeners();
     }
 
     recordExhausted() {
         this.stats.operationsFailedAfterRetry++;
+        this.notifyListeners();
     }
 
     getStats() {
         return { ...this.stats };
+    }
+
+    /**
+     * Dynamically calculates optimized delay between operations based on current capacity
+     */
+    getAdaptivePacingDelay(baseMs = 200) {
+        const activeWait = this.getRemainingWaitMs();
+        if (activeWait > 0) {
+            return activeWait;
+        }
+
+        const snapshot = this.getCapacitySnapshot();
+        const cap = snapshot.capacityPercent;
+
+        if (cap >= 95) {
+            return Math.max(80, baseMs);
+        } else if (cap >= 75) {
+            return Math.max(150, Math.round(baseMs * 1.35));
+        } else if (cap >= 50) {
+            return Math.max(250, Math.round(baseMs * 1.8));
+        } else {
+            return Math.max(450, Math.round(baseMs * 2.5));
+        }
     }
 
     /**
@@ -179,14 +242,24 @@ export class AdaptiveRateLimiter {
             statusLabel = `COOLDOWN (${(activeWaitMs / 1000).toFixed(1)}s)`;
             pacingState = 'Rate Limited';
             healthLabel = 'Backing Off';
-        } else if (this.stats.operationsDelayed > 0 || this.stats.rateLimitEvents > 0) {
-            // Adaptive pacing throttling active
-            const penalty = Math.min(45, (this.stats.rateLimitEvents * 8) + (this.stats.operationsDelayed * 2));
-            capacityPercent = Math.max(35, 100 - penalty);
-            status = 'PULSING';
-            statusLabel = `PACING (${capacityPercent}%)`;
-            pacingState = 'Throttled';
-            healthLabel = 'Adaptive Pacing';
+        } else {
+            // Calculate penalty with recovery based on consecutive successes
+            const recentPenalty = Math.max(0, (this.stats.rateLimitEvents * 8) + (this.stats.operationsDelayed * 2) - Math.floor(this.consecutiveSuccesses / 4));
+            const boundedPenalty = Math.min(55, recentPenalty);
+
+            if (boundedPenalty > 0) {
+                capacityPercent = Math.max(45, 100 - boundedPenalty);
+                status = 'PULSING';
+                statusLabel = `PACING (${capacityPercent}%)`;
+                pacingState = 'Adaptive Delay';
+                healthLabel = 'Adaptive Pacing';
+            } else {
+                capacityPercent = 100;
+                status = 'OPTIMAL';
+                statusLabel = 'OPTIMAL (100%)';
+                pacingState = 'Zero Delay';
+                healthLabel = 'Optimal';
+            }
         }
 
         return {
@@ -199,6 +272,7 @@ export class AdaptiveRateLimiter {
             rateLimitEvents: this.stats.rateLimitEvents,
             operationsDelayed: this.stats.operationsDelayed,
             retryCount: this.stats.retryCount,
+            successfulOperations: this.stats.successfulOperations,
             totalWaitMs: this.stats.totalRateLimitWaitMs,
             timestamp: now
         };
@@ -207,14 +281,17 @@ export class AdaptiveRateLimiter {
     reset() {
         this.globalBlockedUntil = 0;
         this.routeBlockedUntil.clear();
+        this.consecutiveSuccesses = 0;
         this.stats = {
             rateLimitEvents: 0,
             totalRateLimitWaitMs: 0,
             operationsDelayed: 0,
             retryCount: 0,
             maxRetryCount: 0,
-            operationsFailedAfterRetry: 0
+            operationsFailedAfterRetry: 0,
+            successfulOperations: 0
         };
+        this.notifyListeners();
     }
 }
 

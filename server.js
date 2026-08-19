@@ -455,7 +455,23 @@ io.on('connection', (socket) => {
             socket.leave(`job:${currentSubscribedJobId}`);
         }
     });
+
+    // Send initial real-time rate limit snapshot immediately on connect
+    socket.emit('clone:rate_limit', { rateLimit: globalRateLimiter.getCapacitySnapshot() });
 });
+
+// Real-time broadcast for Rate Limit telemetry whenever limiter state changes
+globalRateLimiter.subscribe((snapshot) => {
+    io.emit('clone:rate_limit', { rateLimit: snapshot });
+});
+
+// Periodic high-resolution (1 second) rate limit ticker to provide continuous live metrics
+setInterval(() => {
+    try {
+        const snapshot = globalRateLimiter.getCapacitySnapshot();
+        io.emit('clone:rate_limit', { rateLimit: snapshot });
+    } catch {}
+}, 1000);
 
 const PORT = process.env.PORT || 3000;
 if (!process.env.VERCEL) {

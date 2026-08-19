@@ -49,9 +49,9 @@ function sanitizeMentions(text, policy = 'sanitize', options = {}) {
 }
 
 /**
- * Downloads binary image/sticker buffer with safety timeout
+ * Downloads binary image/sticker buffer and Data URI with safety timeout
  */
-async function downloadAssetBuffer(url, timeoutMs = 10000) {
+async function downloadAssetData(url, timeoutMs = 12000) {
     if (!url || typeof url !== 'string') return null;
     try {
         const controller = new AbortController();
@@ -60,16 +60,25 @@ async function downloadAssetBuffer(url, timeoutMs = 10000) {
             signal: controller.signal,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+                'Accept': 'image/gif,image/png,image/jpeg,image/webp,image/avif,*/*;q=0.8'
             }
         });
         clearTimeout(t);
         if (!res.ok) return null;
+        const contentType = res.headers.get('content-type') || 'image/png';
         const arrayBuffer = await res.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        const buffer = Buffer.from(arrayBuffer);
+        const mime = contentType.split(';')[0].trim() || (url.includes('.gif') ? 'image/gif' : 'image/png');
+        const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+        return { buffer, dataUri, mime, size: buffer.length };
     } catch {
         return null;
     }
+}
+
+async function downloadAssetBuffer(url, timeoutMs = 10000) {
+    const data = await downloadAssetData(url, timeoutMs);
+    return data ? data.buffer : null;
 }
 
 function sanitizeEmojiName(name, fallback = 'emoji') {
@@ -600,7 +609,7 @@ export async function executeClone({
                 } finally {
                     const currentPct = 38 + Math.round((roleIdx / Math.max(1, totalRoles)) * 12);
                     onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
-                    await jitteredSleep(500, isCancelled, 0.2);
+                    await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(200), isCancelled, 0.15);
                 }
             }
 
@@ -706,7 +715,7 @@ export async function executeClone({
                     emitLog('warning', `Failed to create category [${cat.name}]`, catErr.message, 'cloning_categories');
                 }
 
-                await jitteredSleep(450, isCancelled, 0.2);
+                await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(180), isCancelled, 0.15);
             }
         }
 
@@ -807,7 +816,7 @@ export async function executeClone({
                     }
                 }
 
-                await jitteredSleep(500, isCancelled, 0.2);
+                await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(200), isCancelled, 0.15);
             }
 
             // Map System and AFK channels if configured on source
@@ -946,7 +955,7 @@ export async function executeClone({
                         manifest.permissions.failed++;
                         emitLog('warning', `Failed to apply permissions to #${targetCh.name}`, permErr.message, 'applying_permissions');
                     }
-                    await jitteredSleep(350, isCancelled, 0.2);
+                    await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(120), isCancelled, 0.15);
                 }
             }
             emitLog('success', `Applied ${manifest.permissions.applied} permission overwrites across categories and channels (${manifest.permissions.skipped} skipped).`, null, 'applying_permissions');
@@ -1257,7 +1266,7 @@ export async function executeClone({
                                         manifest.messageMap.set(msg.id, true);
                                         manifest.messages.copied++;
                                         manifest.attachments.copied += files.length;
-                                        const actualDelay = Math.max(80, delay >= 0 ? delay : 250);
+                                        const actualDelay = globalRateLimiter.getAdaptivePacingDelay(Math.max(50, delay >= 0 ? delay : 120));
                                         await jitteredSleep(actualDelay, isCancelled, 0.15);
                                     }
                                 }
@@ -1325,6 +1334,8 @@ export async function executeClone({
                 manifest.emojis.planned = sourceEmojis.length;
                 let emojiIdx = 0;
                 const totalEmojis = sourceEmojis.length;
+                let staticSlotsFull = false;
+                let animatedSlotsFull = false;
 
                 if (totalEmojis === 0) {
                     emitLog('info', 'No custom emojis found on source server.', null, 'cloning_emojis');
@@ -1336,6 +1347,16 @@ export async function executeClone({
                     const cleanName = sanitizeEmojiName(emoji.name);
                     onProgress(92 + Math.round((emojiIdx / Math.max(1, totalEmojis)) * 3), emojiIdx, totalEmojis, `:${cleanName}:`);
 
+                    const isAnimated = Boolean(emoji.animated);
+                    if (isAnimated && animatedSlotsFull) {
+                        manifest.recordEmoji('skipped');
+                        continue;
+                    }
+                    if (!isAnimated && staticSlotsFull) {
+                        manifest.recordEmoji('skipped');
+                        continue;
+                    }
+
                     // Check if already exists on target
                     const existingOnTarget = targetGuild.emojis.cache.find(e => e.name === cleanName || e.name === emoji.name);
                     if (existingOnTarget) {
@@ -1344,15 +1365,16 @@ export async function executeClone({
                         continue;
                     }
 
-                    const emojiUrl = emoji.url || (emoji.id ? `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? 'gif' : 'png'}` : null);
+                    const emojiUrl = emoji.url || (emoji.id ? `https://cdn.discordapp.com/emojis/${emoji.id}.${isAnimated ? 'gif' : 'png'}` : null);
                     if (!emojiUrl) {
                         manifest.recordEmoji('failed');
                         emitLog('warning', `Skipping emoji :${cleanName}: - no valid image URL found`, null, 'cloning_emojis');
                         continue;
                     }
 
-                    // Download image buffer for rock-solid upload reliability
-                    const imageBuffer = await downloadAssetBuffer(emojiUrl, 10000);
+                    // Download image data (Data URI & Buffer) for rock-solid upload reliability
+                    const assetData = await downloadAssetData(emojiUrl, 12000);
+                    const attachmentPayload = assetData?.dataUri || assetData?.buffer || emojiUrl;
 
                     try {
                         await executeDiscordOperation({
@@ -1360,7 +1382,7 @@ export async function executeClone({
                             resourceType: 'emoji',
                             resourceId: cleanName,
                             policy: OPERATION_POLICIES.CREATE,
-                            operationTimeoutMs: 15000,
+                            operationTimeoutMs: 18000,
                             isCancelled,
                             checkIdempotency: async () => {
                                 return targetGuild.emojis.cache.find(e => e.name === cleanName || e.name === emoji.name);
@@ -1368,7 +1390,7 @@ export async function executeClone({
                             execute: async () => {
                                 // discord.js-selfbot-v13 GuildEmojiManager.prototype.create: (attachment, name, options)
                                 return await targetGuild.emojis.create(
-                                    imageBuffer || emojiUrl,
+                                    attachmentPayload,
                                     cleanName
                                 );
                             },
@@ -1376,13 +1398,19 @@ export async function executeClone({
                             onRateLimit: makeRateLimitHandler('cloning_emojis')
                         });
                         manifest.recordEmoji('created');
-                        emitLog('success', `Cloned emoji :${cleanName}: (${emoji.animated ? 'animated' : 'static'})`, null, 'cloning_emojis');
+                        emitLog('success', `Cloned emoji :${cleanName}: (${isAnimated ? 'animated' : 'static'})`, null, 'cloning_emojis');
                     } catch (err) {
                         manifest.recordEmoji('failed');
                         const errMsg = err.message || '';
                         if (errMsg.includes('30016') || errMsg.includes('Maximum number of emojis')) {
-                            emitLog('warning', `Server emoji limit reached: cannot upload :${cleanName}:`, errMsg, 'cloning_emojis');
-                            break; // Avoid spamming when emoji slots are capped
+                            if (isAnimated) {
+                                animatedSlotsFull = true;
+                                emitLog('warning', `Server animated emoji limit reached: cannot upload :${cleanName}:`, errMsg, 'cloning_emojis');
+                            } else {
+                                staticSlotsFull = true;
+                                emitLog('warning', `Server static emoji limit reached: cannot upload :${cleanName}:`, errMsg, 'cloning_emojis');
+                            }
+                            if (staticSlotsFull && animatedSlotsFull) break;
                         } else if (errMsg.includes('50013') || errMsg.includes('Missing Permissions')) {
                             emitLog('warning', `Missing Manage Emojis and Stickers permission on target server`, errMsg, 'cloning_emojis');
                             break;
@@ -1391,7 +1419,7 @@ export async function executeClone({
                         }
                     }
 
-                    await jitteredSleep(600, isCancelled, 0.2);
+                    await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(220), isCancelled, 0.15);
                 }
                 emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.skipped} skipped, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
@@ -1461,7 +1489,8 @@ export async function executeClone({
                     }
 
                     // Download sticker buffer for rock-solid upload reliability
-                    const stickerBuffer = await downloadAssetBuffer(stickerUrl, 10000);
+                    const stickerData = await downloadAssetData(stickerUrl, 12000);
+                    const stickerAttachment = stickerData?.buffer || stickerData?.dataUri || stickerUrl;
 
                     try {
                         await executeDiscordOperation({
@@ -1469,7 +1498,7 @@ export async function executeClone({
                             resourceType: 'sticker',
                             resourceId: cleanName,
                             policy: OPERATION_POLICIES.CREATE,
-                            operationTimeoutMs: 15000,
+                            operationTimeoutMs: 18000,
                             isCancelled,
                             checkIdempotency: async () => {
                                 return targetGuild.stickers.cache.find(s => s.name === cleanName || s.name === sticker.name);
@@ -1477,7 +1506,7 @@ export async function executeClone({
                             execute: async () => {
                                 // discord.js-selfbot-v13 GuildStickerManager.prototype.create: (file, name, tags, options)
                                 return await targetGuild.stickers.create(
-                                    stickerBuffer || stickerUrl,
+                                    stickerAttachment,
                                     cleanName,
                                     cleanTags,
                                     { description: sticker.description || '' }
@@ -1504,7 +1533,7 @@ export async function executeClone({
                         }
                     }
 
-                    await jitteredSleep(600, isCancelled, 0.2);
+                    await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(250), isCancelled, 0.15);
                 }
                 emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.skipped} skipped, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {

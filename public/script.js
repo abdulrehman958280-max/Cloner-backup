@@ -3992,7 +3992,8 @@
         }
     });
 
-    // Initialize telemetry gauge state on page load
+    // Initialize telemetry gauge state on page load and continuously refresh
     fetchRateLimitTelemetry();
+    setInterval(fetchRateLimitTelemetry, 1500);
 
 })();

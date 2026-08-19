@@ -257,6 +257,10 @@ export async function executeDiscordOperation({
                 }
             );
 
+            if (typeof rateLimiter.recordSuccess === 'function') {
+                rateLimiter.recordSuccess();
+            }
+
             return result;
 
         } catch (rawErr) {
