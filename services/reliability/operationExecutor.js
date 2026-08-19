@@ -11,56 +11,56 @@ import { withTimeout } from './timeout.js';
 export const OPERATION_POLICIES = Object.freeze({
     READ: Object.freeze({
         name: 'READ',
-        maxAttempts: 5,
-        baseDelayMs: 600,
-        maxDelayMs: 10000,
-        maxTotalRetryTimeMs: 90000,
-        operationTimeoutMs: 35000,
+        maxAttempts: 3,
+        baseDelayMs: 400,
+        maxDelayMs: 5000,
+        maxTotalRetryTimeMs: 35000,
+        operationTimeoutMs: 15000,
         jitterFactor: 0.2
     }),
     CREATE: Object.freeze({
         name: 'CREATE',
-        maxAttempts: 4,
-        baseDelayMs: 1000,
-        maxDelayMs: 15000,
-        maxTotalRetryTimeMs: 150000,
-        operationTimeoutMs: 45000,
-        jitterFactor: 0.25
+        maxAttempts: 3,
+        baseDelayMs: 500,
+        maxDelayMs: 6000,
+        maxTotalRetryTimeMs: 40000,
+        operationTimeoutMs: 15000,
+        jitterFactor: 0.2
     }),
     UPDATE: Object.freeze({
         name: 'UPDATE',
-        maxAttempts: 4,
-        baseDelayMs: 800,
-        maxDelayMs: 12000,
-        maxTotalRetryTimeMs: 120000,
-        operationTimeoutMs: 35000,
+        maxAttempts: 3,
+        baseDelayMs: 400,
+        maxDelayMs: 5000,
+        maxTotalRetryTimeMs: 30000,
+        operationTimeoutMs: 12000,
         jitterFactor: 0.2
     }),
     DELETE: Object.freeze({
         name: 'DELETE',
-        maxAttempts: 4,
-        baseDelayMs: 800,
-        maxDelayMs: 12000,
-        maxTotalRetryTimeMs: 120000,
-        operationTimeoutMs: 35000,
+        maxAttempts: 3,
+        baseDelayMs: 400,
+        maxDelayMs: 5000,
+        maxTotalRetryTimeMs: 30000,
+        operationTimeoutMs: 12000,
         jitterFactor: 0.2
     }),
     MESSAGE: Object.freeze({
         name: 'MESSAGE',
-        maxAttempts: 4,
-        baseDelayMs: 800,
-        maxDelayMs: 12000,
-        maxTotalRetryTimeMs: 120000,
-        operationTimeoutMs: 35000,
+        maxAttempts: 2,
+        baseDelayMs: 400,
+        maxDelayMs: 4000,
+        maxTotalRetryTimeMs: 20000,
+        operationTimeoutMs: 10000,
         jitterFactor: 0.2
     }),
     VERIFICATION: Object.freeze({
         name: 'VERIFICATION',
-        maxAttempts: 3,
-        baseDelayMs: 600,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 60000,
-        operationTimeoutMs: 30000,
+        maxAttempts: 2,
+        baseDelayMs: 400,
+        maxDelayMs: 4000,
+        maxTotalRetryTimeMs: 20000,
+        operationTimeoutMs: 15000,
         jitterFactor: 0.15
     })
 });
@@ -161,12 +161,12 @@ export async function executeDiscordOperation({
         ...(retryPolicy || {})
     };
 
-    const maxAttempts = Math.max(1, Math.min(10, mergedPolicy.maxAttempts || 3));
-    const baseDelayMs = Math.max(100, mergedPolicy.baseDelayMs || 800);
-    const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 15000);
-    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 120000;
-    const singleOpTimeoutMs = Math.max(30000, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 45000);
-    const jitterFactor = mergedPolicy.jitterFactor ?? 0.25;
+    const maxAttempts = Math.max(1, Math.min(5, mergedPolicy.maxAttempts || 3));
+    const baseDelayMs = Math.max(100, mergedPolicy.baseDelayMs || 500);
+    const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 6000);
+    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 45000;
+    const singleOpTimeoutMs = Math.max(3000, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 15000);
+    const jitterFactor = mergedPolicy.jitterFactor ?? 0.2;
 
     const opStartTime = Date.now();
     let attempt = 0;
@@ -209,23 +209,24 @@ export async function executeDiscordOperation({
         const routeKey = `${operationName}:${resourceType || 'global'}`;
         const proactiveWait = rateLimiter.getRemainingWaitMs(routeKey);
         if (proactiveWait > 0) {
+            const safeProactiveWait = Math.min(15000, proactiveWait);
             rateLimiter.recordDelayed();
             onRateLimit({
                 operation: operationName,
                 resourceType,
                 resourceId,
-                retryAfterMs: proactiveWait,
+                retryAfterMs: safeProactiveWait,
                 attempt,
                 maxAttempts
             });
             // Safely wait out the rate-limit
-            await cancellableSleep(proactiveWait, isCancelled, signal);
+            await cancellableSleep(safeProactiveWait, isCancelled, signal);
         }
 
         try {
             // 3. Optional Idempotency Check on Retries (read-before-retry, with bounded timeout)
             if (attempt > 1 && typeof checkIdempotency === 'function') {
-                const idempotencyTimeout = Math.min(5000, singleOpTimeoutMs);
+                const idempotencyTimeout = Math.min(4000, singleOpTimeoutMs);
                 try {
                     const existing = await withTimeout(
                         checkIdempotency,
@@ -241,7 +242,7 @@ export async function executeDiscordOperation({
             }
 
             // 4. Perform actual Discord operation with hard timeout boundary
-            const remainingForThisAttempt = Math.max(5000, singleOpTimeoutMs);
+            const remainingForThisAttempt = Math.min(singleOpTimeoutMs, Math.max(3000, maxTotalRetryTimeMs - elapsedSoFar));
             
             const result = await withTimeout(
                 () => execute({ attempt }),

@@ -1382,9 +1382,6 @@
     socket.on('disconnect', () => {
         connStatusPill.classList.add('disconnected');
         connStatusText.textContent = 'Offline';
-        if (isRunning) {
-            appendLog('error', 'Disconnected from server gateway. Check connection.', 'DISCONNECTED');
-        }
     });
 
     // ==========================================================================
@@ -1796,8 +1793,6 @@
             } else {
                 resetEtaCalculation();
             }
-
-            showToast('Reconnected to active background migration job.', 'info');
 
         } else if (job.status === 'completed') {
             const lastCompletedId = localStorage.getItem('discloner_last_completed_job');

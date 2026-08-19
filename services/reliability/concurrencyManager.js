@@ -28,9 +28,15 @@ export function createConcurrencyLimiter(concurrency = 3) {
     const queue = [];
 
     const next = () => {
-        if (activeCount < limit && queue.length > 0) {
+        while (activeCount < limit && queue.length > 0) {
             activeCount++;
-            const { fn, resolve, reject } = queue.shift();
+            const item = queue.shift();
+            if (!item) {
+                activeCount--;
+                break;
+            }
+
+            const { fn, resolve, reject } = item;
             
             Promise.resolve()
                 .then(fn)
@@ -45,7 +51,12 @@ export function createConcurrencyLimiter(concurrency = 3) {
                         reject(err);
                         next();
                     }
-                );
+                )
+                .catch((unhandledErr) => {
+                    activeCount--;
+                    reject(unhandledErr);
+                    next();
+                });
         }
     };
 
