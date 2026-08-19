@@ -39,6 +39,11 @@ app.get('/google9dd587690182db74.html', (req, res) => {
     res.type('text/html').send('google-site-verification: google9dd587690182db74.html\n');
 });
 
+// Root index route (for Vercel and direct proxies)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // SEO robots and sitemap routes
 app.get('/robots.txt', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
@@ -396,7 +401,12 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Discord Server Cloner running on http://0.0.0.0:${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+if (!process.env.VERCEL) {
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Discord Server Cloner running on http://0.0.0.0:${PORT}`);
+    });
+}
+
+export { app, server, io };
+export default app;

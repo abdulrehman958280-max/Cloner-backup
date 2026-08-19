@@ -12,55 +12,55 @@ export const OPERATION_POLICIES = Object.freeze({
     READ: Object.freeze({
         name: 'READ',
         maxAttempts: 5,
-        baseDelayMs: 400,
-        maxDelayMs: 8000,
-        maxTotalRetryTimeMs: 60000,
-        operationTimeoutMs: 25000,
+        baseDelayMs: 600,
+        maxDelayMs: 10000,
+        maxTotalRetryTimeMs: 90000,
+        operationTimeoutMs: 35000,
         jitterFactor: 0.2
     }),
     CREATE: Object.freeze({
         name: 'CREATE',
         maxAttempts: 4,
-        baseDelayMs: 600,
-        maxDelayMs: 12000,
-        maxTotalRetryTimeMs: 120000,
+        baseDelayMs: 1000,
+        maxDelayMs: 15000,
+        maxTotalRetryTimeMs: 150000,
         operationTimeoutMs: 45000,
         jitterFactor: 0.25
     }),
     UPDATE: Object.freeze({
         name: 'UPDATE',
         maxAttempts: 4,
-        baseDelayMs: 500,
-        maxDelayMs: 10000,
-        maxTotalRetryTimeMs: 90000,
-        operationTimeoutMs: 30000,
+        baseDelayMs: 800,
+        maxDelayMs: 12000,
+        maxTotalRetryTimeMs: 120000,
+        operationTimeoutMs: 35000,
         jitterFactor: 0.2
     }),
     DELETE: Object.freeze({
         name: 'DELETE',
         maxAttempts: 4,
-        baseDelayMs: 500,
-        maxDelayMs: 10000,
-        maxTotalRetryTimeMs: 90000,
-        operationTimeoutMs: 30000,
+        baseDelayMs: 800,
+        maxDelayMs: 12000,
+        maxTotalRetryTimeMs: 120000,
+        operationTimeoutMs: 35000,
         jitterFactor: 0.2
     }),
     MESSAGE: Object.freeze({
         name: 'MESSAGE',
         maxAttempts: 4,
-        baseDelayMs: 600,
-        maxDelayMs: 10000,
-        maxTotalRetryTimeMs: 90000,
-        operationTimeoutMs: 30000,
+        baseDelayMs: 800,
+        maxDelayMs: 12000,
+        maxTotalRetryTimeMs: 120000,
+        operationTimeoutMs: 35000,
         jitterFactor: 0.2
     }),
     VERIFICATION: Object.freeze({
         name: 'VERIFICATION',
         maxAttempts: 3,
-        baseDelayMs: 400,
-        maxDelayMs: 6000,
-        maxTotalRetryTimeMs: 45000,
-        operationTimeoutMs: 20000,
+        baseDelayMs: 600,
+        maxDelayMs: 8000,
+        maxTotalRetryTimeMs: 60000,
+        operationTimeoutMs: 30000,
         jitterFactor: 0.15
     })
 });
@@ -162,10 +162,10 @@ export async function executeDiscordOperation({
     };
 
     const maxAttempts = Math.max(1, Math.min(10, mergedPolicy.maxAttempts || 3));
-    const baseDelayMs = Math.max(50, mergedPolicy.baseDelayMs || 500);
-    const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 10000);
-    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 35000;
-    const singleOpTimeoutMs = Math.max(10, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 30000);
+    const baseDelayMs = Math.max(100, mergedPolicy.baseDelayMs || 800);
+    const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 15000);
+    const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 120000;
+    const singleOpTimeoutMs = Math.max(30000, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 45000);
     const jitterFactor = mergedPolicy.jitterFactor ?? 0.25;
 
     const opStartTime = Date.now();

@@ -374,14 +374,14 @@ export async function executeClone({
 
             const continueOnRoleError = options.continueOnRoleError !== false;
             const reuseExistingRoles = options.reuseExistingRoles !== false;
-            const roleOperationTimeoutMs = options.roleOperationTimeoutMs || 30000;
+            const roleOperationTimeoutMs = Math.max(35000, options.roleOperationTimeoutMs || 45000);
 
             // Fetch source roles safely with timeout
             let sourceRoles = [];
             try {
                 const fetchedRoles = await withTimeout(
                     () => sourceGuild.roles.fetch(),
-                    15000,
+                    30000,
                     { operationName: 'fetch_source_roles', isCancelled }
                 );
                 sourceRoles = Array.from(fetchedRoles.values())
@@ -398,7 +398,7 @@ export async function executeClone({
             try {
                 await withTimeout(
                     () => targetGuild.roles.fetch(),
-                    15000,
+                    30000,
                     { operationName: 'fetch_target_roles', isCancelled }
                 ).catch(() => {});
             } catch (e) {}
@@ -484,8 +484,8 @@ export async function executeClone({
                             resourceType: 'role',
                             resourceId: role.id,
                             policy: OPERATION_POLICIES.CREATE,
-                            operationTimeoutMs: Math.min(8000, roleOperationTimeoutMs),
-                            retryPolicy: { maxAttempts: 1 },
+                            operationTimeoutMs: roleOperationTimeoutMs,
+                            retryPolicy: { maxAttempts: 3 },
                             isCancelled,
                             checkIdempotency: async () => {
                                 const mappedId = manifest.roleMap.get(role.id);
@@ -531,8 +531,8 @@ export async function executeClone({
                                 resourceType: 'role',
                                 resourceId: role.id,
                                 policy: OPERATION_POLICIES.CREATE,
-                                operationTimeoutMs: Math.min(6000, roleOperationTimeoutMs),
-                                retryPolicy: { maxAttempts: 1 },
+                                operationTimeoutMs: roleOperationTimeoutMs,
+                                retryPolicy: { maxAttempts: 2 },
                                 isCancelled,
                                 execute: async () => {
                                     return await targetGuild.roles.create({
@@ -561,8 +561,8 @@ export async function executeClone({
                                     resourceType: 'role',
                                     resourceId: role.id,
                                     policy: OPERATION_POLICIES.CREATE,
-                                    operationTimeoutMs: Math.min(5000, roleOperationTimeoutMs),
-                                    retryPolicy: { maxAttempts: 1 },
+                                    operationTimeoutMs: roleOperationTimeoutMs,
+                                    retryPolicy: { maxAttempts: 2 },
                                     isCancelled,
                                     execute: async () => {
                                         return await targetGuild.roles.create({
@@ -600,7 +600,7 @@ export async function executeClone({
                 } finally {
                     const currentPct = 38 + Math.round((roleIdx / Math.max(1, totalRoles)) * 12);
                     onProgress(currentPct, roleIdx, totalRoles, `@${role.name}`);
-                    await jitteredSleep(90, isCancelled, 0.15);
+                    await jitteredSleep(500, isCancelled, 0.2);
                 }
             }
 
@@ -706,7 +706,7 @@ export async function executeClone({
                     emitLog('warning', `Failed to create category [${cat.name}]`, catErr.message, 'cloning_categories');
                 }
 
-                await jitteredSleep(80, isCancelled, 0.15);
+                await jitteredSleep(450, isCancelled, 0.2);
             }
         }
 
@@ -807,7 +807,7 @@ export async function executeClone({
                     }
                 }
 
-                await jitteredSleep(90, isCancelled, 0.15);
+                await jitteredSleep(500, isCancelled, 0.2);
             }
 
             // Map System and AFK channels if configured on source
@@ -946,7 +946,7 @@ export async function executeClone({
                         manifest.permissions.failed++;
                         emitLog('warning', `Failed to apply permissions to #${targetCh.name}`, permErr.message, 'applying_permissions');
                     }
-                    await jitteredSleep(60, isCancelled, 0.15);
+                    await jitteredSleep(350, isCancelled, 0.2);
                 }
             }
             emitLog('success', `Applied ${manifest.permissions.applied} permission overwrites across categories and channels (${manifest.permissions.skipped} skipped).`, null, 'applying_permissions');
@@ -1391,7 +1391,7 @@ export async function executeClone({
                         }
                     }
 
-                    await jitteredSleep(100, isCancelled, 0.15);
+                    await jitteredSleep(600, isCancelled, 0.2);
                 }
                 emitLog('success', `Finished cloning emojis (${manifest.emojis.created} created, ${manifest.emojis.skipped} skipped, ${manifest.emojis.failed} failed).`, null, 'cloning_emojis');
             } catch (err) {
@@ -1504,7 +1504,7 @@ export async function executeClone({
                         }
                     }
 
-                    await jitteredSleep(100, isCancelled, 0.15);
+                    await jitteredSleep(600, isCancelled, 0.2);
                 }
                 emitLog('success', `Finished cloning stickers (${manifest.stickers.created} created, ${manifest.stickers.skipped} skipped, ${manifest.stickers.failed} failed).`, null, 'cloning_stickers');
             } catch (err) {

@@ -9,7 +9,8 @@ import {
     OPERATION_POLICIES,
     CONCURRENCY_LIMITS,
     createConcurrencyLimiter,
-    withTimeout
+    withTimeout,
+    jitteredSleep
 } from '../reliability/index.js';
 import { verifyRoleCleanupState } from './cleanupVerifier.js';
 
@@ -220,6 +221,7 @@ export async function executeCleanupPlan({
                         completedRoles++;
                         const progressPct = Math.round((completedRoles / Math.max(1, currentRolesToDelete.length)) * 50);
                         onProgress(progressPct, completedRoles, currentRolesToDelete.length, `Deleted @${item.name}`);
+                        await jitteredSleep(200, isCancelled, 0.2);
                     }
                 });
             });
@@ -362,6 +364,7 @@ export async function executeCleanupPlan({
                     completedChannels++;
                     const progressPct = 50 + Math.round((completedChannels / Math.max(1, channelsToDelete.length)) * 50);
                     onProgress(progressPct, completedChannels, channelsToDelete.length, `Deleted #${item.name}`);
+                    await jitteredSleep(200, isCancelled, 0.2);
                 }
             });
         });
@@ -384,7 +387,7 @@ export async function executeCleanupPlan({
     checkCancelled();
     try {
         if (targetGuild.emojis?.fetch) {
-            const existingEmojis = await withTimeout(() => targetGuild.emojis.fetch(), 10000, { operationName: 'cleaner_fetch_emojis' }).catch(() => null);
+            const existingEmojis = await withTimeout(() => targetGuild.emojis.fetch(), 15000, { operationName: 'cleaner_fetch_emojis' }).catch(() => null);
             if (existingEmojis && existingEmojis.size > 0) {
                 onLog('info', `ASSET CLEANUP: Purging ${existingEmojis.size} existing custom emojis from target...`, null, 'cleaning_target');
                 for (const em of existingEmojis.values()) {
@@ -395,12 +398,13 @@ export async function executeCleanupPlan({
                             resourceType: 'emoji',
                             resourceId: em.id,
                             policy: OPERATION_POLICIES.DELETE,
-                            operationTimeoutMs: 10000,
+                            operationTimeoutMs: 15000,
                             isCancelled,
                             execute: async () => {
                                 await em.delete('Clean target server before clone');
                             }
                         });
+                        await jitteredSleep(150, isCancelled, 0.2);
                     } catch (e) {
                         // ignore minor emoji deletion error
                     }
@@ -409,7 +413,7 @@ export async function executeCleanupPlan({
         }
 
         if (targetGuild.stickers?.fetch) {
-            const existingStickers = await withTimeout(() => targetGuild.stickers.fetch(), 10000, { operationName: 'cleaner_fetch_stickers' }).catch(() => null);
+            const existingStickers = await withTimeout(() => targetGuild.stickers.fetch(), 15000, { operationName: 'cleaner_fetch_stickers' }).catch(() => null);
             if (existingStickers && existingStickers.size > 0) {
                 onLog('info', `ASSET CLEANUP: Purging ${existingStickers.size} existing custom stickers from target...`, null, 'cleaning_target');
                 for (const st of existingStickers.values()) {
@@ -420,12 +424,13 @@ export async function executeCleanupPlan({
                             resourceType: 'sticker',
                             resourceId: st.id,
                             policy: OPERATION_POLICIES.DELETE,
-                            operationTimeoutMs: 10000,
+                            operationTimeoutMs: 15000,
                             isCancelled,
                             execute: async () => {
                                 await st.delete('Clean target server before clone');
                             }
                         });
+                        await jitteredSleep(150, isCancelled, 0.2);
                     } catch (e) {
                         // ignore minor sticker deletion error
                     }

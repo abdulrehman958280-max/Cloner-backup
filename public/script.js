@@ -1452,7 +1452,7 @@
         startCloningProcess();
     });
 
-    function startCloningProcess() {
+    async function startCloningProcess() {
         const payload = getPayload();
 
         // Reset Counters
@@ -1464,14 +1464,54 @@
         clearLogs();
         appendLog('info', `Initiating background migration sequence [Source: ${payload.sourceId} → Target: ${payload.targetId}]`, 'START');
 
-        socket.emit('clone:start', payload);
+        // 1. Emit via socket if available
+        if (socket && socket.connected) {
+            socket.emit('clone:start', payload);
+        }
+
+        // 2. Also start via REST API (ensures 100% reliability on Vercel / serverless)
+        try {
+            const res = await fetch('/api/jobs/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success && data.jobId) {
+                currentJobId = data.jobId;
+                try {
+                    localStorage.setItem('discloner_active_job_id', data.jobId);
+                } catch (e) {}
+                connectJobEventSource(data.jobId);
+                startJobPolling(data.jobId);
+            } else if (!socket.connected) {
+                const errMsg = data.error || 'Failed to start cloning process.';
+                appendLog('error', errMsg, 'ERROR');
+                showToast(errMsg, 'error');
+                setRunningState(false);
+            }
+        } catch (err) {
+            if (!socket.connected) {
+                appendLog('error', `Connection error: ${err.message}`, 'NETWORK_ERROR');
+                showToast(`Connection failed: ${err.message}`, 'error');
+                setRunningState(false);
+            }
+        }
     }
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
+        cancelBtn.addEventListener('click', async () => {
             if (!isRunning) return;
             appendLog('warning', 'Sending cancellation signal to background cloner engine...', 'CANCEL_REQ');
-            socket.emit('clone:cancel', { jobId: currentJobId });
+            if (socket && socket.connected) {
+                socket.emit('clone:cancel', { jobId: currentJobId });
+            }
+            if (currentJobId) {
+                try {
+                    await fetch(`/api/jobs/${encodeURIComponent(currentJobId)}/cancel`, { method: 'POST' });
+                } catch (e) {}
+            }
         });
     }
 
@@ -2666,11 +2706,21 @@
         });
     }
 
-    // Check on startup if input has value
+    // Check on startup if input has value & query active jobs
     window.addEventListener('DOMContentLoaded', () => {
         if (userTokenInput && userTokenInput.value.trim()) {
             fetchServersAutomatically(userTokenInput.value.trim(), true);
         }
+
+        fetch('/api/jobs/active').then(r => r.json()).then(data => {
+            if (data && data.success && data.job) {
+                hydrateJobState(data.job);
+                if (data.job.status === 'running') {
+                    connectJobEventSource(data.job.id);
+                    startJobPolling(data.job.id);
+                }
+            }
+        }).catch(() => {});
     });
 
     function escapeHtml(str) {
