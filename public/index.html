@@ -751,6 +751,70 @@
                             </div>
                         </div>
 
+                        <!-- Real-Time Discord API Rate-Limiting & Capacity Gauge -->
+                        <div class="rate-limit-gauge-card" id="rateLimitGaugeCard">
+                            <div class="gauge-card-header">
+                                <div class="gauge-title-group">
+                                    <div class="gauge-icon-bubble">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="gauge-icon-svg">
+                                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                        </svg>
+                                    </div>
+                                    <div class="gauge-text-col">
+                                        <div class="gauge-header-title-row">
+                                            <span class="gauge-main-title">Discord API Rate Limit</span>
+                                            <span class="gauge-sub-pill">REAL-TIME</span>
+                                        </div>
+                                        <p class="gauge-subtitle">Remaining capacity & adaptive backpressure</p>
+                                    </div>
+                                </div>
+                                <div class="gauge-status-badge optimal" id="rateLimitStatusBadge">
+                                    <span class="status-pulse-dot" id="rateLimitStatusDot"></span>
+                                    <span id="rateLimitStatusText">OPTIMAL (100%)</span>
+                                </div>
+                            </div>
+
+                            <!-- Dual Visual Gauge Layout -->
+                            <div class="gauge-visual-body">
+                                <!-- Neumorphic Circular Arc Gauge -->
+                                <div class="radial-gauge-wrapper">
+                                    <svg class="radial-gauge-svg" viewBox="0 0 100 100" id="rateLimitSvgGauge" aria-hidden="true">
+                                        <circle class="gauge-bg-circle" cx="50" cy="50" r="40"></circle>
+                                        <circle class="gauge-progress-circle" id="rateLimitGaugeArc" cx="50" cy="50" r="40" stroke-dasharray="251.327" stroke-dashoffset="0"></circle>
+                                    </svg>
+                                    <div class="radial-gauge-center">
+                                        <span class="radial-gauge-number font-mono" id="rateLimitCapacityVal">100%</span>
+                                        <span class="radial-gauge-caption" id="rateLimitCapacitySubtext">Capacity</span>
+                                    </div>
+                                </div>
+
+                                <!-- Live Telemetry Metrics Grid -->
+                                <div class="gauge-metrics-breakdown">
+                                    <div class="gauge-mini-metric">
+                                        <span class="mini-metric-label">Headroom</span>
+                                        <span class="mini-metric-val font-mono" id="rateLimitHeadroom">100% Safe</span>
+                                    </div>
+                                    <div class="gauge-mini-metric">
+                                        <span class="mini-metric-label">Active Cooldown</span>
+                                        <span class="mini-metric-val font-mono" id="rateLimitCooldown">0.0s</span>
+                                    </div>
+                                    <div class="gauge-mini-metric">
+                                        <span class="mini-metric-label">429 Events</span>
+                                        <span class="mini-metric-val font-mono" id="rateLimit429Count">0</span>
+                                    </div>
+                                    <div class="gauge-mini-metric">
+                                        <span class="mini-metric-label">Pacing State</span>
+                                        <span class="mini-metric-val font-mono" id="rateLimitPacingState">Clear</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Linear Capacity Headroom Bar -->
+                            <div class="gauge-linear-track" title="Discord REST Quota Headroom">
+                                <div class="gauge-linear-fill optimal" id="rateLimitLinearBar" style="width: 100%;"></div>
+                            </div>
+                        </div>
+
                         <!-- Compact Stats Counter Grid -->
                         <div class="telemetry-stats-grid">
                             <div class="stat-pill">

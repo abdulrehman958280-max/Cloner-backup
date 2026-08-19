@@ -109,6 +109,20 @@
     const liveStatMessages = document.getElementById('liveStatMessages');
     const liveStatWarnings = document.getElementById('liveStatWarnings');
 
+    // Rate Limit & Capacity Gauge
+    const rateLimitGaugeCard = document.getElementById('rateLimitGaugeCard');
+    const rateLimitStatusBadge = document.getElementById('rateLimitStatusBadge');
+    const rateLimitStatusDot = document.getElementById('rateLimitStatusDot');
+    const rateLimitStatusText = document.getElementById('rateLimitStatusText');
+    const rateLimitGaugeArc = document.getElementById('rateLimitGaugeArc');
+    const rateLimitCapacityVal = document.getElementById('rateLimitCapacityVal');
+    const rateLimitCapacitySubtext = document.getElementById('rateLimitCapacitySubtext');
+    const rateLimitHeadroom = document.getElementById('rateLimitHeadroom');
+    const rateLimitCooldown = document.getElementById('rateLimitCooldown');
+    const rateLimit429Count = document.getElementById('rateLimit429Count');
+    const rateLimitPacingState = document.getElementById('rateLimitPacingState');
+    const rateLimitLinearBar = document.getElementById('rateLimitLinearBar');
+
     // Activity Console
     const terminal = document.getElementById('terminal');
     const logStream = document.getElementById('logStream');
@@ -1734,6 +1748,117 @@
     }
 
     // ==========================================================================
+    // Real-Time Discord API Rate-Limiting & Capacity Gauge
+    // ==========================================================================
+    const CIRCUMFERENCE = 251.327; // 2 * Math.PI * 40
+
+    function updateRateLimitTelemetry(rateLimit) {
+        if (!rateLimit) return;
+
+        const rawCapacity = rateLimit.capacityPercent !== undefined ? rateLimit.capacityPercent : 100;
+        const capacity = Math.max(0, Math.min(100, Math.round(rawCapacity)));
+        const offset = CIRCUMFERENCE * (1 - (capacity / 100));
+
+        if (rateLimitGaugeArc) {
+            rateLimitGaugeArc.style.strokeDashoffset = offset.toFixed(2);
+        }
+
+        if (rateLimitCapacityVal) {
+            rateLimitCapacityVal.textContent = `${capacity}%`;
+        }
+
+        const activeWaitMs = rateLimit.activeWaitMs || 0;
+        const isBackoff = rateLimit.status === 'BACKOFF' || activeWaitMs > 0 || capacity < 40;
+        const isPulsing = rateLimit.status === 'PULSING' || (capacity < 85 && !isBackoff) || (rateLimit.rateLimitEvents && rateLimit.rateLimitEvents > 0 && !isBackoff);
+
+        let statusMode = 'optimal';
+        let statusLabel = `OPTIMAL (${capacity}%)`;
+
+        if (isBackoff) {
+            statusMode = 'backoff';
+            statusLabel = `RATE LIMITED (${capacity}%)`;
+        } else if (isPulsing) {
+            statusMode = 'pulsing';
+            statusLabel = `PACING (${capacity}%)`;
+        } else {
+            statusMode = 'optimal';
+            statusLabel = `OPTIMAL (${capacity}%)`;
+        }
+
+        if (rateLimit.statusLabel) {
+            statusLabel = rateLimit.statusLabel;
+        }
+
+        // Apply visual classes
+        if (rateLimitStatusBadge) {
+            rateLimitStatusBadge.className = `gauge-status-badge ${statusMode}`;
+        }
+        if (rateLimitStatusText) {
+            rateLimitStatusText.textContent = statusLabel;
+        }
+        if (rateLimitGaugeArc) {
+            rateLimitGaugeArc.setAttribute('class', `gauge-progress-circle ${statusMode}`);
+        }
+        if (rateLimitLinearBar) {
+            rateLimitLinearBar.className = `gauge-linear-fill ${statusMode}`;
+            rateLimitLinearBar.style.width = `${capacity}%`;
+        }
+
+        // Mini metrics values
+        if (rateLimitHeadroom) {
+            rateLimitHeadroom.textContent = `${capacity}% ${capacity >= 85 ? 'Safe' : capacity >= 40 ? 'Moderate' : 'Restricted'}`;
+        }
+
+        if (rateLimitCooldown) {
+            if (activeWaitMs > 0) {
+                rateLimitCooldown.textContent = `${(activeWaitMs / 1000).toFixed(1)}s`;
+                rateLimitCooldown.style.color = '#EF4444';
+            } else {
+                rateLimitCooldown.textContent = '0.0s';
+                rateLimitCooldown.style.color = '';
+            }
+        }
+
+        if (rateLimit429Count) {
+            const count = rateLimit.rateLimitEvents ?? rateLimit.rateLimitsEncountered ?? 0;
+            rateLimit429Count.textContent = count;
+            if (count > 0) {
+                rateLimit429Count.style.color = count > 5 ? '#EF4444' : '#F59E0B';
+            } else {
+                rateLimit429Count.style.color = '';
+            }
+        }
+
+        if (rateLimitPacingState) {
+            if (activeWaitMs > 0) {
+                rateLimitPacingState.textContent = 'Backoff Active';
+                rateLimitPacingState.style.color = '#EF4444';
+            } else if (rateLimit.isGlobalBlocked) {
+                rateLimitPacingState.textContent = 'Global Pause';
+                rateLimitPacingState.style.color = '#EF4444';
+            } else if (capacity < 85) {
+                rateLimitPacingState.textContent = 'Adaptive Delay';
+                rateLimitPacingState.style.color = '#F59E0B';
+            } else {
+                rateLimitPacingState.textContent = 'Clear (Zero Delay)';
+                rateLimitPacingState.style.color = '#10B981';
+            }
+        }
+    }
+
+    async function fetchRateLimitTelemetry() {
+        try {
+            const res = await fetch('/api/telemetry/rate-limit');
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.rateLimit) {
+                    updateRateLimitTelemetry(data.rateLimit);
+                }
+            }
+        } catch (e) {}
+    }
+
+    // ==========================================================================
     // 6. Background Job Reconnection & State Hydration Engine
     // ==========================================================================
 
@@ -1765,6 +1890,11 @@
         if (job.statCounters) {
             statCounters = { ...job.statCounters };
             updateLiveStatCounts();
+        }
+
+        // Update rate limit gauge if snapshot included
+        if (job.rateLimit) {
+            updateRateLimitTelemetry(job.rateLimit);
         }
 
         if (job.status === 'running') {
@@ -1930,7 +2060,14 @@
                             if (data.current !== undefined && data.total !== undefined && progressCounts) {
                                 progressCounts.textContent = `${data.current} / ${data.total}`;
                             }
+                            if (data.rateLimit) {
+                                updateRateLimitTelemetry(data.rateLimit);
+                            }
                             updateEtaProgress(percent, data.current, data.total, stageLabel ? stageLabel.textContent : '');
+                        } else if (parsed.event === 'clone:rate_limit') {
+                            if (parsed.data && parsed.data.rateLimit) {
+                                updateRateLimitTelemetry(parsed.data.rateLimit);
+                            }
                         } else if (parsed.event === 'clone:log') {
                             const entry = parsed.data;
                             const level = entry.level || entry.type || 'info';
@@ -2003,6 +2140,7 @@
 
     // Socket Connection & Background Sync
     socket.on('connect', () => {
+        fetchRateLimitTelemetry();
         if (currentJobId) {
             socket.emit('job:subscribe', { jobId: currentJobId });
             connectJobEventSource(currentJobId);
@@ -2064,7 +2202,17 @@
             progressCounts.textContent = `${data.current} / ${data.total}`;
         }
 
+        if (data.rateLimit) {
+            updateRateLimitTelemetry(data.rateLimit);
+        }
+
         updateEtaProgress(percent, data.current, data.total, stageLabel ? stageLabel.textContent : '');
+    });
+
+    socket.on('clone:rate_limit', (data) => {
+        if (data && data.rateLimit) {
+            updateRateLimitTelemetry(data.rateLimit);
+        }
     });
 
     socket.on('clone:log', (entry) => {
@@ -3518,5 +3666,8 @@
             }
         }
     });
+
+    // Initialize telemetry gauge state on page load
+    fetchRateLimitTelemetry();
 
 })();

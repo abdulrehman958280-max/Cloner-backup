@@ -12,7 +12,8 @@ import {
     classifyError,
     serializeErrorSafely,
     getFriendlyErrorMessage,
-    ERROR_CATEGORIES
+    ERROR_CATEGORIES,
+    globalRateLimiter
 } from './reliability/index.js';
 import { RELIABILITY_CONFIG } from './configContract.js';
 
@@ -166,16 +167,20 @@ class JobManager extends EventEmitter {
         const onProgress = (progress, current, total, item) => {
             job.lastActivityAt = Date.now();
             job.progress = { progress, current, total, item: sanitizeText(item) };
+            const rateLimitSnapshot = globalRateLimiter.getCapacitySnapshot();
             const payload = {
                 progress,
                 current,
                 total,
                 item: sanitizeText(item),
+                rateLimit: rateLimitSnapshot,
                 jobId
             };
             this.emit(`job:${jobId}`, { event: 'clone:progress', data: payload });
+            this.emit(`job:${jobId}`, { event: 'clone:rate_limit', data: { rateLimit: rateLimitSnapshot, jobId } });
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:progress', payload);
+                this.io.to(`job:${jobId}`).emit('clone:rate_limit', { rateLimit: rateLimitSnapshot, jobId });
                 // Legacy compatibility event
                 this.io.to(`job:${jobId}`).emit('progress', progress);
             }
@@ -381,6 +386,7 @@ class JobManager extends EventEmitter {
             logs: job.logs,
             statCounters: job.statCounters,
             stats: job.stats,
+            rateLimit: globalRateLimiter.getCapacitySnapshot(),
             error: job.error
         };
     }

@@ -2292,6 +2292,274 @@ a {
     max-width: 75%;
 }
 
+/* 14b. Discord API Rate-Limiting & Remaining Capacity Gauge */
+.rate-limit-gauge-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(145deg, var(--surface-raised) 0%, var(--surface) 100%);
+    box-shadow: var(--shadow-raised-sm);
+    border-top: var(--bevel-top);
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: var(--bevel-bottom);
+    transition: all var(--transition-smooth);
+}
+
+.gauge-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gauge-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gauge-icon-bubble {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.gauge-icon-svg {
+    width: 16px;
+    height: 16px;
+}
+
+.gauge-text-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gauge-header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gauge-main-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
+
+.gauge-sub-pill {
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid rgba(46, 84, 230, 0.2);
+}
+
+.gauge-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.gauge-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    box-shadow: var(--shadow-raised-sm);
+    transition: all var(--transition-fast);
+}
+
+.gauge-status-badge.optimal {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.gauge-status-badge.pulsing {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.gauge-status-badge.backoff {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.status-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: statusPulse 2s infinite ease-in-out;
+}
+
+@keyframes statusPulse {
+    0% { transform: scale(0.9); opacity: 0.8; }
+    50% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+    100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.gauge-visual-body {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+@media (max-width: 520px) {
+    .gauge-visual-body {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+}
+
+.radial-gauge-wrapper {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.radial-gauge-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.gauge-bg-circle {
+    fill: none;
+    stroke: var(--surface-inset);
+    stroke-width: 9;
+}
+
+.gauge-progress-circle {
+    fill: none;
+    stroke: #10B981;
+    stroke-width: 9;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+    filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.4));
+}
+
+.gauge-progress-circle.pulsing {
+    stroke: #F59E0B;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.45));
+}
+
+.gauge-progress-circle.backoff {
+    stroke: #EF4444;
+    filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.55));
+}
+
+.radial-gauge-center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+}
+
+.radial-gauge-number {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.radial-gauge-caption {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gauge-metrics-breakdown {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+}
+
+.gauge-mini-metric {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    gap: 1px;
+}
+
+.mini-metric-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mini-metric-val {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.gauge-linear-track {
+    width: 100%;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    overflow: hidden;
+    position: relative;
+}
+
+.gauge-linear-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: linear-gradient(90deg, #10B981 0%, #34D399 100%);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+.gauge-linear-fill.pulsing {
+    background: linear-gradient(90deg, #F59E0B 0%, #FBBF24 100%);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.gauge-linear-fill.backoff {
+    background: linear-gradient(90deg, #EF4444 0%, #F87171 100%);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
 .telemetry-stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

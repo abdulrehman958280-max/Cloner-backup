@@ -68,8 +68,8 @@ export async function runPreflightCheck({
         }
 
         // 2. Fetch Guilds
-        const sourceGuild = client.guilds.cache.get(sourceId);
-        const targetGuild = client.guilds.cache.get(targetId);
+        const sourceGuild = client.guilds.cache.get(sourceId) || await client.guilds.fetch(sourceId).catch(() => null);
+        const targetGuild = client.guilds.cache.get(targetId) || await client.guilds.fetch(targetId).catch(() => null);
 
         if (!sourceGuild) {
             isBlocked = true;

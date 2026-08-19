@@ -158,6 +158,52 @@ export class AdaptiveRateLimiter {
         return { ...this.stats };
     }
 
+    /**
+     * Computes high-precision real-time rate limit capacity & backpressure health snapshot
+     */
+    getCapacitySnapshot() {
+        const now = Date.now();
+        const activeWaitMs = this.getRemainingWaitMs();
+        const isBlocked = activeWaitMs > 0;
+
+        let capacityPercent = 100;
+        let status = 'OPTIMAL';
+        let statusLabel = 'OPTIMAL (100%)';
+        let pacingState = 'Clear';
+        let healthLabel = 'Safe';
+
+        if (isBlocked) {
+            // Currently in active 429 backoff cooldown
+            capacityPercent = Math.max(0, Math.min(40, Math.round((1 - (activeWaitMs / 10000)) * 40)));
+            status = 'BACKOFF';
+            statusLabel = `COOLDOWN (${(activeWaitMs / 1000).toFixed(1)}s)`;
+            pacingState = 'Rate Limited';
+            healthLabel = 'Backing Off';
+        } else if (this.stats.operationsDelayed > 0 || this.stats.rateLimitEvents > 0) {
+            // Adaptive pacing throttling active
+            const penalty = Math.min(45, (this.stats.rateLimitEvents * 8) + (this.stats.operationsDelayed * 2));
+            capacityPercent = Math.max(35, 100 - penalty);
+            status = 'PULSING';
+            statusLabel = `PACING (${capacityPercent}%)`;
+            pacingState = 'Throttled';
+            healthLabel = 'Adaptive Pacing';
+        }
+
+        return {
+            capacityPercent,
+            status,
+            statusLabel,
+            pacingState,
+            healthLabel,
+            activeWaitMs: Math.max(0, activeWaitMs),
+            rateLimitEvents: this.stats.rateLimitEvents,
+            operationsDelayed: this.stats.operationsDelayed,
+            retryCount: this.stats.retryCount,
+            totalWaitMs: this.stats.totalRateLimitWaitMs,
+            timestamp: now
+        };
+    }
+
     reset() {
         this.globalBlockedUntil = 0;
         this.routeBlockedUntil.clear();

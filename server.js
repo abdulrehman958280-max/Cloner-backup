@@ -53,14 +53,25 @@ app.get('/sitemap.xml', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
 });
 
-// Health status route
+// Health status route with real-time rate limit capacity
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'online',
         uptime: process.uptime(),
         activeJobs: jobManager.getActiveJobCount(),
         telemetry: globalRateLimiter.getStats(),
+        rateLimit: globalRateLimiter.getCapacitySnapshot(),
         timestamp: new Date().toISOString()
+    });
+});
+
+// Dedicated rate limit telemetry endpoint
+app.get('/api/telemetry/rate-limit', (req, res) => {
+    res.json({
+        success: true,
+        rateLimit: globalRateLimiter.getCapacitySnapshot(),
+        stats: globalRateLimiter.getStats(),
+        timestamp: Date.now()
     });
 });
 
