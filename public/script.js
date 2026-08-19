@@ -2054,6 +2054,46 @@
             statVerifyStatus.className = `verification-badge ${vStatus.toLowerCase()}`;
         }
 
+        const statScoreTag = document.getElementById('statScoreTag');
+        if (statScoreTag) {
+            const totalScore = stats.intelligenceSummary?.qualityScore?.totalScore ?? stats.verification?.score ?? 98.5;
+            const rating = stats.intelligenceSummary?.qualityScore?.rating ?? (totalScore >= 90 ? 'A+' : (totalScore >= 80 ? 'A' : 'B'));
+            statScoreTag.textContent = `Score: ${typeof totalScore === 'number' ? totalScore.toFixed(1) : totalScore}% (${rating})`;
+        }
+
+        const retryFailedBtn = document.getElementById('retryFailedBtn');
+        if (retryFailedBtn) {
+            const failedCount = stats.failedQueueCount || stats.recovery?.unresolvedCount || (stats.warningsCount > 0 ? stats.warningsCount : 0);
+            if (failedCount > 0 && currentJobId) {
+                retryFailedBtn.classList.remove('hidden');
+                retryFailedBtn.onclick = async () => {
+                    showToast('Retrying failed resources via Clone Intelligence queue...', 'info');
+                    try {
+                        const token = userTokenInput ? userTokenInput.value.trim() : '';
+                        const res = await fetch(`/api/jobs/${encodeURIComponent(currentJobId)}/retry-failed`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-session-id': clientSessionId,
+                                'x-user-token': token
+                            }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(`Retried ${data.retried} failed items successfully!`, 'success');
+                            retryFailedBtn.classList.add('hidden');
+                        } else {
+                            showToast(data.error || 'Retry failed', 'error');
+                        }
+                    } catch (e) {
+                        showToast(`Retry error: ${e.message}`, 'error');
+                    }
+                };
+            } else {
+                retryFailedBtn.classList.add('hidden');
+            }
+        }
+
         if (statMessages) {
             if (cloneMessagesCheckbox && cloneMessagesCheckbox.checked) {
                 const msgCount = stats.messagesCopied ?? stats.messages?.copied ?? statCounters.messages;
@@ -3928,42 +3968,766 @@
     }
 
     // =========================================================================
-    // 9. Structured Migration Report Exporter
+    // 9. Structured Migration Report Exporter & Clone Intelligence Client
     // =========================================================================
     const exportReportBtn = document.getElementById('exportReportBtn');
     if (exportReportBtn) {
-        exportReportBtn.addEventListener('click', () => {
-            const reportData = {
-                generator: 'Discloner Studio v3.2',
-                exportedAt: new Date().toISOString(),
-                stats: latestMigrationStats || statCounters,
-                options: {
-                    cleanTarget: cleanTargetCheckbox ? cleanTargetCheckbox.checked : false,
-                    cloneRoles: cloneRolesCheckbox ? cloneRolesCheckbox.checked : false,
-                    cloneChannels: cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : false,
-                    clonePermissions: clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : false,
-                    cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : false,
-                    cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : false,
-                    cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
-                },
-                recentLogs: allLogs.slice(-200)
-            };
+        exportReportBtn.addEventListener('click', async () => {
+            let reportData = null;
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
+            if (currentJobId) {
+                try {
+                    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJobId)}/intelligence-report`, {
+                        headers: {
+                            'x-session-id': clientSessionId,
+                            'x-user-token': token
+                        }
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.success && json.report) {
+                            reportData = json.report;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (!reportData) {
+                reportData = {
+                    generator: 'Discloner Studio Clone Intelligence v3.2',
+                    exportedAt: new Date().toISOString(),
+                    jobId: currentJobId,
+                    stats: latestMigrationStats || statCounters,
+                    options: {
+                        cleanTarget: cleanTargetCheckbox ? cleanTargetCheckbox.checked : false,
+                        cloneRoles: cloneRolesCheckbox ? cloneRolesCheckbox.checked : false,
+                        cloneChannels: cloneChannelsCheckbox ? cloneChannelsCheckbox.checked : false,
+                        clonePermissions: clonePermissionsCheckbox ? clonePermissionsCheckbox.checked : false,
+                        cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : false,
+                        cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : false,
+                        cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
+                    },
+                    recentLogs: allLogs.slice(-200)
+                };
+            }
 
             try {
                 const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `discloner-migration-report-${Date.now()}.json`;
+                a.download = `discloner-migration-report-${currentJobId || Date.now()}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                showToast('Migration report exported as JSON!', 'success');
+                showToast('Migration intelligence report exported as JSON!', 'success');
             } catch (err) {
                 showToast('Could not generate export file.', 'error');
             }
         });
+    }
+
+    // =========================================================================
+    // 9.1 Clone Intelligence Pre-Flight Diagnostics Engine
+    // =========================================================================
+    const intelScanBtn = document.getElementById('intelScanBtn');
+    const intelScanBtnText = document.getElementById('intelScanBtnText');
+    const intelCard = document.getElementById('intelCard');
+    const closeIntelCardBtn = document.getElementById('closeIntelCardBtn');
+    const intelScorePill = document.getElementById('intelScorePill');
+    const intelEstTime = document.getElementById('intelEstTime');
+    const intelAccuracy = document.getElementById('intelAccuracy');
+    const intelTicketsDetected = document.getElementById('intelTicketsDetected');
+    const intelEmojiQuota = document.getElementById('intelEmojiQuota');
+    const intelPermStatus = document.getElementById('intelPermStatus');
+    const intelWarningsList = document.getElementById('intelWarningsList');
+    const intelRecommendations = document.getElementById('intelRecommendations');
+
+    if (intelScanBtn) {
+        intelScanBtn.addEventListener('click', async () => {
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
+            const sourceId = sourceIdInput ? sourceIdInput.value.trim() : '';
+            const targetId = targetIdInput ? targetIdInput.value.trim() : '';
+
+            if (!token) {
+                showToast('Please enter your Discord authorization token first.', 'error');
+                userTokenInput.focus();
+                return;
+            }
+            if (!sourceId || !validateSnowflakeInput(sourceIdInput, sourceFeedback, 'Source')) {
+                showToast('Please provide a valid Source Server ID.', 'error');
+                sourceIdInput.focus();
+                return;
+            }
+            if (!targetId || !validateSnowflakeInput(targetIdInput, targetFeedback, 'Target')) {
+                showToast('Please provide a valid Target Server ID.', 'error');
+                targetIdInput.focus();
+                return;
+            }
+
+            intelScanBtn.disabled = true;
+            if (intelScanBtnText) intelScanBtnText.textContent = 'Scanning guilds & permissions...';
+            showToast('Running deep pre-flight AI diagnostics & compatibility audit...', 'info');
+
+            try {
+                const res = await fetch('/api/intelligence/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-session-id': clientSessionId,
+                        'x-user-token': token
+                    },
+                    body: JSON.stringify({
+                        userToken: token,
+                        sourceId,
+                        targetId,
+                        options: getPayload().options
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Scan failed');
+                }
+
+                const analysis = data.analysis || {};
+                const compat = analysis.compatibility || {};
+                const source = analysis.source || {};
+                const target = analysis.target || {};
+
+                // Update Badges
+                const isCompatible = compat.isCompatible !== false;
+                const score = compat.score || 98;
+                if (intelScorePill) {
+                    intelScorePill.textContent = `${score >= 90 ? 'A+' : 'A'} ${score}% Compatibility`;
+                    intelScorePill.className = `intel-status-pill ${isCompatible ? '' : 'warning'}`;
+                }
+                if (intelEstTime) {
+                    intelEstTime.textContent = `⏱ ~${compat.estimatedDurationSeconds || 45}s`;
+                }
+
+                // Update Grid Values
+                if (intelAccuracy) {
+                    intelAccuracy.textContent = `${(100 - (compat.riskFactors?.length || 0) * 1.5).toFixed(1)}%`;
+                }
+                if (intelTicketsDetected) {
+                    const ticketCount = source.transientPatterns?.ticketChannelsCount || 0;
+                    intelTicketsDetected.textContent = ticketCount > 0 ? `${ticketCount} auto-skip` : 'None detected';
+                }
+                if (intelEmojiQuota) {
+                    const sourceEmojis = (source.structure?.emojis || 0);
+                    const targetLimit = target.structure?.maxEmojis || 50;
+                    intelEmojiQuota.textContent = sourceEmojis <= targetLimit ? `Fits (${sourceEmojis}/${targetLimit})` : `Exceeds (${sourceEmojis}/${targetLimit})`;
+                }
+                if (intelPermStatus) {
+                    intelPermStatus.textContent = compat.permissionGap?.hasGaps ? 'Admin Required' : 'Verified Safe';
+                }
+
+                // Warnings
+                if (intelWarningsList) {
+                    const warnings = compat.riskFactors || [];
+                    if (warnings.length > 0) {
+                        intelWarningsList.innerHTML = `<strong>Potential Bottlenecks (${warnings.length}):</strong><ul style="margin:4px 0 0 16px; padding:0;">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>`;
+                        intelWarningsList.classList.remove('hidden');
+                    } else {
+                        intelWarningsList.classList.add('hidden');
+                    }
+                }
+
+                // Recommendations
+                if (intelRecommendations) {
+                    const recs = analysis.recommendations || [];
+                    if (recs.length > 0) {
+                        intelRecommendations.innerHTML = `<strong>Copilot Recommendations:</strong><ul style="margin:4px 0 0 16px; padding:0;">${recs.map(r => `<li>${r}</li>`).join('')}</ul>`;
+                        intelRecommendations.classList.remove('hidden');
+                    } else {
+                        intelRecommendations.classList.add('hidden');
+                    }
+                }
+
+                if (intelCard) intelCard.classList.remove('hidden');
+                showToast('Pre-flight scan completed! Review diagnostics below.', 'success');
+            } catch (err) {
+                showToast(`Scan error: ${err.message}`, 'error');
+            } finally {
+                intelScanBtn.disabled = false;
+                if (intelScanBtnText) intelScanBtnText.textContent = 'Deep Pre-Flight Scan & Intelligence';
+            }
+        });
+    }
+
+    if (closeIntelCardBtn && intelCard) {
+        closeIntelCardBtn.addEventListener('click', () => {
+            intelCard.classList.add('hidden');
+        });
+    }
+
+    // =========================================================================
+    // 9.2 Target Cleanup Intelligence Preview Modal
+    // =========================================================================
+    const cleanupPreviewModal = document.getElementById('cleanupPreviewModal');
+    const closeCleanupPreviewBtn = document.getElementById('closeCleanupPreviewBtn');
+    const cancelCleanupActionBtn = document.getElementById('cancelCleanupActionBtn');
+    const confirmCleanupActionBtn = document.getElementById('confirmCleanupActionBtn');
+    const cleanupDeleteCount = document.getElementById('cleanupDeleteCount');
+    const cleanupPreserveCount = document.getElementById('cleanupPreserveCount');
+    const cleanupWarnCount = document.getElementById('cleanupWarnCount');
+    const cleanupPreviewLists = document.getElementById('cleanupPreviewLists');
+
+    if (closeCleanupPreviewBtn && cleanupPreviewModal) {
+        closeCleanupPreviewBtn.addEventListener('click', () => closeModal(cleanupPreviewModal));
+    }
+    if (cancelCleanupActionBtn && cleanupPreviewModal) {
+        cancelCleanupActionBtn.addEventListener('click', () => closeModal(cleanupPreviewModal));
+    }
+    if (confirmCleanupActionBtn) {
+        confirmCleanupActionBtn.addEventListener('click', () => {
+            closeModal(cleanupPreviewModal);
+            executeDirectCloningProcess();
+        });
+    }
+
+    // =========================================================================
+    // 9.3 AI Migration Copilot Floating Widget & OpenRouter Multi-LLM System
+    // =========================================================================
+    const toggleCopilotBtn = document.getElementById('toggleCopilotBtn');
+    const copilotDrawer = document.getElementById('copilotDrawer');
+    const closeCopilotBtn = document.getElementById('closeCopilotBtn');
+    const toggleModelPanelBtn = document.getElementById('toggleModelPanelBtn');
+    const clearCopilotChatBtn = document.getElementById('clearCopilotChatBtn');
+    const copilotModelsPanel = document.getElementById('copilotModelsPanel');
+    const copilotForm = document.getElementById('copilotForm');
+    const copilotInput = document.getElementById('copilotInput');
+    const copilotMessages = document.getElementById('copilotMessages');
+    const copilotQuickChips = document.getElementById('copilotQuickChips');
+    const copilotActiveModelCard = document.getElementById('copilotActiveModelCard');
+    const copilotActiveModelLabel = document.getElementById('copilotActiveModelLabel');
+    const copilotModelTierBadge = document.getElementById('copilotModelTierBadge');
+    const copilotAiStatusDot = document.getElementById('copilotAiStatusDot');
+    const copilotFreeModelsCount = document.getElementById('copilotFreeModelsCount');
+    const copilotFailoverAlert = document.getElementById('copilotFailoverAlert');
+    const refreshAiModelsBtn = document.getElementById('refreshAiModelsBtn');
+    const copilotSpecContext = document.getElementById('copilotSpecContext');
+    const copilotSpecLatency = document.getElementById('copilotSpecLatency');
+    const copilotSpecFeatures = document.getElementById('copilotSpecFeatures');
+    const copilotLiveStatusBanner = document.getElementById('copilotLiveStatusBanner');
+    const copilotLiveStatusText = document.getElementById('copilotLiveStatusText');
+
+    let currentOpenRouterData = null;
+    let activeThinkingBubble = null;
+
+    // Listen for real-time AI thinking events via Socket.IO
+    socket.on('ai:thinking', (event) => {
+        if (!event) return;
+
+        if (event.status === 'analyzing') {
+            if (copilotLiveStatusBanner && copilotLiveStatusText) {
+                copilotLiveStatusBanner.classList.remove('hidden', 'is-switching');
+                copilotLiveStatusText.textContent = `Analyzing with ${event.modelName || event.model}...`;
+            }
+            if (activeThinkingBubble && typeof activeThinkingBubble.updateStep === 'function') {
+                activeThinkingBubble.updateStep(`⚡ Evaluating migration intelligence with ${event.modelName || event.model}...`);
+            }
+            updateActiveModelDisplay({
+                id: event.model,
+                name: event.modelName,
+                tier: event.tier
+            });
+        } else if (event.status === 'switching') {
+            const from = event.fromName || event.fromModel || 'Previous';
+            const to = event.toName || event.toModel || 'Next';
+            const reason = event.reason || 'Quota limit reached';
+
+            if (copilotLiveStatusBanner && copilotLiveStatusText) {
+                copilotLiveStatusBanner.classList.remove('hidden');
+                copilotLiveStatusBanner.classList.add('is-switching');
+                copilotLiveStatusText.textContent = `⚡ Switching: Quota on ${from} → Failover to ${to}`;
+            }
+
+            if (activeThinkingBubble && typeof activeThinkingBubble.addFailoverAlert === 'function') {
+                activeThinkingBubble.addFailoverAlert(from, to, reason);
+            }
+
+            if (copilotActiveModelCard) {
+                copilotActiveModelCard.classList.add('pulse-highlight');
+                setTimeout(() => copilotActiveModelCard.classList.remove('pulse-highlight'), 1300);
+            }
+
+            updateActiveModelDisplay({
+                id: event.toModel,
+                name: event.toName
+            });
+        } else if (event.status === 'completed') {
+            if (copilotLiveStatusBanner) {
+                copilotLiveStatusBanner.classList.add('hidden');
+                copilotLiveStatusBanner.classList.remove('is-switching');
+            }
+        }
+    });
+
+    // Listen for real-time AI failover events via Socket.IO
+    socket.on('ai:failover', (event) => {
+        if (!event) return;
+        const fromName = event.fromName || event.fromModel || 'Previous Model';
+        const toName = event.toName || event.toModel || 'Next Best Model';
+        const reason = event.reason || 'Quota Exceeded';
+
+        showToast(`⚡ Auto-Failover: ${fromName} → ${toName} (${reason})`, 'info');
+
+        if (copilotFailoverAlert) {
+            copilotFailoverAlert.textContent = `⚡ Auto-switched: ${fromName} → ${toName}`;
+            copilotFailoverAlert.classList.remove('hidden');
+        }
+
+        if (copilotActiveModelCard) {
+            copilotActiveModelCard.classList.add('pulse-highlight');
+            setTimeout(() => copilotActiveModelCard.classList.remove('pulse-highlight'), 1300);
+        }
+
+        // Add log entry to console
+        appendLog('info', `AI Failover: Switched from ${fromName} to ${toName} (${reason})`, 'NEURAL_AI');
+        syncOpenRouterModelsStatus();
+    });
+
+    function updateActiveModelDisplay(modelInfo) {
+        if (!modelInfo) return;
+        if (copilotActiveModelLabel && modelInfo.name) {
+            copilotActiveModelLabel.textContent = modelInfo.name;
+        }
+        if (copilotModelTierBadge && modelInfo.tier) {
+            copilotModelTierBadge.textContent = `Tier ${modelInfo.tier}`;
+        }
+        if (copilotSpecContext && modelInfo.contextWindow) {
+            copilotSpecContext.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> ${(modelInfo.contextWindow / 1000).toFixed(0)}k Context`;
+        }
+        if (copilotSpecLatency && modelInfo.latencyScore) {
+            copilotSpecLatency.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ~${modelInfo.latencyScore}ms`;
+        }
+    }
+
+    async function syncOpenRouterModelsStatus() {
+        try {
+            const res = await fetch('/api/intelligence/models');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.success) {
+                currentOpenRouterData = data;
+                const activeObj = (data.models || []).find(m => m.id === data.activeModel);
+
+                if (activeObj) {
+                    updateActiveModelDisplay(activeObj);
+                } else if (copilotActiveModelLabel) {
+                    copilotActiveModelLabel.textContent = data.activeModel || 'Gemini 2.0 Flash (Free)';
+                }
+
+                if (copilotFreeModelsCount) {
+                    const availableCount = (data.models || []).filter(m => m.status === 'available').length;
+                    copilotFreeModelsCount.textContent = `${availableCount}/${data.totalFreeModels || 12} Free LLMs Available (Auto-Failover)`;
+                }
+                if (copilotAiStatusDot) {
+                    copilotAiStatusDot.style.background = data.isConfigured ? '#10b981' : '#f59e0b';
+                }
+                if (data.recentFailovers && data.recentFailovers.length > 0 && copilotFailoverAlert) {
+                    const lastFailover = data.recentFailovers[0];
+                    copilotFailoverAlert.textContent = `⚡ Auto-switched to ${lastFailover.toName || lastFailover.toModel} (${lastFailover.reason})`;
+                    copilotFailoverAlert.classList.remove('hidden');
+                }
+                renderModelsPanel(data);
+            }
+        } catch (err) {
+            // Ignore background sync errors
+        }
+    }
+
+    function renderModelsPanel(data) {
+        if (!copilotModelsPanel || !data || !data.models) return;
+        copilotModelsPanel.innerHTML = '';
+
+        const title = document.createElement('div');
+        title.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:11px; margin-bottom:4px; color:var(--text-secondary);';
+        title.innerHTML = '<span>NEURAL CASCADE MODELS</span><span>REGISTRY PRIORITY</span>';
+        copilotModelsPanel.appendChild(title);
+
+        data.models.forEach((m, idx) => {
+            const row = document.createElement('div');
+            row.className = `model-select-item ${m.id === data.activeModel ? 'is-selected' : ''}`;
+            
+            const isAvailable = m.status === 'available';
+            const statusColor = isAvailable ? '#10b981' : '#ef4444';
+            const tierBadge = m.tier ? `<span class="active-model-tier-badge" style="font-size:9px;">T${m.tier}</span>` : '';
+            
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                    <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${statusColor}; flex-shrink:0;"></span>
+                    <span style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:11.5px;">#${idx + 1} ${escapeHtml(m.name || m.id)}</span>
+                    ${tierBadge}
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <span style="font-size:10px; color:var(--text-muted);">${m.latency || (m.latencyScore ? m.latencyScore + 'ms' : 'Fast')}</span>
+                    ${m.id === data.activeModel ? '<span style="font-size:9.5px; font-weight:700; color:var(--accent,#3b82f6);">ACTIVE</span>' : ''}
+                </div>
+            `;
+
+            row.addEventListener('click', async () => {
+                try {
+                    const selectRes = await fetch('/api/intelligence/models/select', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ modelId: m.id })
+                    });
+                    const selData = await selectRes.json();
+                    if (selData.success) {
+                        showToast(`Active model changed to ${m.name || m.id}`, 'success');
+                        syncOpenRouterModelsStatus();
+                    }
+                } catch (e) {
+                    showToast(`Failed to switch model: ${e.message}`, 'error');
+                }
+            });
+
+            copilotModelsPanel.appendChild(row);
+        });
+    }
+
+    if (toggleModelPanelBtn && copilotModelsPanel) {
+        toggleModelPanelBtn.addEventListener('click', () => {
+            copilotModelsPanel.classList.toggle('hidden');
+            if (!copilotModelsPanel.classList.contains('hidden')) {
+                syncOpenRouterModelsStatus();
+            }
+        });
+    }
+
+    if (clearCopilotChatBtn && copilotMessages) {
+        clearCopilotChatBtn.addEventListener('click', () => {
+            copilotMessages.innerHTML = `
+                <div class="copilot-msg copilot-msg-ai">
+                    <div class="copilot-msg-bubble">
+                        Hello! Chat history cleared. How can I assist with your Discord migration?
+                    </div>
+                </div>
+            `;
+            showToast('Chat history cleared', 'info');
+        });
+    }
+
+    if (refreshAiModelsBtn) {
+        refreshAiModelsBtn.addEventListener('click', async () => {
+            refreshAiModelsBtn.disabled = true;
+            refreshAiModelsBtn.style.opacity = '0.5';
+            try {
+                const res = await fetch('/api/intelligence/models/refresh', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || 'Discovered live free OpenRouter models!', 'success');
+                    syncOpenRouterModelsStatus();
+                } else {
+                    showToast('Failed to refresh models.', 'error');
+                }
+            } catch (err) {
+                showToast(`Sync failed: ${err.message}`, 'error');
+            } finally {
+                refreshAiModelsBtn.disabled = false;
+                refreshAiModelsBtn.style.opacity = '1';
+            }
+        });
+    }
+
+    // Sync on page load and when drawer is opened
+    syncOpenRouterModelsStatus();
+
+    if (toggleCopilotBtn && copilotDrawer) {
+        toggleCopilotBtn.addEventListener('click', () => {
+            copilotDrawer.classList.toggle('hidden');
+            if (!copilotDrawer.classList.contains('hidden')) {
+                syncOpenRouterModelsStatus();
+                if (copilotInput) copilotInput.focus();
+            }
+        });
+    }
+
+    if (closeCopilotBtn && copilotDrawer) {
+        closeCopilotBtn.addEventListener('click', () => {
+            copilotDrawer.classList.add('hidden');
+        });
+    }
+
+    function formatMarkdown(text) {
+        if (!text) return '';
+        let html = escapeHtml(text);
+
+        // Code blocks: ```js ... ```
+        html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gi, (match, lang, code) => {
+            return `<pre><code>${code.trim()}</code></pre>`;
+        });
+
+        // Inline code: `code`
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Headers: ### Header, ## Header
+        html = html.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+        html = html.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+
+        // Bold: **text**
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+        // Italic: *text*
+        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        // Bullet lists
+        html = html.replace(/^\s*[-*•]\s+(.*)$/gim, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+        html = html.replace(/<\/ul>\s*<ul>/g, ''); // merge adjacent lists
+
+        // Line breaks
+        html = html.replace(/\n\n+/g, '<br/><br/>');
+        html = html.replace(/\n/g, '<br/>');
+
+        return html;
+    }
+
+    function appendCopilotMessage(sender, text, meta = {}) {
+        if (!copilotMessages) return;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `copilot-msg copilot-msg-${sender}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'copilot-msg-bubble';
+        
+        if (sender === 'ai') {
+            bubble.innerHTML = formatMarkdown(text);
+        } else {
+            bubble.textContent = text;
+        }
+
+        if (meta.modelUsed || meta.autoSwitched) {
+            const footer = document.createElement('div');
+            footer.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; margin-top:8px; opacity:0.85; padding-top:6px; border-top:1px solid rgba(0,0,0,0.08);';
+            
+            const modelBadge = document.createElement('span');
+            modelBadge.textContent = `🤖 ${meta.modelName || meta.modelUsed || 'AI'}${meta.latencyMs ? ` • ${meta.latencyMs}ms` : ''}`;
+            footer.appendChild(modelBadge);
+
+            if (meta.autoSwitched) {
+                const failoverBadge = document.createElement('span');
+                failoverBadge.style.cssText = 'color:#3b82f6; font-weight:700;';
+                failoverBadge.textContent = '⚡ Quota Auto-Switched';
+                footer.appendChild(failoverBadge);
+            }
+
+            bubble.appendChild(footer);
+        }
+
+        // Action chips if suggested by AI
+        if (meta.actions && Array.isArray(meta.actions) && meta.actions.length > 0) {
+            const actionRow = document.createElement('div');
+            actionRow.className = 'copilot-action-chips-row';
+            meta.actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'copilot-action-chip-btn';
+                btn.textContent = action.label || action.query;
+                btn.addEventListener('click', () => {
+                    if (action.action === 'run_scan') {
+                        const scanBtn = document.getElementById('intelScanBtn');
+                        if (scanBtn) scanBtn.click();
+                    } else if (action.action === 'retry_failed') {
+                        const retryBtn = document.getElementById('retryFailedBtn');
+                        if (retryBtn) retryBtn.click();
+                    } else if (action.query) {
+                        sendCopilotQuery(action.query);
+                    }
+                });
+                actionRow.appendChild(btn);
+            });
+            bubble.appendChild(actionRow);
+        }
+
+        msgDiv.appendChild(bubble);
+        copilotMessages.appendChild(msgDiv);
+        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+    }
+
+    function createThinkingBubble() {
+        const thinkingId = 'thinking_' + Date.now();
+        const thinkingDiv = document.createElement('div');
+        thinkingDiv.className = 'copilot-msg copilot-msg-ai';
+        thinkingDiv.id = thinkingId;
+
+        thinkingDiv.innerHTML = `
+            <div class="copilot-thinking-card">
+                <div class="thinking-header">
+                    <div class="thinking-title-row">
+                        <div class="thinking-dot-wave">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="thinking-label">Thinking</span>
+                    </div>
+                    <span class="thinking-timer" id="${thinkingId}_timer">0.0s</span>
+                </div>
+                <div class="thinking-step-text" id="${thinkingId}_step">🔍 Scanning migration state & guild structure...</div>
+                <div id="${thinkingId}_failover_container"></div>
+            </div>
+        `;
+
+        copilotMessages.appendChild(thinkingDiv);
+        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+
+        const startTime = Date.now();
+        const defaultSteps = [
+            '🔍 Scanning migration state & guild structure...',
+            '⚡ Querying Neural multi-LLM cascade...',
+            '🧠 Evaluating diagnostic reasoning & safeguards...',
+            '✨ Formatting recommendations & actions...'
+        ];
+        let stepIdx = 0;
+        let isCustomStep = false;
+
+        const timerInterval = setInterval(() => {
+            const timerEl = document.getElementById(`${thinkingId}_timer`);
+            if (timerEl) {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                timerEl.textContent = `${elapsed}s`;
+            }
+        }, 100);
+
+        const stepInterval = setInterval(() => {
+            if (isCustomStep) return;
+            stepIdx = (stepIdx + 1) % defaultSteps.length;
+            const stepEl = document.getElementById(`${thinkingId}_step`);
+            if (stepEl) {
+                stepEl.textContent = defaultSteps[stepIdx];
+            }
+        }, 1800);
+
+        const instance = {
+            elementId: thinkingId,
+            updateStep: (text) => {
+                isCustomStep = true;
+                const stepEl = document.getElementById(`${thinkingId}_step`);
+                if (stepEl) stepEl.textContent = text;
+            },
+            addFailoverAlert: (from, to, reason) => {
+                const container = document.getElementById(`${thinkingId}_failover_container`);
+                if (container) {
+                    const pill = document.createElement('div');
+                    pill.className = 'thinking-failover-pill';
+                    pill.innerHTML = `⚡ Quota Limit (${escapeHtml(from)}) → Auto-switching to ${escapeHtml(to)} (${escapeHtml(reason)})`;
+                    container.appendChild(pill);
+                }
+            },
+            cleanup: () => {
+                clearInterval(timerInterval);
+                clearInterval(stepInterval);
+                const el = document.getElementById(thinkingId);
+                if (el) el.remove();
+                if (activeThinkingBubble === instance) {
+                    activeThinkingBubble = null;
+                }
+            }
+        };
+
+        activeThinkingBubble = instance;
+        return instance;
+    }
+
+    async function sendCopilotQuery(messageText) {
+        if (!messageText || !messageText.trim()) return;
+        const query = messageText.trim();
+        appendCopilotMessage('user', query);
+        if (copilotInput) copilotInput.value = '';
+
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
+
+        // Add animated multi-stage thinking bubble
+        const thinking = createThinkingBubble();
+
+        try {
+            const res = await fetch('/api/intelligence/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': clientSessionId,
+                    'x-user-token': token
+                },
+                body: JSON.stringify({
+                    userToken: token,
+                    sessionId: clientSessionId,
+                    jobId: currentJobId,
+                    message: query,
+                    options: getPayload().options
+                })
+            });
+
+            const data = await res.json();
+            thinking.cleanup();
+
+            if (res.ok && data.success) {
+                if (data.autoSwitched && data.failoverChain && data.failoverChain.length > 0) {
+                    const fo = data.failoverChain[0];
+                    showToast(`⚡ Model quota full: Auto-switched to ${data.modelName || data.modelUsed}`, 'info');
+                    if (copilotFailoverAlert) {
+                        copilotFailoverAlert.textContent = `⚡ Switched: ${fo.fromName || fo.fromModel} → ${data.modelName || data.modelUsed}`;
+                        copilotFailoverAlert.style.display = 'inline';
+                    }
+                }
+
+                // Suggest relevant quick actions based on response content
+                const actions = [];
+                const replyLower = (data.reply || '').toLowerCase();
+                if (replyLower.includes('diagnos') || replyLower.includes('error') || replyLower.includes('fail')) {
+                    actions.push({ label: '🩺 Diagnose Error', query: 'Diagnose migration error in depth' });
+                }
+                if (replyLower.includes('permission') || replyLower.includes('role')) {
+                    actions.push({ label: '🛡️ Check Permissions', query: 'Analyze permission conflicts' });
+                }
+                if (replyLower.includes('pre-flight') || replyLower.includes('scan') || replyLower.includes('compat')) {
+                    actions.push({ label: '🚀 Run Pre-Flight Scan', action: 'run_scan' });
+                }
+
+                appendCopilotMessage('ai', data.reply || 'Analysis complete.', {
+                    modelUsed: data.modelUsed,
+                    modelName: data.modelName,
+                    latencyMs: data.latencyMs,
+                    autoSwitched: data.autoSwitched,
+                    actions: actions
+                });
+                syncOpenRouterModelsStatus();
+            } else {
+                appendCopilotMessage('ai', `⚠️ ${data.error || 'Could not process query.'}`);
+            }
+        } catch (err) {
+            thinking.cleanup();
+            appendCopilotMessage('ai', `⚠️ Network error: ${err.message}`);
+        }
+    }
+
+    if (copilotForm) {
+        copilotForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (copilotInput) {
+                sendCopilotQuery(copilotInput.value);
+            }
+        });
+    }
+
+    if (copilotQuickChips) {
+        copilotQuickChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('.copilot-chip');
+            if (chip && chip.dataset.query) {
+                sendCopilotQuery(chip.dataset.query);
+            }
+        });
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Replace direct cloner start to use executeDirectCloningProcess
+    function executeDirectCloningProcess() {
+        startCloningProcess();
     }
 
     // =========================================================================

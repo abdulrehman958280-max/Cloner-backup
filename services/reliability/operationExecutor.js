@@ -165,7 +165,7 @@ export async function executeDiscordOperation({
     const baseDelayMs = Math.max(100, mergedPolicy.baseDelayMs || 500);
     const maxDelayMs = Math.max(baseDelayMs, mergedPolicy.maxDelayMs || 6000);
     const maxTotalRetryTimeMs = mergedPolicy.maxTotalRetryTimeMs || 45000;
-    const singleOpTimeoutMs = Math.max(3000, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 15000);
+    const singleOpTimeoutMs = Math.max(20, operationTimeoutMs ?? mergedPolicy.operationTimeoutMs ?? 15000);
     const jitterFactor = mergedPolicy.jitterFactor ?? 0.2;
 
     const opStartTime = Date.now();
@@ -242,7 +242,7 @@ export async function executeDiscordOperation({
             }
 
             // 4. Perform actual Discord operation with hard timeout boundary
-            const remainingForThisAttempt = Math.min(singleOpTimeoutMs, Math.max(3000, maxTotalRetryTimeMs - elapsedSoFar));
+            const remainingForThisAttempt = Math.min(singleOpTimeoutMs, Math.max(20, maxTotalRetryTimeMs - elapsedSoFar));
             
             const result = await withTimeout(
                 () => execute({ attempt }),

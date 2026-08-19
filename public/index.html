@@ -697,6 +697,54 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Clone Intelligence Pre-Flight Diagnostics Section -->
+                            <div class="intelligence-section" id="intelligenceSection">
+                                <div class="intelligence-header-row">
+                                    <button type="button" class="neu-btn-secondary intel-scan-btn" id="intelScanBtn" title="Deep AI & Architecture Pre-Flight Check">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="intel-bolt-icon">
+                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                        </svg>
+                                        <span id="intelScanBtnText">Deep Pre-Flight Scan & Intelligence</span>
+                                    </button>
+                                </div>
+
+                                <!-- Intelligence Results Panel (Collapsed by default, shown after scan) -->
+                                <div class="intelligence-card hidden" id="intelCard">
+                                    <div class="intel-card-header">
+                                        <div class="intel-badge-title">
+                                            <span class="intel-status-pill" id="intelScorePill">A+ 98% Compatibility</span>
+                                            <span class="intel-est-pill" id="intelEstTime">⏱ ~45s</span>
+                                        </div>
+                                        <button type="button" class="intel-close-btn" id="closeIntelCardBtn" aria-label="Close intelligence panel">✕</button>
+                                    </div>
+
+                                    <div class="intel-metrics-grid">
+                                        <div class="intel-metric-box">
+                                            <span class="intel-metric-lbl">Projected Accuracy</span>
+                                            <span class="intel-metric-val" id="intelAccuracy">99.2%</span>
+                                        </div>
+                                        <div class="intel-metric-box">
+                                            <span class="intel-metric-lbl">Ticket Channels</span>
+                                            <span class="intel-metric-val" id="intelTicketsDetected">0 found</span>
+                                        </div>
+                                        <div class="intel-metric-box">
+                                            <span class="intel-metric-lbl">Emoji Quota</span>
+                                            <span class="intel-metric-val" id="intelEmojiQuota">Fits 100%</span>
+                                        </div>
+                                        <div class="intel-metric-box">
+                                            <span class="intel-metric-lbl">Permissions Safe</span>
+                                            <span class="intel-metric-val" id="intelPermStatus">Yes</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Conflicts / Warnings Box -->
+                                    <div class="intel-warnings-list hidden" id="intelWarningsList"></div>
+
+                                    <!-- Recommendations Box -->
+                                    <div class="intel-recommendations hidden" id="intelRecommendations"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1038,6 +1086,7 @@
             <div class="modal-body-content">
                 <div class="summary-status-header">
                     <span class="verification-badge" id="statVerifyStatus">VERIFIED</span>
+                    <span class="intel-score-tag" id="statScoreTag">Score: 98.5% (A+)</span>
                 </div>
                 <h3 class="modal-title" id="summaryTitle">Migration Completed</h3>
                 <p class="modal-desc" id="summaryDesc">
@@ -1083,6 +1132,13 @@
                 </div>
             </div>
             <div class="modal-actions-row">
+                <button type="button" class="neu-btn-secondary hidden" id="retryFailedBtn" title="Retry only failed channels/roles">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">
+                        <path d="M23 4v6h-6"/>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                    Retry Failed Only
+                </button>
                 <button type="button" class="neu-btn-secondary" id="exportReportBtn" title="Download structured migration report as JSON">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -1094,6 +1150,151 @@
                 <button type="button" class="neu-btn-secondary" id="viewLogsSummaryBtn">View Activity Log</button>
                 <button type="button" class="neu-btn-primary" id="closeSummaryBtn">Done</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Target Server Cleanup Intelligence Preview Modal -->
+    <div class="modal-backdrop hidden" id="cleanupPreviewModal" role="dialog" aria-modal="true" aria-labelledby="cleanupModalTitle">
+        <div class="neu-modal-card cleanup-preview-modal">
+            <div class="modal-header-simple">
+                <div class="guide-title-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-title-icon" style="color:var(--danger, #ef4444);">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <h3 class="modal-title" id="cleanupModalTitle">Target Cleanup Intelligence Preview</h3>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeCleanupPreviewBtn" aria-label="Close cleanup preview">✕</button>
+            </div>
+            <div class="modal-body-content">
+                <p class="modal-desc">
+                    Review items scheduled for purge before starting migration. System channels and managed bot roles will be safely preserved.
+                </p>
+                <div class="cleanup-preview-summary" id="cleanupPreviewSummary">
+                    <div class="cleanup-summary-chip will-delete">
+                        <span class="chip-count" id="cleanupDeleteCount">0</span>
+                        <span class="chip-label">Will Delete</span>
+                    </div>
+                    <div class="cleanup-summary-chip will-preserve">
+                        <span class="chip-count" id="cleanupPreserveCount">0</span>
+                        <span class="chip-label">Protected</span>
+                    </div>
+                    <div class="cleanup-summary-chip will-warn">
+                        <span class="chip-count" id="cleanupWarnCount">0</span>
+                        <span class="chip-label">Warnings</span>
+                    </div>
+                </div>
+                <div class="cleanup-preview-lists" id="cleanupPreviewLists">
+                    <!-- Items populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-actions-row">
+                <button type="button" class="neu-btn-secondary" id="cancelCleanupActionBtn">Cancel</button>
+                <button type="button" class="neu-btn-danger" id="confirmCleanupActionBtn">Confirm & Start Clone</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Migration Copilot Floating Widget & Drawer -->
+    <div class="copilot-widget-container" id="copilotWidget">
+        <button type="button" class="copilot-floating-btn" id="toggleCopilotBtn" title="Clone Intelligence Copilot" aria-label="Open AI Copilot">
+            <span class="copilot-pulse-dot"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="copilot-btn-icon">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span class="copilot-btn-label">Copilot AI</span>
+        </button>
+
+        <div class="copilot-drawer hidden" id="copilotDrawer">
+            <div class="copilot-header">
+                <div class="copilot-title-group">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="copilot-title-icon">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    <div>
+                        <h4 class="copilot-title">Clone Intelligence Copilot</h4>
+                        <span class="copilot-subtitle">Advanced Neural Intelligence Engine</span>
+                    </div>
+                </div>
+                <div class="copilot-header-actions">
+                    <button type="button" class="copilot-icon-btn" id="toggleModelPanelBtn" title="View & select neural models in cascade" aria-label="Toggle model cascade list">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
+                    <button type="button" class="copilot-icon-btn" id="clearCopilotChatBtn" title="Clear chat messages" aria-label="Clear chat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                    <button type="button" class="copilot-close-btn" id="closeCopilotBtn" aria-label="Close copilot">✕</button>
+                </div>
+            </div>
+
+            <!-- Neural Model Visual Indicator & Auto-Failover Bar (Hidden as requested) -->
+            <div class="copilot-model-bar" id="copilotModelBar" style="display: none;">
+                <div class="copilot-active-model-card" id="copilotActiveModelCard">
+                    <div class="active-model-top-row">
+                        <div class="active-model-name-group">
+                            <span class="status-dot-pulse active-model-pulse" id="copilotAiStatusDot"></span>
+                            <span class="active-model-label" id="copilotActiveModelLabel">Gemini 2.0 Flash (Free)</span>
+                            <span class="active-model-tier-badge" id="copilotModelTierBadge">Tier 1</span>
+                        </div>
+                        <div class="active-model-controls">
+                            <span class="badge-tag failover-badge" id="copilotFailoverBadge">AUTO-FAILOVER ON</span>
+                            <button type="button" class="copilot-mini-btn" id="refreshAiModelsBtn" title="Sync free models from Neural Registry" aria-label="Refresh AI models">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-btn-icon"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Live Model Capability Badges from Registry -->
+                    <div class="active-model-specs-row" id="copilotActiveModelSpecs">
+                        <span class="spec-pill" id="copilotSpecContext"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> 1M Context</span>
+                        <span class="spec-pill" id="copilotSpecLatency"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ~320ms</span>
+                        <span class="spec-pill" id="copilotSpecFeatures"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> JSON + Reasoning</span>
+                    </div>
+                </div>
+
+                <!-- Real-Time Model Switching / Analyzing Status Banner -->
+                <div class="copilot-live-status-banner hidden" id="copilotLiveStatusBanner">
+                    <div class="live-status-dot-wave">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span class="live-status-text" id="copilotLiveStatusText">Analyzing with Gemini 2.0 Flash...</span>
+                </div>
+
+                <div class="copilot-model-meta-row">
+                    <span class="cascade-count" id="copilotFreeModelsCount">12 Neural LLMs in Registry Cascade</span>
+                    <span class="failover-alert-text hidden" id="copilotFailoverAlert">⚡ Auto-switched on rate limit</span>
+                </div>
+            </div>
+
+            <!-- Expandable Model Switcher Panel -->
+            <div class="copilot-models-panel hidden" id="copilotModelsPanel">
+                <!-- Populated dynamically with neural models from registry -->
+            </div>
+
+            <div class="copilot-messages-container" id="copilotMessages" role="log" aria-live="polite">
+                <div class="copilot-msg copilot-msg-ai">
+                    <div class="copilot-msg-bubble">
+                        Hello! I am your <strong>Clone Intelligence Copilot</strong> backed by the Discloner Neural Multi-LLM Cascade. I can diagnose migration failures, analyze role permission hierarchies, inspect cleanup safety, and recommend optimal pacing. How can I help you today?
+                    </div>
+                </div>
+            </div>
+
+            <div class="copilot-chips-bar" id="copilotQuickChips">
+                <button type="button" class="copilot-chip" data-query="What is the current migration status?">📊 Status</button>
+                <button type="button" class="copilot-chip" data-query="Diagnose migration error">🩺 Diagnose Error</button>
+                <button type="button" class="copilot-chip" data-query="Analyze permission conflicts">🛡️ Permissions</button>
+                <button type="button" class="copilot-chip" data-query="What will be deleted in cleanup?">🧹 Cleanup Plan</button>
+                <button type="button" class="copilot-chip" data-query="Explain recent migration warnings">⚠️ Warnings</button>
+            </div>
+
+            <form class="copilot-input-form" id="copilotForm">
+                <input type="text" class="copilot-input" id="copilotInput" placeholder="Ask Copilot about your migration..." autocomplete="off">
+                <button type="submit" class="copilot-send-btn" id="copilotSendBtn" aria-label="Send message">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </form>
         </div>
     </div>
 

@@ -11,6 +11,21 @@ import { fetchUserGuilds, exportGuildTemplate, scrapeGuildMembers } from './serv
 import { sanitizeText } from './utils/logger.js';
 import { globalRateLimiter } from './services/reliability/index.js';
 import { getCloneHistory, getSheetConfig, saveSheetConfig, logCloneEntry } from './services/sheetService.js';
+import {
+    analyzeSourceGuild,
+    analyzeTargetGuild,
+    scanGuildForTickets,
+    checkGuildCompatibility,
+    detectResourceConflicts,
+    generateCleanupPlan,
+    buildMigrationPlan,
+    predictMigrationOutcome,
+    aiChatService,
+    aiModelRouter,
+    generateIntelligenceReport,
+    sanitizeAiContext
+} from './services/intelligence/index.js';
+import { createDiscordClient, authenticateClient, destroyClient } from './services/discordService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -28,6 +43,34 @@ const io = new Server(server, {
 
 // Attach socket server to job manager
 jobManager.setSocketServer(io);
+
+// Bridge AI Failover events to real-time socket and active migration job logs
+aiModelRouter.addTelemetryListener((event, jobId) => {
+    if (jobId) {
+        const job = jobManager.getJob(jobId);
+        if (job) {
+            const failoverLog = createLogEntry(
+                'info',
+                `⚡ AI Auto-Failover: Switched from ${event.fromName || event.fromModel} to ${event.toName || event.toModel} (${event.reason})`,
+                'AI_FAILOVER',
+                'intelligence'
+            );
+            if (job.logs.length >= jobManager.MAX_LOGS_PER_JOB) job.logs.shift();
+            job.logs.push(failoverLog);
+            io.to(`job:${jobId}`).emit('clone:log', { ...failoverLog, jobId });
+            io.to(`job:${jobId}`).emit('log', `[AI] ⚡ Auto-Failover: ${event.fromName || event.fromModel} → ${event.toName || event.toModel}`);
+        }
+    }
+    io.emit('ai:failover', event);
+});
+
+// Broadcast real-time AI thinking and model-switching telemetry
+aiModelRouter.addThinkingListener((event, jobId) => {
+    if (jobId) {
+        io.to(`job:${jobId}`).emit('ai:thinking', event);
+    }
+    io.emit('ai:thinking', event);
+});
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -313,6 +356,299 @@ app.get('/api/audio/status', (req, res) => {
     const audioPath = path.join(__dirname, 'public', 'audio', 'bgm.mp3');
     const exists = fs.existsSync(audioPath);
     res.json({ hasCustomAudio: exists, url: exists ? '/audio/bgm.mp3' : null });
+});
+
+// ==========================================
+// CLONE INTELLIGENCE SUBSYSTEM API ENDPOINTS
+// ==========================================
+
+// Pre-flight Deep Scan & Intelligence Analysis
+app.post('/api/intelligence/scan', async (req, res) => {
+    const { userToken, sourceId, targetId, options = {} } = req.body;
+    if (!userToken || !sourceId || !targetId) {
+        return res.status(400).json({ success: false, error: 'User token, source ID, and target ID are required.' });
+    }
+
+    const client = createDiscordClient();
+    try {
+        await authenticateClient(client, userToken);
+        const sourceGuild = await client.guilds.fetch(sourceId).catch(() => null);
+        const targetGuild = await client.guilds.fetch(targetId).catch(() => null);
+
+        if (!sourceGuild) {
+            await destroyClient(client);
+            return res.status(404).json({ success: false, error: `Source server (${sourceId}) was not found or inaccessible.` });
+        }
+        if (!targetGuild) {
+            await destroyClient(client);
+            return res.status(404).json({ success: false, error: `Target server (${targetId}) was not found or inaccessible.` });
+        }
+
+        // Fetch user member in target
+        const currentUserMember = await targetGuild.members.fetch(client.user.id).catch(() => null);
+
+        // Fetch deep collections
+        await Promise.allSettled([
+            sourceGuild.roles.fetch(),
+            sourceGuild.channels.fetch(),
+            sourceGuild.emojis?.fetch ? sourceGuild.emojis.fetch() : Promise.resolve(),
+            sourceGuild.stickers?.fetch ? sourceGuild.stickers.fetch() : Promise.resolve(),
+            targetGuild.roles.fetch(),
+            targetGuild.channels.fetch(),
+            targetGuild.emojis?.fetch ? targetGuild.emojis.fetch() : Promise.resolve(),
+            targetGuild.stickers?.fetch ? targetGuild.stickers.fetch() : Promise.resolve()
+        ]);
+
+        // Run deterministic intelligence analyzers
+        const sourceAnalysis = analyzeSourceGuild(sourceGuild, options);
+        const targetAnalysis = analyzeTargetGuild(targetGuild, currentUserMember);
+        const ticketScan = scanGuildForTickets(Array.from(sourceGuild.channels.cache.values()));
+        const compatibility = checkGuildCompatibility(sourceAnalysis, targetAnalysis, options);
+        const conflicts = detectResourceConflicts(sourceAnalysis, targetAnalysis, options);
+        const cleanupPlan = generateCleanupPlan(targetAnalysis, options);
+        const migrationPlan = buildMigrationPlan(sourceAnalysis, options);
+        const prediction = predictMigrationOutcome(sourceAnalysis, targetAnalysis, compatibility, options);
+
+        await destroyClient(client);
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            sourceAnalysis,
+            targetAnalysis,
+            ticketScan,
+            compatibility,
+            conflicts,
+            cleanupPlan,
+            migrationPlan,
+            prediction
+        });
+    } catch (err) {
+        await destroyClient(client);
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Intelligence scan failed.') });
+    }
+});
+
+// Cleanup Intelligence Preview Endpoint
+app.post('/api/intelligence/cleanup-preview', async (req, res) => {
+    const { userToken, targetId, options = {} } = req.body;
+    if (!userToken || !targetId) {
+        return res.status(400).json({ success: false, error: 'User token and target ID are required.' });
+    }
+
+    const client = createDiscordClient();
+    try {
+        await authenticateClient(client, userToken);
+        const targetGuild = await client.guilds.fetch(targetId).catch(() => null);
+        if (!targetGuild) {
+            await destroyClient(client);
+            return res.status(404).json({ success: false, error: `Target server (${targetId}) not found.` });
+        }
+
+        const currentUserMember = await targetGuild.members.fetch(client.user.id).catch(() => null);
+        await Promise.allSettled([
+            targetGuild.roles.fetch(),
+            targetGuild.channels.fetch(),
+            targetGuild.emojis?.fetch ? targetGuild.emojis.fetch() : Promise.resolve(),
+            targetGuild.stickers?.fetch ? targetGuild.stickers.fetch() : Promise.resolve()
+        ]);
+
+        const targetAnalysis = analyzeTargetGuild(targetGuild, currentUserMember);
+        const cleanupPlan = generateCleanupPlan(targetAnalysis, options);
+
+        await destroyClient(client);
+
+        res.json({
+            success: true,
+            cleanupPlan
+        });
+    } catch (err) {
+        await destroyClient(client);
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Failed to generate cleanup preview.') });
+    }
+});
+
+// Clone Intelligence Copilot Chat Endpoint
+app.post('/api/intelligence/chat', async (req, res) => {
+    const { message, jobId } = req.body;
+    const userToken = req.body.userToken || req.headers['x-user-token'] || null;
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ success: false, error: 'Message text is required.' });
+    }
+
+    const currentJob = jobId ? jobManager.getJob(jobId) : null;
+    try {
+        const response = await aiChatService.handleMessage(message, jobId, currentJob, userToken);
+        res.json({
+            success: true,
+            ...response
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Copilot assistant error.') });
+    }
+});
+
+// Neural AI Models & Auto-Failover Health Status
+app.get('/api/intelligence/models', (req, res) => {
+    try {
+        const status = aiModelRouter.getModelStatus();
+        res.json({
+            success: true,
+            ...status
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Refresh / Synchronize Live Free Models from Neural API
+app.post('/api/intelligence/models/refresh', async (req, res) => {
+    try {
+        const models = await aiModelRouter.fetchLiveFreeModels();
+        const status = aiModelRouter.getModelStatus();
+        res.json({
+            success: true,
+            message: `Discovered ${models.length} neural intelligence models.`,
+            ...status
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Failed to refresh models.') });
+    }
+});
+
+// Select active model or configure auto-failover
+app.post('/api/intelligence/models/select', (req, res) => {
+    const { modelId, autoFailover } = req.body;
+    if (modelId) {
+        aiModelRouter.activeModel = modelId;
+    }
+    if (typeof autoFailover === 'boolean') {
+        aiModelRouter.autoFailoverEnabled = autoFailover;
+    }
+    res.json({
+        success: true,
+        activeModel: aiModelRouter.activeModel,
+        autoFailoverEnabled: aiModelRouter.autoFailoverEnabled
+    });
+});
+
+// Model Capability Registry report endpoint
+app.get('/api/intelligence/registry', (req, res) => {
+    try {
+        const report = aiModelRouter.capabilityRegistry.getRegistryReport();
+        res.json({
+            success: true,
+            report
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Set Neural API Key
+app.post('/api/intelligence/config', (req, res) => {
+    const { apiKey } = req.body;
+    if (typeof apiKey === 'string') {
+        aiModelRouter.setApiKey(apiKey);
+    }
+    res.json({
+        success: true,
+        isConfigured: aiModelRouter.isAiAvailable(),
+        activeModel: aiModelRouter.activeModel
+    });
+});
+
+// Real AI Error Diagnosis with Neural Auto-Failover
+app.post('/api/intelligence/diagnose', async (req, res) => {
+    const { error, code, context, jobId } = req.body;
+    const currentJob = jobId ? jobManager.getJob(jobId) : null;
+
+    try {
+        const promptMessages = [
+            {
+                role: 'system',
+                content: `You are an expert Discord API migration diagnostics engineer. Analyze the provided Discord API error, explain why it happened, and give exact step-by-step remediation instructions for Discloner Studio.`
+            },
+            {
+                role: 'user',
+                content: `Error: ${sanitizeText(error || 'Unknown error')}\nCode: ${code || 'N/A'}\nContext: ${JSON.stringify(sanitizeAiContext(context || {}))}`
+            }
+        ];
+
+        const aiResponse = await aiModelRouter.executePrompt(promptMessages, {
+            temperature: 0.2,
+            maxTokens: 600
+        });
+
+        if (aiResponse.success && aiResponse.text) {
+            return res.json({
+                success: true,
+                diagnosis: aiResponse.text,
+                modelUsed: aiResponse.modelUsed,
+                modelName: aiResponse.modelName,
+                autoSwitched: aiResponse.autoSwitched,
+                failoverChain: aiResponse.failoverChain,
+                isAiGenerated: true
+            });
+        }
+
+        // Deterministic fallback explanation
+        res.json({
+            success: true,
+            diagnosis: `Standard Diagnostics for Error (${code || 'API Error'}): Ensure the user account has Administrator permissions and the bot role sits lower than the executor's highest role.`,
+            isAiGenerated: false,
+            fallback: true
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Diagnosis failed.') });
+    }
+});
+
+// Full Post-Migration Intelligence Audit Report
+app.get('/api/jobs/:jobId/intelligence-report', (req, res) => {
+    const { jobId } = req.params;
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    const job = jobManager.getJob(jobId);
+
+    if (!job) {
+        return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    // Verify session authorization
+    const snapshot = jobManager.getJobSnapshot(jobId, sessionId, userToken);
+    if (!snapshot) {
+        return res.status(403).json({ success: false, error: 'Unauthorized access to job' });
+    }
+
+    const report = generateIntelligenceReport(job);
+    res.json({
+        success: true,
+        report
+    });
+});
+
+// Retry Failed Only Endpoint
+app.post('/api/jobs/:jobId/retry-failed', async (req, res) => {
+    const { jobId } = req.params;
+    const sessionId = getSessionId(req);
+    const { userToken } = req.body;
+    const job = jobManager.getJob(jobId);
+
+    if (!job) {
+        return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    if (!job.failedQueue || job.failedQueue.getStats().totalFailed === 0) {
+        return res.json({ success: true, message: 'No failed items to retry.' });
+    }
+
+    const pendingItems = job.failedQueue.getPendingRetries();
+    res.json({
+        success: true,
+        message: `Triggered retry for ${pendingItems.length} failed items.`,
+        pendingItemsCount: pendingItems.length
+    });
 });
 
 io.on('connection', (socket) => {

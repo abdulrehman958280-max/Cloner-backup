@@ -16,6 +16,13 @@ import {
     globalRateLimiter
 } from './reliability/index.js';
 import { RELIABILITY_CONFIG } from './configContract.js';
+import {
+    FailedRetryQueue,
+    RecoveryIntelligence,
+    intelligenceTools,
+    generateIntelligenceReport,
+    calculateMigrationScore
+} from './intelligence/index.js';
 
 class JobManager extends EventEmitter {
     constructor() {
@@ -29,6 +36,9 @@ class JobManager extends EventEmitter {
         this.MAX_LOGS_PER_JOB = 1000;
         this.MAX_ACTIVE_JOBS = RELIABILITY_CONFIG.concurrency.maxJobs || 3;
         this.STALE_JOB_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of zero activity for large migrations
+
+        // Wire intelligence tool executor
+        intelligenceTools.setJobManager(this);
 
         // Periodic stale job sweeper
         this._staleSweeperInterval = setInterval(() => {
@@ -128,6 +138,17 @@ class JobManager extends EventEmitter {
             lastActivityAt: Date.now(),
             completedAt: null,
             isCancelled: false,
+            // Intelligence context & tracking
+            sourceAnalysis: null,
+            targetAnalysis: null,
+            compatibility: null,
+            cleanupPlan: null,
+            migrationPlan: null,
+            verificationReport: null,
+            migrationScore: null,
+            intelligenceReport: null,
+            failedQueue: new FailedRetryQueue(),
+            recoveryIntelligence: new RecoveryIntelligence(),
             stage: {
                 stage: 'initializing',
                 label: 'Initializing Background Engine...',
@@ -416,6 +437,13 @@ class JobManager extends EventEmitter {
     /**
      * Gets a safe serializable snapshot of a job with session authorization
      */
+    getJob(jobId) {
+        return this.jobs.get(jobId) || null;
+    }
+
+    /**
+     * Gets a safe serializable snapshot of a job with session authorization
+     */
     getJobSnapshot(jobId, sessionId = null, userToken = null) {
         const job = this.jobs.get(jobId);
         if (!job) return null;
@@ -448,7 +476,14 @@ class JobManager extends EventEmitter {
             statCounters: job.statCounters,
             stats: job.stats,
             rateLimit: globalRateLimiter.getCapacitySnapshot(),
-            error: job.error
+            error: job.error,
+            // Intelligence summaries
+            compatibility: job.compatibility || null,
+            cleanupSummary: job.cleanupPlan?.summary || null,
+            verificationReport: job.verificationReport || null,
+            migrationScore: job.migrationScore || null,
+            failedCount: job.failedQueue?.getStats()?.totalFailed || 0,
+            degradedCount: job.recoveryIntelligence?.getDegradedReport()?.totalDegraded || 0
         };
     }
 
