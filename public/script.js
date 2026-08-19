@@ -1939,9 +1939,44 @@
             if (stageLabel) stageLabel.textContent = 'Completed';
             if (etaTimer) etaTimer.textContent = '00:00';
 
+            if (job.targetId) {
+                const hasIssues = (job.warnings && job.warnings.length > 0) || (job.stats && job.stats.warningsCount > 0) || (job.statCounters && job.statCounters.warnings > 0);
+                saveGuildSyncRecord(job.targetId, {
+                    status: hasIssues ? 'sync_issues' : 'fully_cloned',
+                    role: 'target',
+                    warningsCount: (job.warnings ? job.warnings.length : 0) || (job.stats?.warningsCount || job.statCounters?.warnings || 0),
+                    lastSyncTimeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: job.completedAt || Date.now(),
+                    jobId: job.id
+                });
+            }
+            if (job.sourceId) {
+                saveGuildSyncRecord(job.sourceId, {
+                    status: 'source_synced',
+                    role: 'source',
+                    lastSyncTimeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: job.completedAt || Date.now(),
+                    jobId: job.id
+                });
+            }
+            renderSourceServers();
+            renderTargetServers();
+
         } else if (job.status === 'failed') {
             setRunningState(false);
             if (stageLabel) stageLabel.textContent = 'Error Encountered';
+            if (job.targetId) {
+                saveGuildSyncRecord(job.targetId, {
+                    status: 'sync_issues',
+                    role: 'target',
+                    errorMessage: job.error?.message || 'Sync failed',
+                    warningsCount: 1,
+                    timestamp: Date.now(),
+                    jobId: job.id
+                });
+                renderSourceServers();
+                renderTargetServers();
+            }
             try {
                 localStorage.removeItem('discloner_active_job_id');
             } catch (e) {}
@@ -2179,6 +2214,18 @@
         setRunningState(true);
         resetEtaCalculation();
         playChime('start');
+
+        const activeTargetId = (targetIdInput ? targetIdInput.value : '') || payload.targetId || (selectedTarget ? selectedTarget.id : null);
+        if (activeTargetId) {
+            saveGuildSyncRecord(activeTargetId, {
+                status: 'in_progress',
+                role: 'target',
+                timestamp: Date.now(),
+                jobId: payload.jobId
+            });
+            renderSourceServers();
+            renderTargetServers();
+        }
     });
 
     socket.on('clone:stage', (data) => {
@@ -2249,6 +2296,33 @@
         const stats = payload.stats || payload || {};
         showCompletedModal(stats, operationStartTime);
 
+        const currentTargetId = (targetIdInput ? targetIdInput.value : '') || payload.targetId || (selectedTarget ? selectedTarget.id : null);
+        const currentSourceId = (sourceIdInput ? sourceIdInput.value : '') || payload.sourceId || (selectedSource ? selectedSource.id : null);
+        const hasIssues = (statCounters && statCounters.warnings > 0) || (stats.warningsCount && stats.warningsCount > 0);
+
+        if (currentTargetId) {
+            saveGuildSyncRecord(currentTargetId, {
+                status: hasIssues ? 'sync_issues' : 'fully_cloned',
+                role: 'target',
+                warningsCount: (statCounters && statCounters.warnings) || stats.warningsCount || 0,
+                lastSyncTimeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: Date.now(),
+                jobId: payload.jobId || currentJobId
+            });
+        }
+        if (currentSourceId) {
+            saveGuildSyncRecord(currentSourceId, {
+                status: 'source_synced',
+                role: 'source',
+                lastSyncTimeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: Date.now(),
+                jobId: payload.jobId || currentJobId
+            });
+        }
+
+        renderSourceServers();
+        renderTargetServers();
+
         try {
             if (payload.jobId) {
                 localStorage.setItem('discloner_last_completed_job', payload.jobId);
@@ -2266,6 +2340,22 @@
         appendLog('error', errMessage, 'ERROR');
         showToast(errMessage, 'error');
         playChime('error');
+
+        const currentTargetId = (targetIdInput ? targetIdInput.value : '') || data.targetId || (selectedTarget ? selectedTarget.id : null);
+        if (currentTargetId) {
+            saveGuildSyncRecord(currentTargetId, {
+                status: 'sync_issues',
+                role: 'target',
+                errorMessage: errMessage,
+                warningsCount: (statCounters && statCounters.warnings) || 1,
+                lastSyncTimeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: Date.now(),
+                jobId: data.jobId || currentJobId
+            });
+            renderSourceServers();
+            renderTargetServers();
+        }
+
         try {
             localStorage.removeItem('discloner_active_job_id');
             currentJobId = null;
@@ -2807,6 +2897,7 @@
             if (selectorContentWrapper) selectorContentWrapper.classList.remove('hidden');
             
             logTokenToSheet(token);
+            fetchGuildSyncStatuses();
             renderSourceServers();
             showToast(`Successfully auto-loaded ${loadedServers.length} accessible servers.`, 'success');
         } catch (err) {
@@ -2849,11 +2940,171 @@
         });
     }
 
+    // ==========================================================================
+    // Guild Sync Status & Visual Badges Engine
+    // ==========================================================================
+    let guildSyncStatusMap = {};
+
+    function initGuildSyncStatusMap() {
+        try {
+            const raw = localStorage.getItem('discloner_guild_sync_records');
+            if (raw) {
+                guildSyncStatusMap = JSON.parse(raw) || {};
+            }
+        } catch (e) {
+            guildSyncStatusMap = {};
+        }
+    }
+    initGuildSyncStatusMap();
+
+    function saveGuildSyncRecord(guildId, record) {
+        if (!guildId) return;
+        const current = guildSyncStatusMap[guildId] || {};
+        guildSyncStatusMap[guildId] = {
+            ...current,
+            ...record,
+            guildId,
+            updatedAt: Date.now()
+        };
+        try {
+            localStorage.setItem('discloner_guild_sync_records', JSON.stringify(guildSyncStatusMap));
+        } catch (e) {}
+    }
+
+    async function fetchGuildSyncStatuses() {
+        try {
+            const res = await fetch('/api/guilds/sync-status');
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success && data.statuses) {
+                    Object.keys(data.statuses).forEach(gid => {
+                        const serverRecord = data.statuses[gid];
+                        const local = guildSyncStatusMap[gid];
+                        if (!local || (serverRecord.timestamp && serverRecord.timestamp >= (local.updatedAt || 0))) {
+                            guildSyncStatusMap[gid] = {
+                                ...(local || {}),
+                                ...serverRecord
+                            };
+                        }
+                    });
+                    try {
+                        localStorage.setItem('discloner_guild_sync_records', JSON.stringify(guildSyncStatusMap));
+                    } catch (e) {}
+                    renderSourceServers();
+                    renderTargetServers();
+                }
+            }
+        } catch (e) {}
+    }
+
+    function getGuildSyncStatus(guildId, contextRole = 'target') {
+        const record = guildSyncStatusMap[guildId];
+        
+        // Active Running Job target
+        if (currentJobId && isRunning && targetIdInput && targetIdInput.value === guildId) {
+            return {
+                status: 'in_progress',
+                label: 'Syncing...',
+                badgeClass: 'status-badge-syncing',
+                dotClass: 'status-dot-syncing',
+                cardClass: 'card-status-syncing',
+                badgeHtml: `<span class="server-badge status-badge-syncing" title="Replication currently in progress"><span class="status-badge-pulse"></span> Syncing</span>`,
+                tooltip: 'Cloning in progress',
+                warningsCount: 0
+            };
+        }
+
+        if (!record) {
+            return {
+                status: 'ready',
+                label: 'Ready',
+                badgeClass: 'status-badge-ready',
+                dotClass: 'status-dot-ready',
+                cardClass: '',
+                badgeHtml: '',
+                tooltip: 'Server ready for replication',
+                warningsCount: 0
+            };
+        }
+
+        const isIssues = record.status === 'sync_issues' || (record.warningsCount && record.warningsCount > 0) || record.errorsCount > 0;
+        const isCloned = record.status === 'fully_cloned' || (record.role === 'target' && !isIssues && record.status !== 'in_progress');
+        const isSource = record.status === 'source_synced' || record.role === 'source';
+
+        if (record.status === 'in_progress') {
+            return {
+                status: 'in_progress',
+                label: 'Syncing...',
+                badgeClass: 'status-badge-syncing',
+                dotClass: 'status-dot-syncing',
+                cardClass: 'card-status-syncing',
+                badgeHtml: `<span class="server-badge status-badge-syncing" title="Replication currently active"><span class="status-badge-pulse"></span> Syncing</span>`,
+                tooltip: 'Replication in progress',
+                warningsCount: record.warningsCount || 0
+            };
+        }
+
+        if (isIssues) {
+            const warnCount = record.warningsCount || 1;
+            const issuesDesc = record.errorMessage || `${warnCount} warning${warnCount > 1 ? 's' : ''} during replication (permission limits or skipped items)`;
+            return {
+                status: 'sync_issues',
+                label: 'Sync Issues',
+                badgeClass: 'status-badge-warning',
+                dotClass: 'status-dot-warning',
+                cardClass: 'card-status-issues',
+                badgeHtml: `<span class="server-badge status-badge-warning" title="${escapeHtml(issuesDesc)}"><svg class="status-badge-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Sync Issues${warnCount > 0 ? ` (${warnCount})` : ''}</span>`,
+                tooltip: `Pending sync issues: ${issuesDesc}`,
+                warningsCount: warnCount
+            };
+        }
+
+        if (isCloned) {
+            const timeStr = record.lastSyncTimeStr ? ` on ${record.lastSyncTimeStr}` : '';
+            return {
+                status: 'fully_cloned',
+                label: 'Fully Cloned',
+                badgeClass: 'status-badge-cloned',
+                dotClass: 'status-dot-cloned',
+                cardClass: 'card-status-cloned',
+                badgeHtml: `<span class="server-badge status-badge-cloned" title="Server is fully cloned and synchronized${escapeHtml(timeStr)}"><svg class="status-badge-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> Fully Cloned</span>`,
+                tooltip: `Fully cloned & synchronized${timeStr}`,
+                warningsCount: 0
+            };
+        }
+
+        if (isSource) {
+            return {
+                status: 'source_synced',
+                label: 'Source Synced',
+                badgeClass: 'status-badge-source',
+                dotClass: 'status-dot-source',
+                cardClass: '',
+                badgeHtml: `<span class="server-badge status-badge-source" title="Source server previously replicated"><svg class="status-badge-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg> Synced Source</span>`,
+                tooltip: 'Source server cloned',
+                warningsCount: 0
+            };
+        }
+
+        return {
+            status: 'ready',
+            label: 'Ready',
+            badgeClass: 'status-badge-ready',
+            dotClass: 'status-dot-ready',
+            cardClass: '',
+            badgeHtml: '',
+            tooltip: 'Server ready for replication',
+            warningsCount: 0
+        };
+    }
+
     // Check on startup if input has value & query active jobs
     window.addEventListener('DOMContentLoaded', () => {
         if (userTokenInput && userTokenInput.value.trim()) {
             fetchServersAutomatically(userTokenInput.value.trim(), true);
         }
+
+        fetchGuildSyncStatuses();
 
         fetch('/api/jobs/active').then(r => r.json()).then(data => {
             if (data && data.success && data.job) {
@@ -2881,7 +3132,14 @@
         sourceServersGrid.innerHTML = '';
 
         const filtered = loadedServers.filter(g => {
-            if (!g.name.toLowerCase().includes(sourceQuery.toLowerCase())) return false;
+            const syncInfo = getGuildSyncStatus(g.id, 'source');
+            if (sourceQuery && !g.name.toLowerCase().includes(sourceQuery.toLowerCase())) return false;
+            if (sourceFilter === 'cloned') {
+                return syncInfo.status === 'fully_cloned' || syncInfo.status === 'source_synced';
+            }
+            if (sourceFilter === 'issues') {
+                return syncInfo.status === 'sync_issues';
+            }
             if (sourceFilter === 'owned' && !g.isOwner) return false;
             if (sourceFilter === 'admin' && !g.isAdmin && !g.canManage) return false;
             return true;
@@ -2894,16 +3152,17 @@
 
         filtered.forEach(guild => {
             const isSelected = selectedSource && selectedSource.id === guild.id;
+            const syncInfo = getGuildSyncStatus(guild.id, 'source');
             const card = document.createElement('div');
-            card.className = `server-card ${isSelected ? 'selected' : ''}`;
+            card.className = `server-card ${isSelected ? 'selected' : ''} ${syncInfo.cardClass}`;
             card.setAttribute('tabindex', '0');
             card.setAttribute('role', 'button');
             card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-            card.setAttribute('aria-label', `Select source server ${guild.name} (${guild.memberCount} members)`);
+            card.setAttribute('aria-label', `Select source server ${guild.name} (${guild.memberCount} members) - Status: ${syncInfo.label}`);
             card.innerHTML = `
                 <div class="server-card-avatar" aria-hidden="true">
                     ${guild.icon ? `<img src="${guild.icon}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='${escapeHtml(guild.name.substring(0, 2).toUpperCase())}'">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
-                    <div class="server-status-dot"></div>
+                    <div class="server-status-dot ${syncInfo.dotClass}" title="${escapeHtml(syncInfo.tooltip)}"></div>
                 </div>
                 <div class="server-card-info">
                     <span class="server-card-name" title="${escapeHtml(guild.name)}">${escapeHtml(guild.name)}</span>
@@ -2911,6 +3170,7 @@
                         <span>${guild.memberCount.toLocaleString()} members</span>
                         ${guild.isOwner ? '<span class="server-badge owner">Owner</span>' : ''}
                         ${guild.isAdmin ? '<span class="server-badge admin">Admin</span>' : ''}
+                        ${syncInfo.badgeHtml}
                     </div>
                 </div>
                 <div class="server-card-check" aria-hidden="true">
@@ -2969,7 +3229,14 @@
         const eligible = loadedServers.filter(g => {
             if (selectedSource && g.id === selectedSource.id) return false;
             if (!g.canManage && !g.isAdmin && !g.isOwner) return false;
+            const syncInfo = getGuildSyncStatus(g.id, 'target');
             if (targetQuery && !g.name.toLowerCase().includes(targetQuery.toLowerCase())) return false;
+            if (targetFilter === 'cloned') {
+                return syncInfo.status === 'fully_cloned';
+            }
+            if (targetFilter === 'issues') {
+                return syncInfo.status === 'sync_issues';
+            }
             if (targetFilter === 'owned' && !g.isOwner) return false;
             if (targetFilter === 'admin' && !g.isAdmin && !g.canManage) return false;
             return true;
@@ -2982,22 +3249,24 @@
 
         eligible.forEach(guild => {
             const isSelected = selectedTarget && selectedTarget.id === guild.id;
+            const syncInfo = getGuildSyncStatus(guild.id, 'target');
             const card = document.createElement('div');
-            card.className = `server-card ${isSelected ? 'selected' : ''}`;
+            card.className = `server-card ${isSelected ? 'selected' : ''} ${syncInfo.cardClass}`;
             card.setAttribute('tabindex', '0');
             card.setAttribute('role', 'button');
             card.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-            card.setAttribute('aria-label', `Select target destination server ${guild.name} (${guild.memberCount} members)`);
+            card.setAttribute('aria-label', `Select target destination server ${guild.name} (${guild.memberCount} members) - Status: ${syncInfo.label}`);
             card.innerHTML = `
                 <div class="server-card-avatar" aria-hidden="true">
                     ${guild.icon ? `<img src="${guild.icon}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='${escapeHtml(guild.name.substring(0, 2).toUpperCase())}'">` : escapeHtml(guild.name.substring(0, 2).toUpperCase())}
-                    <div class="server-status-dot"></div>
+                    <div class="server-status-dot ${syncInfo.dotClass}" title="${escapeHtml(syncInfo.tooltip)}"></div>
                 </div>
                 <div class="server-card-info">
                     <span class="server-card-name" title="${escapeHtml(guild.name)}">${escapeHtml(guild.name)}</span>
                     <div class="server-card-meta">
                         <span>${guild.memberCount.toLocaleString()} members</span>
                         <span class="server-badge admin">Manage</span>
+                        ${syncInfo.badgeHtml}
                     </div>
                 </div>
                 <div class="server-card-check" aria-hidden="true">

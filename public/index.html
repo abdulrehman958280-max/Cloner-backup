@@ -351,6 +351,18 @@
                                                 <input type="text" id="sourceSearchInput" placeholder="Search servers..." aria-label="Search what server you want to clone">
                                             </div>
                                         </div>
+                                        <!-- Quick Status & Role Filter Chips -->
+                                        <div class="selector-filter-row" id="sourceFilterChips" role="group" aria-label="Source server status filters">
+                                            <button type="button" class="filter-chip active" data-filter="all">All</button>
+                                            <button type="button" class="filter-chip chip-status-btn" data-filter="cloned" title="Show servers that have been cloned">
+                                                <span class="chip-status-dot cloned"></span> Cloned
+                                            </button>
+                                            <button type="button" class="filter-chip chip-status-btn" data-filter="issues" title="Show servers with pending sync issues or warnings">
+                                                <span class="chip-status-dot warning"></span> Sync Issues
+                                            </button>
+                                            <button type="button" class="filter-chip" data-filter="owned">Owned</button>
+                                            <button type="button" class="filter-chip" data-filter="admin">Admin</button>
+                                        </div>
                                         <div class="server-cards-grid" id="sourceServersGrid">
                                             <!-- Dynamically populated server cards -->
                                         </div>
@@ -371,6 +383,17 @@
                                                 </svg>
                                                 <input type="text" id="targetSearchInput" placeholder="Search eligible targets..." aria-label="Search where you want to clone">
                                             </div>
+                                        </div>
+                                        <!-- Quick Status & Role Filter Chips -->
+                                        <div class="selector-filter-row" id="targetFilterChips" role="group" aria-label="Target server status filters">
+                                            <button type="button" class="filter-chip active" data-filter="all">All</button>
+                                            <button type="button" class="filter-chip chip-status-btn" data-filter="cloned" title="Show target servers already fully cloned">
+                                                <span class="chip-status-dot cloned"></span> Fully Cloned
+                                            </button>
+                                            <button type="button" class="filter-chip chip-status-btn" data-filter="issues" title="Show target servers with pending sync issues">
+                                                <span class="chip-status-dot warning"></span> Sync Issues
+                                            </button>
+                                            <button type="button" class="filter-chip" data-filter="owned">Owned</button>
                                         </div>
                                         <div class="server-cards-grid" id="targetServersGrid">
                                             <!-- Dynamically populated eligible target server cards -->

@@ -4732,6 +4732,70 @@ a {
     flex: 1;
 }
 
+/* Quick Status & Role Filter Chips Row */
+.selector-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 2px 0 4px 0;
+}
+
+.selector-filter-row .filter-chip {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    background: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+    line-height: 1.3;
+}
+
+.selector-filter-row .filter-chip:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.selector-filter-row .filter-chip.active {
+    background: linear-gradient(135deg, var(--surface-raised) 0%, var(--surface) 100%);
+    box-shadow: var(--shadow-raised-sm);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 700;
+}
+
+.chip-status-dot {
+    width: 6.5px;
+    height: 6.5px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.chip-status-dot.cloned {
+    background-color: #10B981;
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+}
+
+.chip-status-dot.warning {
+    background-color: #F59E0B;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
+}
+
+.chip-status-dot.syncing {
+    background-color: #3B82F6;
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.6);
+    animation: statusPulse 1.5s infinite ease-in-out;
+}
+
 .server-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -4800,7 +4864,8 @@ a {
     font-weight: 700;
     font-size: 15px;
     color: var(--text-secondary);
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
     flex-shrink: 0;
 }
 
@@ -4808,12 +4873,53 @@ a {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
+}
+
+.server-status-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 2px solid var(--surface-raised);
+    background-color: var(--text-muted);
+    box-sizing: content-box;
+    z-index: 2;
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.server-status-dot.status-dot-cloned {
+    background-color: #10B981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+}
+
+.server-status-dot.status-dot-warning {
+    background-color: #F59E0B;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+}
+
+.server-status-dot.status-dot-syncing {
+    background-color: #3B82F6;
+    box-shadow: 0 0 7px rgba(59, 130, 246, 0.8);
+    animation: statusPulse 1.5s infinite ease-in-out;
+}
+
+.server-status-dot.status-dot-source {
+    background-color: #06B6D4;
+    box-shadow: 0 0 5px rgba(6, 182, 212, 0.6);
+}
+
+.server-status-dot.status-dot-ready {
+    background-color: #64748B;
+    opacity: 0.7;
 }
 
 .server-card-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
     flex: 1 1 auto;
     overflow: hidden;
@@ -4831,12 +4937,14 @@ a {
     -webkit-box-orient: vertical;
     overflow: hidden;
     min-width: 0;
+    line-height: 1.3;
 }
 
 .server-card-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 4px 6px;
     font-size: 11px;
     color: var(--text-muted);
 }
@@ -4844,15 +4952,111 @@ a {
 .server-badge {
     font-size: 9.5px;
     font-weight: 700;
-    padding: 2px 6px;
+    padding: 2px 7px;
     border-radius: var(--radius-full);
     background: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.server-badge.owner {
+    background: rgba(245, 158, 11, 0.12);
+    color: #D97706;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .server-badge.owner {
+    background: rgba(245, 158, 11, 0.2);
+    color: #FBBF24;
 }
 
 .server-badge.admin {
     background: var(--success-bg);
     color: var(--success);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Status Badges for Server Cards */
+.server-badge.status-badge-cloned {
+    background: rgba(16, 185, 129, 0.14);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.35);
+    font-weight: 700;
+}
+
+[data-theme="dark"] .server-badge.status-badge-cloned {
+    background: rgba(16, 185, 129, 0.22);
+    color: #34D399;
+}
+
+.server-badge.status-badge-warning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #D97706;
+    border-color: rgba(245, 158, 11, 0.4);
+    font-weight: 700;
+}
+
+[data-theme="dark"] .server-badge.status-badge-warning {
+    background: rgba(245, 158, 11, 0.24);
+    color: #FBBF24;
+}
+
+.server-badge.status-badge-syncing {
+    background: rgba(59, 130, 246, 0.14);
+    color: #2563EB;
+    border-color: rgba(59, 130, 246, 0.4);
+    font-weight: 700;
+}
+
+[data-theme="dark"] .server-badge.status-badge-syncing {
+    background: rgba(59, 130, 246, 0.24);
+    color: #60A5FA;
+}
+
+.server-badge.status-badge-source {
+    background: rgba(6, 182, 212, 0.14);
+    color: #0891B2;
+    border-color: rgba(6, 182, 212, 0.35);
+    font-weight: 700;
+}
+
+[data-theme="dark"] .server-badge.status-badge-source {
+    background: rgba(6, 182, 212, 0.22);
+    color: #22D3EE;
+}
+
+.status-badge-icon {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+}
+
+.status-badge-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+    display: inline-block;
+    animation: statusPulse 1.2s infinite ease-in-out;
+    flex-shrink: 0;
+}
+
+/* Specific Card Accent Borders for Quick Visual Recognition */
+.server-card.card-status-cloned {
+    border-left: 3px solid #10B981;
+}
+
+.server-card.card-status-issues {
+    border-left: 3px solid #F59E0B;
+}
+
+.server-card.card-status-syncing {
+    border-left: 3px solid #3B82F6;
 }
 
 .server-card-check {

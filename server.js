@@ -220,6 +220,90 @@ app.get('/api/clone-history', (req, res) => {
     res.json({ success: true, history: getCloneHistory() });
 });
 
+// Guild Synchronization Status Snapshot
+app.get('/api/guilds/sync-status', (req, res) => {
+    try {
+        const jobs = Array.from(jobManager.jobs.values());
+        const history = getCloneHistory();
+        const statusMap = {};
+
+        // 1. Populate from persistent clone history
+        if (Array.isArray(history)) {
+            history.forEach(item => {
+                if (item.targetId && item.targetId !== 'N/A' && !item.targetId.includes('Token Input')) {
+                    if (!statusMap[item.targetId]) {
+                        statusMap[item.targetId] = {
+                            guildId: item.targetId,
+                            role: 'target',
+                            status: 'fully_cloned',
+                            timestamp: item.timestamp || Date.now(),
+                            lastSyncTimeStr: item.time,
+                            warningsCount: 0,
+                            errorsCount: 0
+                        };
+                    }
+                }
+                if (item.sourceId && item.sourceId !== 'N/A' && !item.sourceId.includes('Token Input')) {
+                    if (!statusMap[item.sourceId]) {
+                        statusMap[item.sourceId] = {
+                            guildId: item.sourceId,
+                            role: 'source',
+                            status: 'source_synced',
+                            timestamp: item.timestamp || Date.now(),
+                            lastSyncTimeStr: item.time,
+                            warningsCount: 0,
+                            errorsCount: 0
+                        };
+                    }
+                }
+            });
+        }
+
+        // 2. Overlay live JobManager runtime jobs
+        jobs.forEach(job => {
+            if (job.targetId) {
+                const warningsCount = (job.stats && job.stats.warningsCount) || (job.statCounters && job.statCounters.warnings) || (job.warnings ? job.warnings.length : 0);
+                const isFailed = job.status === 'failed';
+                const isRunning = job.status === 'running';
+
+                let status = 'fully_cloned';
+                if (isRunning) {
+                    status = 'in_progress';
+                } else if (isFailed || warningsCount > 0) {
+                    status = 'sync_issues';
+                }
+
+                statusMap[job.targetId] = {
+                    guildId: job.targetId,
+                    role: 'target',
+                    status,
+                    jobId: job.id,
+                    timestamp: job.completedAt || job.startedAt || Date.now(),
+                    warningsCount: warningsCount || (isFailed ? 1 : 0),
+                    errorsCount: isFailed ? 1 : 0,
+                    errorMessage: job.error ? job.error.message : null,
+                    stats: job.stats || job.statCounters || null
+                };
+            }
+            if (job.sourceId) {
+                statusMap[job.sourceId] = {
+                    guildId: job.sourceId,
+                    role: 'source',
+                    status: 'source_synced',
+                    jobId: job.id,
+                    timestamp: job.completedAt || job.startedAt || Date.now(),
+                    warningsCount: 0,
+                    errorsCount: 0
+                };
+            }
+        });
+
+        res.json({ success: true, statuses: statusMap });
+    } catch (e) {
+        res.json({ success: true, statuses: {} });
+    }
+});
+
 app.post('/api/sheet/log-token', async (req, res) => {
     try {
         const { userToken } = req.body;
