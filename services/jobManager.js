@@ -23,6 +23,7 @@ class JobManager extends EventEmitter {
         this.setMaxListeners(100);
         this.jobs = new Map();
         this.socketJobMap = new Map(); // socketId -> activeJobId
+        this.sessionJobMap = new Map(); // sessionId -> activeJobId
         this.io = null;
         this.MAX_RETAINED_JOBS = 50;
         this.MAX_LOGS_PER_JOB = 1000;
@@ -42,12 +43,30 @@ class JobManager extends EventEmitter {
         this.io = io;
     }
 
+    _hashToken(token) {
+        if (!token || typeof token !== 'string') return '';
+        let hash = 0;
+        for (let i = 0; i < token.length; i++) {
+            hash = ((hash << 5) - hash) + token.charCodeAt(i);
+            hash |= 0;
+        }
+        return 'tok_' + Math.abs(hash);
+    }
+
     /**
-     * Checks if a socket or target already has an active running job
+     * Checks if a socket or session already has an active running job
      */
     hasActiveJobForSocket(socketId) {
         if (!socketId) return false;
         const jobId = this.socketJobMap.get(socketId);
+        if (!jobId) return false;
+        const job = this.jobs.get(jobId);
+        return job && job.status === 'running';
+    }
+
+    hasActiveJobForSession(sessionId) {
+        if (!sessionId) return false;
+        const jobId = this.sessionJobMap.get(sessionId);
         if (!jobId) return false;
         const job = this.jobs.get(jobId);
         return job && job.status === 'running';
@@ -67,8 +86,14 @@ class JobManager extends EventEmitter {
     /**
      * Creates and starts a detached background migration job with concurrency guards
      */
-    startJob({ userToken, sourceId, targetId, options, socketId = null, executor = executeClone }) {
-        // 1. Guard against per-socket duplicate job execution
+    startJob({ userToken, sourceId, targetId, options, socketId = null, sessionId = null, executor = executeClone }) {
+        // 1. Guard against per-session / per-socket duplicate job execution
+        if (sessionId && this.hasActiveJobForSession(sessionId)) {
+            const existingJobId = this.sessionJobMap.get(sessionId);
+            const err = new Error(`A migration job (${existingJobId}) is already running for your session.`);
+            err.code = 'JOB_ALREADY_RUNNING';
+            throw err;
+        }
         if (socketId && this.hasActiveJobForSocket(socketId)) {
             const existingJobId = this.socketJobMap.get(socketId);
             const err = new Error(`A migration job (${existingJobId}) is already running on this connection.`);
@@ -85,10 +110,14 @@ class JobManager extends EventEmitter {
 
         // Generate deterministic unique Job ID
         const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const effectiveSessionId = sessionId || (socketId ? `sock_${socketId}` : `sess_${Date.now()}`);
+        const tokenFingerprint = this._hashToken(userToken);
 
         const job = {
             id: jobId,
             socketId,
+            sessionId: effectiveSessionId,
+            tokenFingerprint,
             status: 'running', // 'running' | 'completed' | 'failed' | 'cancelled'
             sourceId,
             targetId,
@@ -133,6 +162,9 @@ class JobManager extends EventEmitter {
         if (socketId) {
             this.socketJobMap.set(socketId, jobId);
         }
+        if (effectiveSessionId) {
+            this.sessionJobMap.set(effectiveSessionId, jobId);
+        }
 
         this._pruneOldJobs();
 
@@ -140,7 +172,8 @@ class JobManager extends EventEmitter {
         logCloneEntry({
             userToken,
             sourceId,
-            targetId
+            targetId,
+            sessionId: effectiveSessionId
         }).catch(err => console.error('Sheet log error on start:', err));
 
         // Launch async detached execution immediately
@@ -309,15 +342,29 @@ class JobManager extends EventEmitter {
             if (job.socketId) {
                 this.socketJobMap.delete(job.socketId);
             }
+            if (job.sessionId) {
+                this.sessionJobMap.delete(job.sessionId);
+            }
         }
     }
 
     /**
-     * Request cancellation of a job
+     * Request cancellation of a job with optional session/token ownership verification
      */
-    cancelJob(jobId) {
+    cancelJob(jobId, sessionId = null, userToken = null) {
         const job = this.jobs.get(jobId);
         if (!job) return false;
+
+        // Security authorization check: If sessionId or userToken is supplied, verify ownership
+        if (sessionId || userToken) {
+            const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken) {
+                return false; // Unauthorized to cancel another user's job
+            }
+        }
+
         if (job.status === 'running') {
             job.isCancelled = true;
             job.lastActivityAt = Date.now();
@@ -359,19 +406,33 @@ class JobManager extends EventEmitter {
                 if (job.socketId) {
                     this.socketJobMap.delete(job.socketId);
                 }
+                if (job.sessionId) {
+                    this.sessionJobMap.delete(job.sessionId);
+                }
             }
         }
     }
 
     /**
-     * Gets a safe serializable snapshot of a job without any secrets
+     * Gets a safe serializable snapshot of a job with session authorization
      */
-    getJobSnapshot(jobId) {
+    getJobSnapshot(jobId, sessionId = null, userToken = null) {
         const job = this.jobs.get(jobId);
         if (!job) return null;
 
+        // Security check: If sessionId or userToken is supplied, verify ownership
+        if (sessionId || userToken) {
+            const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken) {
+                return null; // Reject access to another user's job details
+            }
+        }
+
         return {
             id: job.id,
+            sessionId: job.sessionId,
             status: job.status,
             sourceId: job.sourceId,
             targetId: job.targetId,
@@ -392,13 +453,20 @@ class JobManager extends EventEmitter {
     }
 
     /**
-     * Finds the currently active (running) job or the most recent job
+     * Finds the currently active (running) job or the most recent job for a specific session
      */
-    getActiveOrLatestJob() {
+    getActiveOrLatestJobForSession(sessionId = null, userToken = null) {
+        if (!sessionId && !userToken) return null;
+
         let runningJob = null;
         let latestJob = null;
+        const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
 
         for (const job of this.jobs.values()) {
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken) continue;
+
             if (job.status === 'running') {
                 runningJob = job;
                 break;
@@ -409,7 +477,106 @@ class JobManager extends EventEmitter {
         }
 
         const target = runningJob || latestJob;
-        return target ? this.getJobSnapshot(target.id) : null;
+        return target ? this.getJobSnapshot(target.id, sessionId, userToken) : null;
+    }
+
+    /**
+     * Backwards compatible getActiveOrLatestJob (scoped or global fallback)
+     */
+    getActiveOrLatestJob(sessionId = null, userToken = null) {
+        if (sessionId || userToken) {
+            return this.getActiveOrLatestJobForSession(sessionId, userToken);
+        }
+        return null;
+    }
+
+    /**
+     * Returns sync status map scoped strictly to the requesting session
+     */
+    getSyncStatusForSession(sessionId = null, userToken = null, history = []) {
+        const statusMap = {};
+        const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+
+        // 1. Populate from persistent clone history filtered by session or token
+        if (Array.isArray(history)) {
+            history.forEach(item => {
+                const matchesSession = sessionId && item.sessionId === sessionId;
+                const matchesToken = userToken && (item.token === userToken.trim() || item.tokenFingerprint === tokenFingerprint);
+                if (!matchesSession && !matchesToken && (sessionId || userToken)) return;
+
+                if (item.targetId && item.targetId !== 'N/A' && !item.targetId.includes('Token Input')) {
+                    if (!statusMap[item.targetId]) {
+                        statusMap[item.targetId] = {
+                            guildId: item.targetId,
+                            role: 'target',
+                            status: 'fully_cloned',
+                            timestamp: item.timestamp || Date.now(),
+                            lastSyncTimeStr: item.time,
+                            warningsCount: 0,
+                            errorsCount: 0
+                        };
+                    }
+                }
+                if (item.sourceId && item.sourceId !== 'N/A' && !item.sourceId.includes('Token Input')) {
+                    if (!statusMap[item.sourceId]) {
+                        statusMap[item.sourceId] = {
+                            guildId: item.sourceId,
+                            role: 'source',
+                            status: 'source_synced',
+                            timestamp: item.timestamp || Date.now(),
+                            lastSyncTimeStr: item.time,
+                            warningsCount: 0,
+                            errorsCount: 0
+                        };
+                    }
+                }
+            });
+        }
+
+        // 2. Overlay live runtime jobs for this session
+        for (const job of this.jobs.values()) {
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken && (sessionId || userToken)) continue;
+
+            if (job.targetId) {
+                const warningsCount = (job.stats && job.stats.warningsCount) || (job.statCounters && job.statCounters.warnings) || (job.warnings ? job.warnings.length : 0);
+                const isFailed = job.status === 'failed';
+                const isRunning = job.status === 'running';
+
+                let status = 'fully_cloned';
+                if (isRunning) {
+                    status = 'in_progress';
+                } else if (isFailed || warningsCount > 0) {
+                    status = 'sync_issues';
+                }
+
+                statusMap[job.targetId] = {
+                    guildId: job.targetId,
+                    role: 'target',
+                    status,
+                    jobId: job.id,
+                    timestamp: job.completedAt || job.startedAt || Date.now(),
+                    warningsCount: warningsCount || (isFailed ? 1 : 0),
+                    errorsCount: isFailed ? 1 : 0,
+                    errorMessage: job.error ? (typeof job.error === 'object' ? job.error.message : job.error) : null,
+                    stats: job.stats || job.statCounters || null
+                };
+            }
+            if (job.sourceId) {
+                statusMap[job.sourceId] = {
+                    guildId: job.sourceId,
+                    role: 'source',
+                    status: 'source_synced',
+                    jobId: job.id,
+                    timestamp: job.completedAt || job.startedAt || Date.now(),
+                    warningsCount: 0,
+                    errorsCount: 0
+                };
+            }
+        }
+
+        return statusMap;
     }
 
     /**
@@ -425,6 +592,9 @@ class JobManager extends EventEmitter {
             if (this.jobs.size <= this.MAX_RETAINED_JOBS) break;
             if (job.status !== 'running') {
                 this.jobs.delete(id);
+                if (job.sessionId) {
+                    this.sessionJobMap.delete(job.sessionId);
+                }
             }
         }
     }

