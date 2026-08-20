@@ -201,7 +201,7 @@ export class AdaptiveRateLimiter {
     /**
      * Dynamically calculates optimized delay between operations based on current capacity
      */
-    getAdaptivePacingDelay(baseMs = 200) {
+    getAdaptivePacingDelay(baseMs = 500) {
         const activeWait = this.getRemainingWaitMs();
         if (activeWait > 0) {
             return activeWait;
@@ -211,13 +211,13 @@ export class AdaptiveRateLimiter {
         const cap = snapshot.capacityPercent;
 
         if (cap >= 95) {
-            return Math.max(80, baseMs);
+            return Math.max(400, baseMs);
         } else if (cap >= 75) {
-            return Math.max(150, Math.round(baseMs * 1.35));
+            return Math.max(600, Math.round(baseMs * 1.5));
         } else if (cap >= 50) {
-            return Math.max(250, Math.round(baseMs * 1.8));
+            return Math.max(1000, Math.round(baseMs * 2.0));
         } else {
-            return Math.max(450, Math.round(baseMs * 2.5));
+            return Math.max(2000, Math.round(baseMs * 3.0));
         }
     }
 

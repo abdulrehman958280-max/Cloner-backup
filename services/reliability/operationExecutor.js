@@ -224,8 +224,8 @@ export async function executeDiscordOperation({
         }
 
         try {
-            // 3. Optional Idempotency Check on Retries (read-before-retry, with bounded timeout)
-            if (attempt > 1 && typeof checkIdempotency === 'function') {
+            // 3. Optional Idempotency Check (read-before-create to prevent duplicates)
+            if (typeof checkIdempotency === 'function') {
                 const idempotencyTimeout = Math.min(4000, singleOpTimeoutMs);
                 try {
                     const existing = await withTimeout(

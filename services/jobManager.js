@@ -96,6 +96,15 @@ class JobManager extends EventEmitter {
         return job && job.status === 'running';
     }
 
+    hasActiveJobForTarget(targetId) {
+        if (!targetId) return false;
+        const normTarget = String(targetId).trim();
+        for (const job of this.jobs.values()) {
+            if (job.status === 'running' && String(job.targetId).trim() === normTarget) return true;
+        }
+        return false;
+    }
+
     hasActiveJobForSession(sessionId) {
         if (!sessionId) return false;
         const jobId = this.sessionJobMap.get(sessionId);
@@ -126,6 +135,12 @@ class JobManager extends EventEmitter {
             err.code = 'JOB_ALREADY_RUNNING';
             throw err;
         }
+        if (targetId && this.hasActiveJobForTarget(targetId)) {
+            const err = new Error(`A migration job is already running for the target server.`);
+            err.code = 'JOB_ALREADY_RUNNING_TARGET';
+            throw err;
+        }
+
         if (socketId && this.hasActiveJobForSocket(socketId)) {
             const existingJobId = this.socketJobMap.get(socketId);
             const err = new Error(`A migration job (${existingJobId}) is already running on this connection.`);

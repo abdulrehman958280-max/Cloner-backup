@@ -1495,9 +1495,10 @@
         // 1. Emit via socket if available
         if (socket && socket.connected) {
             socket.emit('clone:start', payload);
+            return;
         }
 
-        // 2. Also start via REST API (ensures 100% reliability on Render & serverless)
+        // 2. Fallback to REST API if socket is unavailable
         try {
             const res = await fetch('/api/jobs/start', {
                 method: 'POST',

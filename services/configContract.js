@@ -20,12 +20,12 @@ export const DEFAULT_CONFIG = Object.freeze({
 
     // Message tuning defaults
     msgLimit: 15,
-    msgDelay: 250, // 250ms fast responsive default pacing
+    msgDelay: 1000, // 250ms fast responsive default pacing
 
     // Role Reliability options
     continueOnRoleError: true,
     reuseExistingRoles: true,
-    roleOperationTimeoutMs: 30000,
+    roleOperationTimeoutMs: 60000,
 
     // Range constraints
     limits: Object.freeze({
@@ -34,7 +34,7 @@ export const DEFAULT_CONFIG = Object.freeze({
         defaultMsgLimit: 1000,
         minMsgDelay: 0,
         maxMsgDelay: 5000,
-        defaultMsgDelay: 250
+        defaultMsgDelay: 1000
     }),
 
     // Safety policies
@@ -75,10 +75,10 @@ export const RELIABILITY_CONFIG = Object.freeze({
     retry: Object.freeze({
         enabled: true,
         maxAttempts: 3,
-        baseDelayMs: 500,
+        baseDelayMs: 1500,
         maxDelayMs: 10000,
         jitter: true,
-        maxTotalRetryTimeMs: 30000
+        maxTotalRetryTimeMs: 120000
     }),
     rateLimit: Object.freeze({
         respectRetryAfter: true,
@@ -86,7 +86,7 @@ export const RELIABILITY_CONFIG = Object.freeze({
         concurrencyReduction: true
     }),
     timeouts: Object.freeze({
-        operationTimeoutMs: 15000,
+        operationTimeoutMs: 60000,
         authTimeoutMs: 30000
     }),
     concurrency: Object.freeze({

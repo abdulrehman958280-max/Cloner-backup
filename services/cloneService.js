@@ -545,7 +545,17 @@ export async function executeClone({
                             checkIdempotency: async () => {
                                 const mappedId = manifest.roleMap.get(role.id);
                                 if (mappedId) {
-                                    return targetGuild.roles.cache.get(mappedId) || null;
+                                    const cached = targetGuild.roles.cache.get(mappedId);
+                                    if (cached) return cached;
+                                }
+                                const nameMatch = targetGuild.roles.cache.find(r => 
+                                    !r.managed && 
+                                    r.name !== '@everyone' && 
+                                    r.name.trim().toLowerCase() === (role.name || '').trim().toLowerCase()
+                                );
+                                if (nameMatch) {
+                                    manifest.roleMap.set(role.id, nameMatch.id);
+                                    return nameMatch;
                                 }
                                 return null;
                             },
@@ -739,7 +749,17 @@ export async function executeClone({
                         policy: OPERATION_POLICIES.CREATE,
                         isCancelled,
                         checkIdempotency: async () => {
-                            return targetGuild.channels.cache.find(c => c.name === cat.name && c.type === 'GUILD_CATEGORY');
+                            const mappedId = manifest.categoryMap.get(cat.id);
+                            if (mappedId) {
+                                const cached = targetGuild.channels.cache.get(mappedId);
+                                if (cached) return cached;
+                            }
+                            const foundByName = targetGuild.channels.cache.find(c => c.name === cat.name && c.type === 'GUILD_CATEGORY');
+                            if (foundByName) {
+                                manifest.categoryMap.set(cat.id, foundByName.id);
+                                return foundByName;
+                            }
+                            return null;
                         },
                         execute: async () => {
                             return await targetGuild.channels.create(cat.name, {
@@ -817,7 +837,17 @@ export async function executeClone({
                         policy: OPERATION_POLICIES.CREATE,
                         isCancelled,
                         checkIdempotency: async () => {
-                            return targetGuild.channels.cache.find(c => c.name === safeChName && c.type !== 'GUILD_CATEGORY' && (!parentId || c.parentId === parentId));
+                            const mappedId = manifest.channelMap.get(ch.id);
+                            if (mappedId) {
+                                const cached = targetGuild.channels.cache.get(mappedId);
+                                if (cached) return cached;
+                            }
+                            const foundByName = targetGuild.channels.cache.find(c => c.name === safeChName && c.type !== 'GUILD_CATEGORY' && (!parentId || c.parentId === parentId));
+                            if (foundByName) {
+                                manifest.channelMap.set(ch.id, foundByName.id);
+                                return foundByName;
+                            }
+                            return null;
                         },
                         execute: async () => {
                             return await targetGuild.channels.create(safeChName, channelOptions);
