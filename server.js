@@ -7,9 +7,10 @@ import { fileURLToPath } from 'url';
 import { validateClonePayload } from './services/validationService.js';
 import { jobManager } from './services/jobManager.js';
 import { runPreflightCheck } from './services/preflightService.js';
-import { fetchUserGuilds, exportGuildTemplate, scrapeGuildMembers } from './services/guildService.js';
+import { fetchUserGuilds, exportGuildTemplate, scrapeGuildMembers, fetchGuildTopology } from './services/guildService.js';
 import { sanitizeText } from './utils/logger.js';
 import { globalRateLimiter } from './services/reliability/index.js';
+import { credentialManager } from './services/credentialManager.js';
 import { getCloneHistory, getSheetConfig, saveSheetConfig, logCloneEntry } from './services/sheetService.js';
 import {
     analyzeSourceGuild,
@@ -22,6 +23,7 @@ import {
     predictMigrationOutcome,
     aiChatService,
     aiModelRouter,
+    intelligenceTools,
     agentSwarmCoordinator,
     agentEventBus,
     generateIntelligenceReport,
@@ -45,6 +47,7 @@ const io = new Server(server, {
 
 // Attach socket server to job manager (handles single authoritative event relay)
 jobManager.setSocketServer(io);
+intelligenceTools.setJobManager(jobManager);
 
 // Bridge AI Failover events to real-time socket and active migration job logs
 aiModelRouter.addTelemetryListener((event, jobId) => {
@@ -327,6 +330,26 @@ app.post('/api/guilds/members/scrape', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to scrape server members.') });
+    }
+});
+
+// Guild Hierarchical Topology Tree Endpoint
+app.post('/api/guilds/topology', async (req, res) => {
+    const { userToken, guildId } = req.body;
+    const sessionId = getSessionId(req);
+    if (!guildId) {
+        return res.status(400).json({ success: false, error: 'Guild ID is required.' });
+    }
+    const token = userToken || (sessionId ? credentialManager.getSessionToken(sessionId) : null);
+    if (!token) {
+        return res.status(400).json({ success: false, error: 'Authorization token is required.' });
+    }
+
+    try {
+        const topology = await fetchGuildTopology(token, guildId);
+        res.json(topology);
+    } catch (err) {
+        res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to fetch guild topology.') });
     }
 });
 

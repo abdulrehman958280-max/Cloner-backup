@@ -23,6 +23,7 @@ import {
     cancellableSleep,
     jitteredSleep,
     globalRateLimiter,
+    globalAssetCache,
     withTimeout
 } from './reliability/index.js';
 
@@ -56,10 +57,15 @@ function sanitizeMentions(text, policy = 'sanitize', options = {}) {
 }
 
 /**
- * Downloads binary image/sticker buffer and Data URI with safety timeout
+ * Downloads binary image/sticker buffer and Data URI with safety timeout and LRU caching
  */
 async function downloadAssetData(url, timeoutMs = 12000) {
     if (!url || typeof url !== 'string') return null;
+    
+    // Check in-memory cache first
+    const cached = globalAssetCache.get(url);
+    if (cached) return cached;
+
     try {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -77,7 +83,11 @@ async function downloadAssetData(url, timeoutMs = 12000) {
         const buffer = Buffer.from(arrayBuffer);
         const mime = contentType.split(';')[0].trim() || (url.includes('.gif') ? 'image/gif' : 'image/png');
         const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
-        return { buffer, dataUri, mime, size: buffer.length };
+        const assetPayload = { buffer, dataUri, mime, size: buffer.length };
+        
+        // Cache result
+        globalAssetCache.set(url, assetPayload);
+        return assetPayload;
     } catch {
         return null;
     }
@@ -834,11 +844,22 @@ export async function executeClone({
                 const safeChName = (ch.name || 'unnamed-channel').substring(0, 100);
                 const safeTopic = ch.topic ? sanitizeMentions(ch.topic, options.mentionPolicy, options).substring(0, 1024) : undefined;
 
+                // Calculate safe bitrate bounded by target guild boost tier
+                let safeBitrate = ch.bitrate || undefined;
+                if (safeBitrate && options.voiceBitrateClamp !== false) {
+                    const tier = targetGuild.premiumTier;
+                    let maxAllowedBitrate = 96000;
+                    if (tier === 'TIER_3' || tier === 3) maxAllowedBitrate = 384000;
+                    else if (tier === 'TIER_2' || tier === 2) maxAllowedBitrate = 256000;
+                    else if (tier === 'TIER_1' || tier === 1) maxAllowedBitrate = 128000;
+                    safeBitrate = Math.min(safeBitrate, maxAllowedBitrate);
+                }
+
                 const channelOptions = {
                     type: ch.type,
                     topic: safeTopic,
                     nsfw: Boolean(ch.nsfw),
-                    bitrate: ch.bitrate || undefined,
+                    bitrate: safeBitrate,
                     userLimit: ch.userLimit || undefined,
                     rateLimitPerUser: ch.rateLimitPerUser || undefined,
                     rtcRegion: ch.rtcRegion || undefined,
@@ -963,10 +984,14 @@ export async function executeClone({
                     manifest.permissions.planned++;
                     let targetIdResolved = null;
                     if (overwrite.type === 'role') {
-                        targetIdResolved = manifest.roleMap.get(id);
+                        if (id === sourceGuild.id || id === sourceGuild.roles?.everyone?.id) {
+                            targetIdResolved = targetGuild.roles?.everyone?.id || targetGuild.id;
+                        } else {
+                            targetIdResolved = manifest.roleMap.get(id);
+                        }
                     } else if (overwrite.type === 'member') {
-                        if (id === client.user.id) {
-                            targetIdResolved = client.user.id;
+                        if (id === client.user.id || targetGuild.members.cache.has(id)) {
+                            targetIdResolved = id;
                         }
                     }
 
@@ -1015,10 +1040,14 @@ export async function executeClone({
                     manifest.permissions.planned++;
                     let targetIdResolved = null;
                     if (overwrite.type === 'role') {
-                        targetIdResolved = manifest.roleMap.get(id);
+                        if (id === sourceGuild.id || id === sourceGuild.roles?.everyone?.id) {
+                            targetIdResolved = targetGuild.roles?.everyone?.id || targetGuild.id;
+                        } else {
+                            targetIdResolved = manifest.roleMap.get(id);
+                        }
                     } else if (overwrite.type === 'member') {
-                        if (id === client.user.id) {
-                            targetIdResolved = client.user.id;
+                        if (id === client.user.id || targetGuild.members.cache.has(id)) {
+                            targetIdResolved = id;
                         }
                     }
 
@@ -1117,6 +1146,67 @@ export async function executeClone({
                 } catch (err) {
                     emitLog('warning', `Could not fetch webhooks from #${sourceChannel.name}`, err.message, 'cloning_webhooks');
                 }
+            }
+        }
+
+        // ======================================================================
+        // 11b. MEMBER ROLE RE-ASSIGNMENT ASSISTANCE (OPTIONAL)
+        // ======================================================================
+        if (options.assignTargetMembers && options.cloneRoles && manifest.roleMap.size > 0) {
+            checkCancellation();
+            onStage('assigning_member_roles', 'Assigning Cloned Roles to Common Members', 86);
+            emitLog('info', 'Matching and assigning cloned roles to members present in target server...', null, 'assigning_member_roles');
+
+            try {
+                const [srcMembers, tgtMembers] = await Promise.allSettled([
+                    sourceGuild.members.fetch({ limit: 1000 }).catch(() => sourceGuild.members.cache),
+                    targetGuild.members.fetch({ limit: 1000 }).catch(() => targetGuild.members.cache)
+                ]);
+
+                const srcMemberMap = srcMembers.status === 'fulfilled' ? (srcMembers.value instanceof Map ? srcMembers.value : sourceGuild.members.cache) : sourceGuild.members.cache;
+                const tgtMemberMap = tgtMembers.status === 'fulfilled' ? (tgtMembers.value instanceof Map ? tgtMembers.value : targetGuild.members.cache) : targetGuild.members.cache;
+
+                let assignedCount = 0;
+                for (const [memberId, targetMember] of tgtMemberMap.entries()) {
+                    checkCancellation();
+                    if (memberId === client.user.id) continue;
+                    const sourceMember = srcMemberMap.get(memberId);
+                    if (!sourceMember) continue;
+
+                    const rolesToAssign = [];
+                    for (const [srcRoleId] of sourceMember.roles.cache.entries()) {
+                        if (srcRoleId === sourceGuild.id) continue;
+                        const mappedRoleId = manifest.roleMap.get(srcRoleId);
+                        if (mappedRoleId && targetGuild.roles.cache.has(mappedRoleId) && !targetMember.roles.cache.has(mappedRoleId)) {
+                            rolesToAssign.push(mappedRoleId);
+                        }
+                    }
+
+                    if (rolesToAssign.length > 0) {
+                        try {
+                            await executeDiscordOperation({
+                                operationName: 'assign_member_roles',
+                                resourceType: 'member_roles',
+                                resourceId: memberId,
+                                policy: OPERATION_POLICIES.UPDATE,
+                                isCancelled,
+                                execute: async () => {
+                                    await targetMember.roles.add(rolesToAssign);
+                                },
+                                onRetry: makeRetryHandler('assigning_member_roles'),
+                                onRateLimit: makeRateLimitHandler('assigning_member_roles')
+                            });
+                            assignedCount++;
+                            emitLog('success', `Assigned ${rolesToAssign.length} cloned role(s) to ${targetMember.user.tag || targetMember.displayName}`, null, 'assigning_member_roles');
+                        } catch (assignErr) {
+                            emitLog('warning', `Could not assign roles to ${targetMember.displayName}`, assignErr.message, 'assigning_member_roles');
+                        }
+                        await jitteredSleep(globalRateLimiter.getAdaptivePacingDelay(150), isCancelled, 0.15);
+                    }
+                }
+                emitLog('success', `Completed member role mapping (${assignedCount} members updated).`, null, 'assigning_member_roles');
+            } catch (err) {
+                emitLog('warning', 'Failed to complete member role assignment pass', err.message, 'assigning_member_roles');
             }
         }
 

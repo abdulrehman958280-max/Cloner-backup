@@ -87,7 +87,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="density-compact">
     <div class="app-wrapper" id="appRoot">
         
         <!-- Header -->
@@ -117,6 +117,16 @@
 
                 <!-- Header Actions: Status & Merged Theme Toggle -->
                 <div class="header-actions">
+                    <!-- Preflight Diff Visualizer Modal Trigger -->
+                    <button type="button" class="neu-btn-icon-subtle" id="openDiffVisualizerBtn" title="Preflight Visual Diff (Source vs Target)" aria-label="Open Preflight Visual Diff">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="12" y1="3" x2="12" y2="21"/>
+                            <path d="M7 8l-2 2 2 2"/>
+                            <path d="M17 12l2 2-2 2"/>
+                        </svg>
+                    </button>
+
                     <!-- Background Music & Audio FX Toggle -->
                     <button type="button" class="neu-btn-icon-subtle" id="audioToggleBtn" title="Toggle background audio & chimes" aria-label="Toggle background music and audio chimes">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="audio-icon-on" id="audioIconOn" style="width:16px;height:16px;">
@@ -557,6 +567,36 @@
                                                 </div>
                                             </label>
 
+                                            <!-- Option 4e: Member Role Re-assignment -->
+                                            <label class="neu-option-row" for="assignTargetMembers" id="rowAssignTargetMembers">
+                                                <div class="option-text-group">
+                                                    <div class="option-title-row">
+                                                        <span class="option-title">Member Role Mapping</span>
+                                                        <span class="badge-opt-status" id="badgeAssignTargetMembers">OFF</span>
+                                                    </div>
+                                                    <p class="option-desc">Match members in target server and re-assign their corresponding cloned roles</p>
+                                                </div>
+                                                <div class="neu-toggle">
+                                                    <input type="checkbox" id="assignTargetMembers" aria-label="Toggle assign target members">
+                                                    <span class="neu-toggle-slider"></span>
+                                                </div>
+                                            </label>
+
+                                            <!-- Option 4f: Voice Bitrate Auto-Clamp -->
+                                            <label class="neu-option-row is-active" for="voiceBitrateClamp" id="rowVoiceBitrateClamp">
+                                                <div class="option-text-group">
+                                                    <div class="option-title-row">
+                                                        <span class="option-title">Voice Bitrate Auto-Clamp</span>
+                                                        <span class="badge-opt-status active" id="badgeVoiceBitrateClamp">ON</span>
+                                                    </div>
+                                                    <p class="option-desc">Automatically bounds voice bitrates to target server boost tier</p>
+                                                </div>
+                                                <div class="neu-toggle">
+                                                    <input type="checkbox" id="voiceBitrateClamp" checked aria-label="Toggle voice bitrate auto clamp">
+                                                    <span class="neu-toggle-slider"></span>
+                                                </div>
+                                            </label>
+
                                             <!-- Option 5: Message History (Default OFF) -->
                                             <label class="neu-option-row highlight-row" for="cloneMessages" id="rowCloneMessages">
                                                 <div class="option-text-group">
@@ -783,6 +823,112 @@
 
                     <!-- Active Telemetry View (Hidden when idle) -->
                     <div class="telemetry-active-view hidden" id="telemetryActiveView">
+                        <!-- Horizontal Pipeline Stepper -->
+                        <div class="pipeline-stepper-container" id="pipelineStepper">
+                            <div class="pipeline-step-item is-active" data-step="init" id="step_init">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">1</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Init</span>
+                                    <span class="pipeline-step-sub">Connect & fetch</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_init_cleanup"></div>
+                            
+                            <div class="pipeline-step-item" data-step="cleanup" id="step_cleanup">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">2</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Clean</span>
+                                    <span class="pipeline-step-sub">Target purge</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_cleanup_roles"></div>
+
+                            <div class="pipeline-step-item" data-step="roles" id="step_roles">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">3</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Roles</span>
+                                    <span class="pipeline-step-sub">Hierarchy sync</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_roles_categories"></div>
+
+                            <div class="pipeline-step-item" data-step="categories" id="step_categories">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">4</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Categories</span>
+                                    <span class="pipeline-step-sub">Sections & layout</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_categories_channels"></div>
+
+                            <div class="pipeline-step-item" data-step="channels" id="step_channels">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">5</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Channels</span>
+                                    <span class="pipeline-step-sub">Text, voice, forum</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_channels_assets"></div>
+
+                            <div class="pipeline-step-item" data-step="assets" id="step_assets">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">6</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Assets</span>
+                                    <span class="pipeline-step-sub">Emojis & stickers</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_assets_messages"></div>
+
+                            <div class="pipeline-step-item" data-step="messages" id="step_messages">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">7</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Messages</span>
+                                    <span class="pipeline-step-sub">Webhooks & history</span>
+                                </div>
+                            </div>
+                            <div class="pipeline-step-connector" id="conn_messages_complete"></div>
+
+                            <div class="pipeline-step-item" data-step="complete" id="step_complete">
+                                <div class="pipeline-step-node">
+                                    <span class="step-num">8</span>
+                                    <svg class="step-check-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span class="step-spinner hidden"></span>
+                                </div>
+                                <div class="pipeline-step-info">
+                                    <span class="pipeline-step-title">Verified</span>
+                                    <span class="pipeline-step-sub">Final validation</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="active-header-row">
                             <div class="stage-pill-raised" id="stagePill">
                                 <span class="stage-dot" id="stageDot"></span>
@@ -995,6 +1141,19 @@
                                         <path d="M12 5v14M19 12l-7 7-7-7"/>
                                     </svg>
                                     <span class="autoscroll-dot"></span>
+                                </button>
+                                <button type="button" class="neu-action-btn" id="toggleTimestampsBtn" title="Toggle Timestamps" aria-label="Toggle Timestamps">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                </button>
+                                <button type="button" class="neu-action-btn" id="exportLogsFileBtn" title="Export Logs to File (.txt)" aria-label="Export Logs to text file">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
                                 </button>
                                 <button type="button" class="neu-action-btn" id="copyLogsBtn" title="Copy logs to clipboard" aria-label="Copy logs">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1351,12 +1510,12 @@
 
                 <!-- Clay Quick Chips Carousel -->
                 <div class="copilot-chips-bar" id="copilotQuickChips">
+                    <button type="button" class="copilot-chip" data-query="Scan my servers with my token">🔍 Scan My Servers</button>
                     <button type="button" class="copilot-chip" data-query="What is the current migration status and health?">📊 Live Status</button>
-                    <button type="button" class="copilot-chip" data-query="Diagnose migration errors and suggest fixes">🩺 Diagnose Error</button>
                     <button type="button" class="copilot-chip" data-query="Analyze role permission hierarchy & hierarchy ordering">🛡️ Role Hierarchy</button>
+                    <button type="button" class="copilot-chip" data-query="Diagnose migration errors and suggest fixes">🩺 Diagnose Error</button>
                     <button type="button" class="copilot-chip" data-query="What are safe settings for target server cleanup?">🧹 Cleanup Safety</button>
                     <button type="button" class="copilot-chip" data-query="How can I clone messages faster without rate limits?">⚡ Fast Message Cloning</button>
-                    <button type="button" class="copilot-chip" data-query="Explain audit logs and safety rules">📜 Audit Logs</button>
                 </div>
 
                 <!-- Clay Input Command Deck -->
@@ -1538,11 +1697,94 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Card 3: Interactive Topology Visualizer -->
+                    <div class="stat-card-raised" style="padding:16px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--brand-primary);">
+                                    <line x1="6" y1="3" x2="6" y2="15"/>
+                                    <circle cx="18" cy="6" r="3"/>
+                                    <circle cx="6" cy="18" r="3"/>
+                                    <path d="M18 9a9 9 0 0 1-9 9"/>
+                                </svg>
+                                <strong style="font-size:0.95rem; color:var(--text-primary);">Interactive Topology Tree</strong>
+                            </div>
+                            <span class="badge-tag">VISUAL EXPLORER</span>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">
+                            Inspect the interactive hierarchical category & channel tree, role permission bitfields, and overwrite matrices.
+                        </p>
+                        <div style="margin-top:6px;">
+                            <button type="button" class="neu-btn-primary" id="btnOpenTopologyTree" style="width:100%; justify-content:center;">
+                                <span>Open Topology Tree (Ctrl+T)</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="validation-feedback" id="utilitiesFeedback" style="margin-top:12px;"></div>
             </div>
             <div class="modal-actions-row">
                 <button type="button" class="neu-btn-secondary" id="dismissUtilitiesBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4c. Interactive Visual Guild Topology Modal -->
+    <div class="modal-backdrop hidden" id="topologyModal" role="dialog" aria-modal="true" aria-labelledby="topologyModalTitle">
+        <div class="neu-modal-card" style="max-width: 780px; width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
+            <div class="modal-header-simple" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);">
+                <div class="guide-title-row" style="display:flex; align-items:center; gap:10px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--accent);">
+                        <line x1="6" y1="3" x2="6" y2="15"/>
+                        <circle cx="18" cy="6" r="3"/>
+                        <circle cx="6" cy="18" r="3"/>
+                        <path d="M18 9a9 9 0 0 1-9 9"/>
+                    </svg>
+                    <div>
+                        <h3 class="modal-title" id="topologyModalTitle" style="margin:0; font-size:1.1rem;">Guild Structural Topology</h3>
+                        <span class="step-subtitle-hint" id="topologyGuildSubtitle" style="font-size:0.75rem;">Interactive Hierarchy & Permission Tree</span>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="neu-btn-secondary" id="topologyRefreshBtn" style="padding: 4px 10px; font-size: 0.75rem;" title="Refresh tree structure">
+                        🔄 Refresh
+                    </button>
+                    <button type="button" class="modal-close-btn" id="closeTopologyBtn" aria-label="Close topology modal">✕</button>
+                </div>
+            </div>
+
+            <!-- Toolbar / Search / Controls -->
+            <div style="padding: 10px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-bottom: 1px solid var(--border-subtle); background: var(--bg-tertiary);">
+                <div class="neu-search-wrapper" style="flex:1; min-width: 180px;">
+                    <input type="text" id="topologySearchInput" placeholder="Filter channels, categories, or roles..." class="neu-input" style="padding: 6px 12px; font-size: 0.8rem; width:100%;">
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" class="quick-chip-btn" id="btnExpandAllTopology" style="font-size:0.75rem; padding: 4px 8px;">Expand All</button>
+                    <button type="button" class="quick-chip-btn" id="btnCollapseAllTopology" style="font-size:0.75rem; padding: 4px 8px;">Collapse All</button>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div id="topologyStatsBar" style="padding: 8px 16px; display:flex; gap:12px; flex-wrap:wrap; font-size:0.78rem; border-bottom: 1px solid var(--border-subtle); color:var(--text-secondary);">
+                <span>📁 Categories: <strong id="topolCatCount" style="color:var(--text-primary);">0</strong></span>
+                <span>💬 Channels: <strong id="topolChanCount" style="color:var(--text-primary);">0</strong></span>
+                <span>🛡️ Roles: <strong id="topolRoleCount" style="color:var(--text-primary);">0</strong></span>
+                <span>😀 Emojis: <strong id="topolEmojiCount" style="color:var(--text-primary);">0</strong></span>
+            </div>
+
+            <!-- Body: Tree Content -->
+            <div class="modal-scroll-body" id="topologyTreeBody" style="padding: 16px; flex: 1; overflow-y: auto;">
+                <div id="topologyLoadingState" style="text-align:center; padding: 30px; color:var(--text-secondary);">
+                    <div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>
+                    <p style="font-size:0.85rem; margin:0;">Loading server topology tree...</p>
+                </div>
+                <div id="topologyTreeContainer" class="hidden" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <div class="modal-actions-row" style="padding: 10px 16px; border-top: 1px solid var(--border-subtle);">
+                <span style="font-size:0.75rem; color:var(--text-muted);">Tip: Press <kbd style="background:var(--bg-secondary); padding:2px 4px; border-radius:4px; font-size:0.7rem;">Ctrl+T</kbd> to quickly toggle this view.</span>
+                <button type="button" class="neu-btn-secondary" id="dismissTopologyBtn">Close</button>
             </div>
         </div>
     </div>
@@ -1604,6 +1846,106 @@
             </div>
             <div class="modal-actions-row">
                 <button type="button" class="neu-btn-primary" id="dismissMusicBtn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Live Preflight Side-by-Side Visual Diff Modal -->
+    <div class="modal-backdrop hidden" id="diffVisualizerModal" role="dialog" aria-modal="true" aria-labelledby="diffVisualizerTitle">
+        <div class="neu-modal-card" style="max-width: 960px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header-simple" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);">
+                <div class="guide-title-row" style="display:flex; align-items:center; gap:10px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--accent);">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="12" y1="3" x2="12" y2="21"/>
+                        <path d="M7 8l-2 2 2 2"/>
+                        <path d="M17 12l2 2-2 2"/>
+                    </svg>
+                    <div>
+                        <h3 class="modal-title" id="diffVisualizerTitle">Preflight Visual Diff (Source vs Target)</h3>
+                        <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">Live comparison of structures, channel counts, and roles between guilds</p>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="neu-btn-icon-subtle" id="refreshDiffBtn" title="Re-fetch server diff comparison" aria-label="Refresh comparison">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+                    <button type="button" class="modal-close-btn" id="closeDiffVisualizerBtn" aria-label="Close diff modal">✕</button>
+                </div>
+            </div>
+
+            <!-- Preflight Quick Stats Banner -->
+            <div class="diff-summary-banner" id="diffSummaryBanner">
+                <div class="diff-stat-chip diff-add">
+                    <span class="diff-chip-num" id="diffToCreateCount">0</span>
+                    <span class="diff-chip-label">To Create</span>
+                </div>
+                <div class="diff-stat-chip diff-modify">
+                    <span class="diff-chip-num" id="diffToSyncCount">0</span>
+                    <span class="diff-chip-label">Permissions Sync</span>
+                </div>
+                <div class="diff-stat-chip diff-delete">
+                    <span class="diff-chip-num" id="diffPurgeCount">0</span>
+                    <span class="diff-chip-label">Purge Target (if clean)</span>
+                </div>
+                <div class="diff-stat-chip diff-match">
+                    <span class="diff-chip-num" id="diffPreserveCount">0</span>
+                    <span class="diff-chip-label">Protected Bots / Roles</span>
+                </div>
+            </div>
+
+            <!-- Body: Side-by-Side Dual Tree View -->
+            <div class="modal-scroll-body" style="padding: 16px; flex: 1; overflow-y: auto;">
+                <div id="diffLoadingState" class="hidden" style="text-align:center; padding: 40px; color:var(--text-secondary);">
+                    <div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>
+                    <p style="font-size:0.85rem; margin:0;">Analyzing guilds & generating side-by-side comparison...</p>
+                </div>
+
+                <div id="diffEmptyPromptState" style="text-align:center; padding: 40px; color:var(--text-secondary);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px auto;color:var(--accent);opacity:0.8;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="12" y1="3" x2="12" y2="21"/>
+                    </svg>
+                    <h4 style="font-size:1rem; color:var(--text-primary); margin-bottom:6px;">Ready to Compare Guilds</h4>
+                    <p style="font-size:0.85rem; max-width:440px; margin:0 auto 16px auto;">Enter your token and both Source & Target Server IDs in the main dashboard, then click Analyze.</p>
+                    <button type="button" class="neu-btn-primary" id="btnRunPreflightDiff" style="margin:0 auto;">
+                        <span>Fetch & Compare Servers</span>
+                    </button>
+                </div>
+
+                <div id="diffComparisonGrid" class="diff-comparison-grid hidden">
+                    <!-- Left: Source Server Column -->
+                    <div class="diff-column diff-column-source">
+                        <div class="diff-column-header">
+                            <div class="diff-col-title-row">
+                                <span class="badge-tag" style="background:var(--accent);color:#fff;">SOURCE (BLUEPRINT)</span>
+                                <h4 class="diff-guild-name" id="diffSourceName">Source Server</h4>
+                            </div>
+                            <div class="diff-col-meta" id="diffSourceMeta">0 Roles • 0 Channels</div>
+                        </div>
+                        <div class="diff-tree-box" id="diffSourceTree"></div>
+                    </div>
+
+                    <!-- Right: Target Server Column -->
+                    <div class="diff-column diff-column-target">
+                        <div class="diff-column-header">
+                            <div class="diff-col-title-row">
+                                <span class="badge-tag warning-badge">TARGET (CURRENT)</span>
+                                <h4 class="diff-guild-name" id="diffTargetName">Target Server</h4>
+                            </div>
+                            <div class="diff-col-meta" id="diffTargetMeta">0 Roles • 0 Channels</div>
+                        </div>
+                        <div class="diff-tree-box" id="diffTargetTree"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions-row" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.75rem; color:var(--text-muted);">Green (+): Will be created • Yellow (⚡): Permissions updated • Red (-): Cleaned if purge enabled</span>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="neu-btn-secondary" id="dismissDiffVisualizerBtn">Close</button>
+                    <button type="button" class="neu-btn-primary" id="proceedFromDiffBtn">Start Migration</button>
+                </div>
             </div>
         </div>
     </div>

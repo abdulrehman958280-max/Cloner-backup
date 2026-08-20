@@ -39,7 +39,9 @@ export const DEFAULT_CONFIG = Object.freeze({
 
     // Safety policies
     mentionPolicy: 'sanitize', // 'sanitize' (neutralizes @everyone and @here) | 'allow'
-    conflictPolicy: 'create' // 'create' | 'update' | 'skip'
+    conflictPolicy: 'create', // 'create' | 'update' | 'skip'
+    assignTargetMembers: false, // Map and re-assign roles to common members
+    voiceBitrateClamp: true // Automatically clamp voice bitrate to server tier
 });
 
 export const CLEANUP_MODES = Object.freeze({

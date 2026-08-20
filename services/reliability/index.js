@@ -15,7 +15,9 @@ export {
     parseRetryAfter,
     calculateBackoff,
     AdaptiveRateLimiter,
-    globalRateLimiter
+    globalRateLimiter,
+    AssetBufferCache,
+    globalAssetCache
 } from './rateLimiter.js';
 
 export {

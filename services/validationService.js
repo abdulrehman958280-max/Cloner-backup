@@ -85,7 +85,9 @@ export function normalizeCloneOptions(options = {}) {
         mentionPolicy: options.mentionPolicy === 'allow' ? 'allow' : DEFAULT_CONFIG.mentionPolicy,
         conflictPolicy: ['skip', 'update', 'create'].includes(options.conflictPolicy) 
             ? options.conflictPolicy 
-            : DEFAULT_CONFIG.conflictPolicy
+            : DEFAULT_CONFIG.conflictPolicy,
+        assignTargetMembers: options.assignTargetMembers === true,
+        voiceBitrateClamp: options.voiceBitrateClamp !== false
     };
 }
 

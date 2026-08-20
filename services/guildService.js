@@ -258,4 +258,154 @@ export async function scrapeGuildMembers(userToken, sourceId) {
     }
 }
 
+/**
+ * Generates an interactive hierarchical tree topology structure for UI visualizer
+ */
+export async function fetchGuildTopology(userToken, guildId) {
+    const tokenVal = validateToken(userToken);
+    if (!tokenVal.valid) throw new Error(tokenVal.error || 'Invalid user token format.');
+    const idVal = validateSnowflake(guildId, 'Server ID');
+    if (!idVal.valid) throw new Error(idVal.error);
+
+    const client = createDiscordClient();
+    try {
+        await authenticateClient(client, userToken);
+        const guild = await withTimeout(() => client.guilds.fetch(guildId), 15000, { operationName: 'fetch_topology_guild' });
+        if (!guild) throw new Error('Guild not found or token has insufficient permissions.');
+
+        await Promise.allSettled([
+            withTimeout(() => guild.roles?.fetch(), 10000, { operationName: 'fetch_roles' }),
+            withTimeout(() => guild.channels?.fetch(), 10000, { operationName: 'fetch_channels' }),
+            withTimeout(() => guild.emojis?.fetch?.(), 10000, { operationName: 'fetch_emojis' }),
+            withTimeout(() => guild.stickers?.fetch?.(), 10000, { operationName: 'fetch_stickers' })
+        ]);
+
+        const rawRoles = Array.from(guild.roles.cache.values())
+            .sort((a, b) => b.position - a.position)
+            .map(r => ({
+                id: r.id,
+                name: r.name,
+                color: r.hexColor || '#99aab5',
+                hoist: !!r.hoist,
+                position: r.position,
+                managed: !!r.managed,
+                permissions: r.permissions.bitfield.toString(),
+                mentionable: !!r.mentionable,
+                memberCount: r.members ? r.members.size : 0
+            }));
+
+        const categories = [];
+        const unparentedChannels = [];
+
+        const categoryChannels = Array.from(guild.channels.cache.values())
+            .filter(c => c && (c.type === 'GUILD_CATEGORY' || c.type === 4))
+            .sort((a, b) => a.position - b.position);
+
+        for (const cat of categoryChannels) {
+            const childChannels = Array.from(guild.channels.cache.values())
+                .filter(c => c && c.parentId === cat.id && c.type !== 'GUILD_CATEGORY' && c.type !== 4)
+                .sort((a, b) => a.position - b.position)
+                .map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    type: typeof c.type === 'string' ? c.type : (c.type === 2 ? 'GUILD_VOICE' : c.type === 5 ? 'GUILD_ANNOUNCEMENT' : 'GUILD_TEXT'),
+                    position: c.position,
+                    topic: c.topic || null,
+                    nsfw: !!c.nsfw,
+                    bitrate: c.bitrate || undefined,
+                    userLimit: c.userLimit || undefined,
+                    rateLimitPerUser: c.rateLimitPerUser || undefined,
+                    overwritesCount: c.permissionOverwrites?.cache?.size || 0,
+                    overwrites: c.permissionOverwrites?.cache?.map(po => ({
+                        id: po.id,
+                        type: po.type,
+                        allow: po.allow?.bitfield ? po.allow.bitfield.toString() : '0',
+                        deny: po.deny?.bitfield ? po.deny.bitfield.toString() : '0'
+                    })) || []
+                }));
+
+            categories.push({
+                id: cat.id,
+                name: cat.name,
+                position: cat.position,
+                overwritesCount: cat.permissionOverwrites?.cache?.size || 0,
+                overwrites: cat.permissionOverwrites?.cache?.map(po => ({
+                    id: po.id,
+                    type: po.type,
+                    allow: po.allow?.bitfield ? po.allow.bitfield.toString() : '0',
+                    deny: po.deny?.bitfield ? po.deny.bitfield.toString() : '0'
+                })) || [],
+                channels: childChannels
+            });
+        }
+
+        const rawUnparented = Array.from(guild.channels.cache.values())
+            .filter(c => c && !c.parentId && c.type !== 'GUILD_CATEGORY' && c.type !== 4)
+            .sort((a, b) => a.position - b.position);
+
+        for (const c of rawUnparented) {
+            unparentedChannels.push({
+                id: c.id,
+                name: c.name,
+                type: typeof c.type === 'string' ? c.type : (c.type === 2 ? 'GUILD_VOICE' : c.type === 5 ? 'GUILD_ANNOUNCEMENT' : 'GUILD_TEXT'),
+                position: c.position,
+                topic: c.topic || null,
+                nsfw: !!c.nsfw,
+                bitrate: c.bitrate || undefined,
+                userLimit: c.userLimit || undefined,
+                rateLimitPerUser: c.rateLimitPerUser || undefined,
+                overwritesCount: c.permissionOverwrites?.cache?.size || 0,
+                overwrites: c.permissionOverwrites?.cache?.map(po => ({
+                    id: po.id,
+                    type: po.type,
+                    allow: po.allow?.bitfield ? po.allow.bitfield.toString() : '0',
+                    deny: po.deny?.bitfield ? po.deny.bitfield.toString() : '0'
+                })) || []
+            });
+        }
+
+        const emojis = Array.from(guild.emojis?.cache?.values() || []).map(e => ({
+            id: e.id,
+            name: e.name,
+            animated: !!e.animated,
+            url: e.url
+        }));
+
+        const stickers = Array.from(guild.stickers?.cache?.values() || []).map(s => ({
+            id: s.id,
+            name: s.name,
+            url: s.url
+        }));
+
+        return {
+            success: true,
+            guild: {
+                id: guild.id,
+                name: guild.name,
+                iconUrl: guild.iconURL ? guild.iconURL({ dynamic: true, size: 256 }) : null,
+                memberCount: guild.memberCount || 0,
+                boostTier: guild.premiumTier || 0,
+                boostCount: guild.premiumSubscriptionCount || 0
+            },
+            stats: {
+                totalCategories: categories.length,
+                totalChannels: unparentedChannels.length + categories.reduce((sum, cat) => sum + cat.channels.length, 0),
+                totalRoles: rawRoles.length,
+                totalEmojis: emojis.length,
+                totalStickers: stickers.length
+            },
+            tree: {
+                categories,
+                unparentedChannels,
+                roles: rawRoles,
+                emojis,
+                stickers
+            }
+        };
+    } finally {
+        destroyClient(client);
+    }
+}
+
+
 

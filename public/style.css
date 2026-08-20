@@ -8176,3 +8176,319 @@ body {
         scroll-behavior: auto !important;
     }
 }
+
+/* ==========================================================================
+   UI ENHANCEMENTS: Pipeline Stepper, Visual Diff Modal & Density Modes
+   ========================================================================== */
+
+/* 1. Horizontal Pipeline Stepper */
+.pipeline-stepper-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    background: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-inset-sm);
+    overflow-x: auto;
+    gap: 4px;
+}
+
+.pipeline-step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 68px;
+    flex: 1;
+    position: relative;
+    opacity: 0.55;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.pipeline-step-item.is-active {
+    opacity: 1;
+    transform: translateY(-2px);
+}
+
+.pipeline-step-item.is-completed {
+    opacity: 0.95;
+}
+
+.pipeline-step-node {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface-card);
+    border: 2px solid var(--border-subtle);
+    box-shadow: var(--shadow-raised-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    position: relative;
+    transition: all 0.25s ease;
+}
+
+.pipeline-step-item.is-active .pipeline-step-node {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
+}
+
+.pipeline-step-item.is-completed .pipeline-step-node {
+    border-color: var(--success);
+    background: var(--success);
+    color: #ffffff;
+}
+
+.pipeline-step-node .step-check-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.pipeline-step-node .step-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.pipeline-step-info {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pipeline-step-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.pipeline-step-sub {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.pipeline-step-item.is-active .pipeline-step-title {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.pipeline-step-connector {
+    flex: 1;
+    height: 2px;
+    background: var(--border-subtle);
+    min-width: 12px;
+    margin-bottom: 22px;
+    transition: background 0.3s ease;
+}
+
+.pipeline-step-connector.is-completed {
+    background: var(--success);
+}
+
+/* 2. Compact View Density Mode */
+body.density-compact .neu-card {
+    padding: 14px !important;
+    margin-bottom: 12px !important;
+}
+
+body.density-compact .form-group {
+    margin-bottom: 10px !important;
+}
+
+body.density-compact .neu-input,
+body.density-compact .neu-select {
+    padding: 7px 12px !important;
+    font-size: 0.82rem !important;
+}
+
+body.density-compact .option-toggle-row {
+    padding: 8px 10px !important;
+}
+
+body.density-compact .log-entry {
+    padding: 2px 8px !important;
+    font-size: 0.78rem !important;
+}
+
+body.density-compact .stat-pill {
+    padding: 4px 8px !important;
+}
+
+body.density-compact .pipeline-stepper-container {
+    padding: 8px 12px !important;
+    margin-bottom: 10px !important;
+}
+
+body.density-compact .pipeline-step-node {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.7rem !important;
+}
+
+/* 3. Preflight Visual Diff UI */
+.diff-summary-banner {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--surface-inset);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.diff-stat-chip {
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-raised-sm);
+}
+
+.diff-stat-chip.diff-add { border-left: 4px solid var(--success); }
+.diff-stat-chip.diff-modify { border-left: 4px solid var(--warning); }
+.diff-stat-chip.diff-delete { border-left: 4px solid var(--danger); }
+.diff-stat-chip.diff-match { border-left: 4px solid var(--accent); }
+
+.diff-chip-num {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}
+
+.diff-chip-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.diff-comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .diff-comparison-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.diff-column {
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-raised-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.diff-column-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-inset);
+}
+
+.diff-col-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.diff-guild-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.diff-col-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.diff-tree-box {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.diff-tree-cat {
+    border-radius: var(--radius-md);
+    background: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.diff-tree-chan {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px 5px 24px;
+    font-size: 0.78rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+}
+
+.diff-tree-chan:hover {
+    background: var(--surface-inset);
+}
+
+.diff-badge-status {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.diff-badge-status.to-create {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.diff-badge-status.to-purge {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.diff-badge-status.preserved {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+/* Console Timestamps toggle style */
+.log-timestamp.hidden-ts {
+    display: none !important;
+}
+

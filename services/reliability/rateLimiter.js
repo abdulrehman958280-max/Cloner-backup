@@ -1,10 +1,11 @@
 /**
  * Rate Limit & Backoff Engine for Discloner
  * Handles retry-after parsing, exponential backoff with bounded jitter,
- * route-aware rate limiting, and adaptive concurrency throttling.
+ * route-aware token bucket rate limiting, and adaptive concurrency throttling.
  */
 
 import { DEFAULT_CONFIG } from '../configContract.js';
+import crypto from 'crypto';
 
 /**
  * Normalizes retry-after information from various Discord error payloads
@@ -81,13 +82,56 @@ export function calculateBackoff({
 }
 
 /**
+ * In-Memory LRU Asset Buffer Cache to prevent duplicate downloads of emojis, stickers, and avatars
+ */
+export class AssetBufferCache {
+    constructor(maxEntries = 300) {
+        this.cache = new Map();
+        this.maxEntries = maxEntries;
+    }
+
+    _hashKey(url) {
+        return crypto.createHash('sha256').update(String(url)).digest('hex');
+    }
+
+    get(url) {
+        if (!url) return null;
+        const key = this._hashKey(url);
+        const entry = this.cache.get(key);
+        if (!entry) return null;
+        // Refresh LRU order
+        this.cache.delete(key);
+        this.cache.set(key, entry);
+        return entry;
+    }
+
+    set(url, data) {
+        if (!url || !data) return;
+        const key = this._hashKey(url);
+        if (this.cache.size >= this.maxEntries) {
+            // Evict oldest entry
+            const oldestKey = this.cache.keys().next().value;
+            if (oldestKey) this.cache.delete(oldestKey);
+        }
+        this.cache.set(key, data);
+    }
+
+    clear() {
+        this.cache.clear();
+    }
+}
+
+export const globalAssetCache = new AssetBufferCache(400);
+
+/**
  * Adaptive Rate Limiter: tracks global and route/operation-level rate-limit states
- * Provides dynamic pacing calculation, event subscriptions, and real-time telemetry.
+ * Provides dynamic pacing calculation, route-specific token buckets, and real-time telemetry.
  */
 export class AdaptiveRateLimiter {
     constructor() {
         this.globalBlockedUntil = 0;
         this.routeBlockedUntil = new Map();
+        this.routeBuckets = new Map(); // routeKey -> { remaining, limit, resetAt }
         this.listeners = new Set();
         this.consecutiveSuccesses = 0;
         this.stats = {
@@ -143,6 +187,32 @@ export class AdaptiveRateLimiter {
     }
 
     /**
+     * Updates bucket state based on Discord API HTTP response headers
+     */
+    recordRouteResponse(routeKey, headers = {}) {
+        if (!routeKey || !headers) return;
+        const remaining = headers['x-ratelimit-remaining'] || headers['X-RateLimit-Remaining'];
+        const limit = headers['x-ratelimit-limit'] || headers['X-RateLimit-Limit'];
+        const resetAfter = headers['x-ratelimit-reset-after'] || headers['X-RateLimit-Reset-After'];
+
+        if (remaining !== undefined) {
+            const remNum = Number(remaining);
+            const limitNum = Number(limit) || 10;
+            const resetMs = (Number(resetAfter) || 1) * 1000;
+
+            this.routeBuckets.set(routeKey, {
+                remaining: remNum,
+                limit: limitNum,
+                resetAt: Date.now() + resetMs
+            });
+
+            if (remNum === 0) {
+                this.routeBlockedUntil.set(routeKey, Date.now() + Math.max(100, resetMs));
+            }
+        }
+    }
+
+    /**
      * Checks if a route or global channel is currently rate-limited
      * @returns {number} remaining wait time in ms (0 if ready)
      */
@@ -169,9 +239,15 @@ export class AdaptiveRateLimiter {
     /**
      * Records a successful operation to gradually heal and restore capacity
      */
-    recordSuccess() {
+    recordSuccess(routeKey = null) {
         this.stats.successfulOperations++;
         this.consecutiveSuccesses++;
+        if (routeKey && this.routeBuckets.has(routeKey)) {
+            const b = this.routeBuckets.get(routeKey);
+            if (b.resetAt < Date.now()) {
+                b.remaining = b.limit;
+            }
+        }
         if (this.consecutiveSuccesses % 5 === 0) {
             this.notifyListeners();
         }
@@ -199,10 +275,10 @@ export class AdaptiveRateLimiter {
     }
 
     /**
-     * Dynamically calculates optimized delay between operations based on current capacity
+     * Dynamically calculates optimized delay between operations based on current capacity and route
      */
-    getAdaptivePacingDelay(baseMs = 500) {
-        const activeWait = this.getRemainingWaitMs();
+    getAdaptivePacingDelay(baseMs = 500, routeKey = null) {
+        const activeWait = this.getRemainingWaitMs(routeKey);
         if (activeWait > 0) {
             return activeWait;
         }
@@ -211,13 +287,13 @@ export class AdaptiveRateLimiter {
         const cap = snapshot.capacityPercent;
 
         if (cap >= 95) {
-            return Math.max(400, baseMs);
+            return Math.max(200, baseMs);
         } else if (cap >= 75) {
-            return Math.max(600, Math.round(baseMs * 1.5));
+            return Math.max(400, Math.round(baseMs * 1.25));
         } else if (cap >= 50) {
-            return Math.max(1000, Math.round(baseMs * 2.0));
+            return Math.max(800, Math.round(baseMs * 1.75));
         } else {
-            return Math.max(2000, Math.round(baseMs * 3.0));
+            return Math.max(1500, Math.round(baseMs * 2.5));
         }
     }
 
@@ -281,6 +357,7 @@ export class AdaptiveRateLimiter {
     reset() {
         this.globalBlockedUntil = 0;
         this.routeBlockedUntil.clear();
+        this.routeBuckets.clear();
         this.consecutiveSuccesses = 0;
         this.stats = {
             rateLimitEvents: 0,
@@ -296,3 +373,4 @@ export class AdaptiveRateLimiter {
 }
 
 export const globalRateLimiter = new AdaptiveRateLimiter();
+

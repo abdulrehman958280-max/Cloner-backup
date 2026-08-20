@@ -53,6 +53,8 @@
     const cloneEmojisCheckbox = document.getElementById('cloneEmojis');
     const cloneStickersCheckbox = document.getElementById('cloneStickers');
     const cloneWebhooksCheckbox = document.getElementById('cloneWebhooks');
+    const assignTargetMembersCheckbox = document.getElementById('assignTargetMembers');
+    const voiceBitrateClampCheckbox = document.getElementById('voiceBitrateClamp');
     const cloneMessagesCheckbox = document.getElementById('cloneMessages');
     const cloneAttachmentsCheckbox = document.getElementById('cloneAttachments');
     const stripInvitesCheckbox = document.getElementById('stripInvites');
@@ -145,11 +147,39 @@
     const logCountPill = document.getElementById('logCountPill');
     const logSearchInput = document.getElementById('logSearchInput');
     const toggleAutoScrollBtn = document.getElementById('toggleAutoScrollBtn');
+    const toggleTimestampsBtn = document.getElementById('toggleTimestampsBtn');
+    const exportLogsFileBtn = document.getElementById('exportLogsFileBtn');
     const copyLogsBtn = document.getElementById('copyLogsBtn');
     const clearLogsBtn = document.getElementById('clearLogsBtn');
     const jumpLatestBtn = document.getElementById('jumpLatestBtn');
     const jumpLatestText = document.getElementById('jumpLatestText');
     const filterPills = document.querySelectorAll('.filter-pill');
+
+    // UI Enhancements: Visual Diff Modal Elements
+    const openDiffVisualizerBtn = document.getElementById('openDiffVisualizerBtn');
+    const diffVisualizerModal = document.getElementById('diffVisualizerModal');
+    const closeDiffVisualizerBtn = document.getElementById('closeDiffVisualizerBtn');
+    const dismissDiffVisualizerBtn = document.getElementById('dismissDiffVisualizerBtn');
+    const refreshDiffBtn = document.getElementById('refreshDiffBtn');
+    const btnRunPreflightDiff = document.getElementById('btnRunPreflightDiff');
+    const proceedFromDiffBtn = document.getElementById('proceedFromDiffBtn');
+    const diffLoadingState = document.getElementById('diffLoadingState');
+    const diffEmptyPromptState = document.getElementById('diffEmptyPromptState');
+    const diffComparisonGrid = document.getElementById('diffComparisonGrid');
+    const diffSourceTree = document.getElementById('diffSourceTree');
+    const diffTargetTree = document.getElementById('diffTargetTree');
+    const diffSourceName = document.getElementById('diffSourceName');
+    const diffTargetName = document.getElementById('diffTargetName');
+    const diffSourceMeta = document.getElementById('diffSourceMeta');
+    const diffTargetMeta = document.getElementById('diffTargetMeta');
+    const diffToCreateCount = document.getElementById('diffToCreateCount');
+    const diffToSyncCount = document.getElementById('diffToSyncCount');
+    const diffPurgeCount = document.getElementById('diffPurgeCount');
+    const diffPreserveCount = document.getElementById('diffPreserveCount');
+    const pipelineStepper = document.getElementById('pipelineStepper');
+
+    let showLogTimestamps = true;
+    let isCompactDensity = false;
 
     // DOM Elements - Preflight in Confirm Modal
     const preflightBox = document.getElementById('preflightBox');
@@ -715,6 +745,8 @@
         { el: cloneEmojisCheckbox, rowId: 'rowCloneEmojis', badgeId: 'badgeCloneEmojis' },
         { el: cloneStickersCheckbox, rowId: 'rowCloneStickers', badgeId: 'badgeCloneStickers' },
         { el: cloneWebhooksCheckbox, rowId: 'rowCloneWebhooks', badgeId: 'badgeCloneWebhooks' },
+        { el: assignTargetMembersCheckbox, rowId: 'rowAssignTargetMembers', badgeId: 'badgeAssignTargetMembers' },
+        { el: voiceBitrateClampCheckbox, rowId: 'rowVoiceBitrateClamp', badgeId: 'badgeVoiceBitrateClamp' },
         { el: cloneMessagesCheckbox, rowId: 'rowCloneMessages', badgeId: 'msgOptStatusBadge' },
         { el: cloneAttachmentsCheckbox, rowId: 'attachmentsRow', badgeId: 'attachmentsBadge' }
     ];
@@ -968,6 +1000,8 @@
             cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : true,
             cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : true,
             cloneWebhooks: cloneWebhooksCheckbox ? cloneWebhooksCheckbox.checked : true,
+            assignTargetMembers: assignTargetMembersCheckbox ? assignTargetMembersCheckbox.checked : false,
+            voiceBitrateClamp: voiceBitrateClampCheckbox ? voiceBitrateClampCheckbox.checked : true,
             cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
             cloneAttachments: cloneAttachmentsCheckbox ? cloneAttachmentsCheckbox.checked : false,
             stripInvites: stripInvitesCheckbox ? stripInvitesCheckbox.checked : false,
@@ -1029,6 +1063,12 @@
             if (cloneWebhooksCheckbox && typeof config.cloneWebhooks === 'boolean') {
                 cloneWebhooksCheckbox.checked = config.cloneWebhooks;
             }
+            if (assignTargetMembersCheckbox && typeof config.assignTargetMembers === 'boolean') {
+                assignTargetMembersCheckbox.checked = config.assignTargetMembers;
+            }
+            if (voiceBitrateClampCheckbox && typeof config.voiceBitrateClamp === 'boolean') {
+                voiceBitrateClampCheckbox.checked = config.voiceBitrateClamp;
+            }
             if (cloneMessagesCheckbox && typeof config.cloneMessages === 'boolean') {
                 cloneMessagesCheckbox.checked = config.cloneMessages;
             }
@@ -1077,6 +1117,8 @@
         if (cloneEmojisCheckbox) cloneEmojisCheckbox.checked = true;
         if (cloneStickersCheckbox) cloneStickersCheckbox.checked = true;
         if (cloneWebhooksCheckbox) cloneWebhooksCheckbox.checked = true;
+        if (assignTargetMembersCheckbox) assignTargetMembersCheckbox.checked = false;
+        if (voiceBitrateClampCheckbox) voiceBitrateClampCheckbox.checked = true;
         if (cloneMessagesCheckbox) cloneMessagesCheckbox.checked = false;
         if (cloneAttachmentsCheckbox) cloneAttachmentsCheckbox.checked = false;
         if (stripInvitesCheckbox) stripInvitesCheckbox.checked = false;
@@ -1440,6 +1482,8 @@
                 cloneEmojis: cloneEmojisCheckbox ? cloneEmojisCheckbox.checked : true,
                 cloneStickers: cloneStickersCheckbox ? cloneStickersCheckbox.checked : true,
                 cloneWebhooks: cloneWebhooksCheckbox ? cloneWebhooksCheckbox.checked : true,
+                assignTargetMembers: assignTargetMembersCheckbox ? assignTargetMembersCheckbox.checked : false,
+                voiceBitrateClamp: voiceBitrateClampCheckbox ? voiceBitrateClampCheckbox.checked : true,
                 cloneMessages: cloneMessagesCheckbox ? cloneMessagesCheckbox.checked : false,
                 cloneAttachments: cloneMessagesCheckbox && cloneAttachmentsCheckbox ? (cloneMessagesCheckbox.checked && cloneAttachmentsCheckbox.checked) : false,
                 stripInvites: stripInvitesCheckbox ? stripInvitesCheckbox.checked : false,
@@ -2809,7 +2853,7 @@
         entry.className = `log-entry log-entry-${logObj.level}${isClean ? ' log-entry-cleanup' : ''}`;
 
         const timeSpan = document.createElement('span');
-        timeSpan.className = 'log-time font-mono';
+        timeSpan.className = `log-time font-mono${!showLogTimestamps ? ' hidden-ts' : ''}`;
         timeSpan.textContent = logObj.timeStr;
 
         const iconSpan = document.createElement('span');
@@ -2850,6 +2894,38 @@
 
     if (clearLogsBtn) {
         clearLogsBtn.addEventListener('click', clearLogs);
+    }
+
+    if (toggleTimestampsBtn) {
+        toggleTimestampsBtn.addEventListener('click', () => {
+            showLogTimestamps = !showLogTimestamps;
+            toggleTimestampsBtn.classList.toggle('is-active', showLogTimestamps);
+            toggleTimestampsBtn.title = showLogTimestamps ? 'Timestamps: ON' : 'Timestamps: OFF';
+            document.querySelectorAll('.log-time').forEach(el => {
+                el.classList.toggle('hidden-ts', !showLogTimestamps);
+            });
+            showToast(`Timestamps ${showLogTimestamps ? 'enabled' : 'hidden'}`, 'info');
+        });
+    }
+
+    if (exportLogsFileBtn) {
+        exportLogsFileBtn.addEventListener('click', () => {
+            if (!allLogs.length) {
+                showToast('No logs available to export.', 'info');
+                return;
+            }
+            const rawText = allLogs.map(l => `[${l.timeStr}] [${l.level.toUpperCase()}] ${l.message} ${l.detail ? '(' + l.detail + ')' : ''}`).join('\n');
+            const blob = new Blob([rawText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `discloner-activity-log-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Activity logs exported to file!', 'success');
+        });
     }
 
     if (copyLogsBtn) {
@@ -4864,6 +4940,10 @@
                 // Suggest relevant quick actions based on response content
                 const actions = [];
                 const replyLower = (data.reply || '').toLowerCase();
+                if (replyLower.includes('scanned accessible servers') || replyLower.includes('scanned servers') || replyLower.includes('scan my servers')) {
+                    actions.push({ label: '🚀 Start Autonomous Clone', query: 'Clone source to target' });
+                    actions.push({ label: '🔍 Re-scan Servers', query: 'Scan my servers with my token' });
+                }
                 if (replyLower.includes('diagnos') || replyLower.includes('error') || replyLower.includes('fail')) {
                     actions.push({ label: '🩺 Diagnose Error', query: 'Diagnose migration error in depth' });
                 }
@@ -4918,17 +4998,325 @@
     }
 
     // =========================================================================
+    // 9f. Interactive Visual Guild Topology Visualizer
+    // =========================================================================
+    const topologyModal = document.getElementById('topologyModal');
+    const closeTopologyBtn = document.getElementById('closeTopologyBtn');
+    const dismissTopologyBtn = document.getElementById('dismissTopologyBtn');
+    const btnOpenTopologyTree = document.getElementById('btnOpenTopologyTree');
+    const topologyRefreshBtn = document.getElementById('topologyRefreshBtn');
+    const topologySearchInput = document.getElementById('topologySearchInput');
+    const btnExpandAllTopology = document.getElementById('btnExpandAllTopology');
+    const btnCollapseAllTopology = document.getElementById('btnCollapseAllTopology');
+    const topologyTreeContainer = document.getElementById('topologyTreeContainer');
+    const topologyLoadingState = document.getElementById('topologyLoadingState');
+    const topologyGuildSubtitle = document.getElementById('topologyGuildSubtitle');
+    const topolCatCount = document.getElementById('topolCatCount');
+    const topolChanCount = document.getElementById('topolChanCount');
+    const topolRoleCount = document.getElementById('topolRoleCount');
+    const topolEmojiCount = document.getElementById('topolEmojiCount');
+
+    let currentTopologyData = null;
+
+    async function loadTopologyTree(targetGuildId = null) {
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
+        const guildId = targetGuildId || (sourceServerSelect ? sourceServerSelect.value : '') || (sourceIdInput ? sourceIdInput.value.trim() : '');
+
+        if (!token) {
+            showToast('⚠️ Please enter your user token to view server topology.', 'warning');
+            return;
+        }
+        if (!guildId) {
+            showToast('⚠️ Please select or enter a Source Server ID first.', 'warning');
+            return;
+        }
+
+        if (topologyLoadingState) topologyLoadingState.classList.remove('hidden');
+        if (topologyTreeContainer) {
+            topologyTreeContainer.classList.add('hidden');
+            topologyTreeContainer.innerHTML = '';
+        }
+
+        if (topologyGuildSubtitle) {
+            topologyGuildSubtitle.textContent = `Fetching hierarchy for guild (${guildId})...`;
+        }
+
+        try {
+            const res = await fetch('/api/guilds/topology', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': clientSessionId,
+                    'x-user-token': token
+                },
+                body: JSON.stringify({ userToken: token, guildId, sessionId: clientSessionId })
+            });
+
+            const data = await res.json();
+            if (topologyLoadingState) topologyLoadingState.classList.add('hidden');
+
+            if (res.ok && data.success) {
+                currentTopologyData = data;
+                renderTopologyTree(data);
+            } else {
+                if (topologyTreeContainer) {
+                    topologyTreeContainer.classList.remove('hidden');
+                    topologyTreeContainer.innerHTML = `
+                        <div class="stat-card-raised" style="padding:16px; border:1px solid #ef4444; color:#ef4444; text-align:center;">
+                            <strong>Failed to load server topology:</strong>
+                            <p style="margin:6px 0 0 0; font-size:0.85rem;">${escapeHtml(data.error || 'Unknown error occurred.')}</p>
+                        </div>
+                    `;
+                }
+            }
+        } catch (err) {
+            if (topologyLoadingState) topologyLoadingState.classList.add('hidden');
+            if (topologyTreeContainer) {
+                topologyTreeContainer.classList.remove('hidden');
+                topologyTreeContainer.innerHTML = `
+                    <div class="stat-card-raised" style="padding:16px; border:1px solid #ef4444; color:#ef4444; text-align:center;">
+                        <strong>Network error loading topology:</strong>
+                        <p style="margin:6px 0 0 0; font-size:0.85rem;">${escapeHtml(err.message)}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    function renderTopologyTree(data, filterQuery = '') {
+        if (!topologyTreeContainer) return;
+        topologyTreeContainer.innerHTML = '';
+        topologyTreeContainer.classList.remove('hidden');
+
+        const { guild, stats, tree } = data;
+        const q = (filterQuery || '').toLowerCase().trim();
+
+        if (topologyGuildSubtitle && guild) {
+            topologyGuildSubtitle.textContent = `${guild.name} • ${guild.memberCount || 0} Members • Tier ${guild.boostTier || 0} (${guild.boostCount || 0} Boosts)`;
+        }
+
+        if (topolCatCount) topolCatCount.textContent = stats?.totalCategories || 0;
+        if (topolChanCount) topolChanCount.textContent = stats?.totalChannels || 0;
+        if (topolRoleCount) topolRoleCount.textContent = stats?.totalRoles || 0;
+        if (topolEmojiCount) topolEmojiCount.textContent = stats?.totalEmojis || 0;
+
+        // 1. Categories and child channels
+        if (tree.categories && tree.categories.length > 0) {
+            tree.categories.forEach((cat) => {
+                const catMatches = !q || cat.name.toLowerCase().includes(q);
+                const matchingChannels = cat.channels.filter(c => !q || c.name.toLowerCase().includes(q) || (c.topic && c.topic.toLowerCase().includes(q)));
+
+                if (!catMatches && matchingChannels.length === 0) return;
+
+                const catNode = document.createElement('div');
+                catNode.className = 'stat-card-raised topology-cat-node';
+                catNode.style.cssText = 'padding:10px 14px; border-radius:8px; display:flex; flex-direction:column; gap:6px; margin-bottom:8px;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;';
+                header.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="topol-chevron" style="transition:transform 0.2s ease; display:inline-block; font-size:0.8rem;">▼</span>
+                        <span style="font-weight:700; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-primary);">📁 ${escapeHtml(cat.name)}</span>
+                        <span class="badge-tag" style="font-size:0.68rem; padding:1px 6px;">${cat.channels.length} channels</span>
+                    </div>
+                    <span style="font-size:0.72rem; color:var(--text-muted);">${cat.overwritesCount || 0} overrides</span>
+                `;
+
+                const channelsList = document.createElement('div');
+                channelsList.className = 'topol-channels-sublist';
+                channelsList.style.cssText = 'display:flex; flex-direction:column; gap:4px; margin-top:4px; padding-left:20px; border-left:2px solid var(--border-subtle);';
+
+                matchingChannels.forEach((ch) => {
+                    const chRow = document.createElement('div');
+                    chRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; border-radius:4px; background:rgba(0,0,0,0.02); font-size:0.8rem;';
+                    const icon = ch.type === 'GUILD_VOICE' ? '🔊' : (ch.type === 'GUILD_ANNOUNCEMENT' ? '📢' : '#');
+                    const badges = [];
+                    if (ch.nsfw) badges.push('<span class="badge-tag warning-badge" style="font-size:0.65rem; padding:0 4px;">NSFW</span>');
+                    if (ch.bitrate) badges.push(`<span class="badge-tag" style="font-size:0.65rem; padding:0 4px;">${Math.round(ch.bitrate / 1000)}kbps</span>`);
+                    if (ch.overwritesCount > 0) badges.push(`<span style="font-size:0.7rem; color:var(--text-muted);">${ch.overwritesCount} overrides</span>`);
+
+                    chRow.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:var(--text-muted); font-weight:600;">${icon}</span>
+                            <span style="color:var(--text-primary); font-weight:500;">${escapeHtml(ch.name)}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            ${badges.join(' ')}
+                        </div>
+                    `;
+                    channelsList.appendChild(chRow);
+                });
+
+                header.addEventListener('click', () => {
+                    const isCollapsed = channelsList.style.display === 'none';
+                    channelsList.style.display = isCollapsed ? 'flex' : 'none';
+                    const chevron = header.querySelector('.topol-chevron');
+                    if (chevron) chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+                });
+
+                catNode.appendChild(header);
+                catNode.appendChild(channelsList);
+                topologyTreeContainer.appendChild(catNode);
+            });
+        }
+
+        // 2. Unparented Channels
+        if (tree.unparentedChannels && tree.unparentedChannels.length > 0) {
+            const matchingUnparented = tree.unparentedChannels.filter(c => !q || c.name.toLowerCase().includes(q));
+            if (matchingUnparented.length > 0) {
+                const unCatNode = document.createElement('div');
+                unCatNode.className = 'stat-card-raised';
+                unCatNode.style.cssText = 'padding:10px 14px; border-radius:8px; display:flex; flex-direction:column; gap:6px; margin-bottom:8px;';
+                unCatNode.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; font-size:0.85rem; color:var(--text-primary);">🌐 Uncategorized Channels</span>
+                        <span class="badge-tag" style="font-size:0.68rem; padding:1px 6px;">${matchingUnparented.length} channels</span>
+                    </div>
+                `;
+                const list = document.createElement('div');
+                list.style.cssText = 'display:flex; flex-direction:column; gap:4px; margin-top:4px;';
+                matchingUnparented.forEach(ch => {
+                    const chRow = document.createElement('div');
+                    chRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:4px 8px; border-radius:4px; background:rgba(0,0,0,0.02); font-size:0.8rem;';
+                    const icon = ch.type === 'GUILD_VOICE' ? '🔊' : '#';
+                    chRow.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:var(--text-muted); font-weight:600;">${icon}</span>
+                            <span style="color:var(--text-primary); font-weight:500;">${escapeHtml(ch.name)}</span>
+                        </div>
+                        <span style="font-size:0.7rem; color:var(--text-muted);">${ch.overwritesCount || 0} overrides</span>
+                    `;
+                    list.appendChild(chRow);
+                });
+                unCatNode.appendChild(list);
+                topologyTreeContainer.appendChild(unCatNode);
+            }
+        }
+
+        // 3. Role Hierarchy Section
+        if (tree.roles && tree.roles.length > 0) {
+            const matchingRoles = tree.roles.filter(r => !q || r.name.toLowerCase().includes(q));
+            if (matchingRoles.length > 0) {
+                const rolesCard = document.createElement('div');
+                rolesCard.className = 'stat-card-raised';
+                rolesCard.style.cssText = 'padding:10px 14px; border-radius:8px; display:flex; flex-direction:column; gap:6px; margin-top:8px;';
+                rolesCard.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:700; font-size:0.85rem; color:var(--text-primary);">🛡️ Role Hierarchy (${matchingRoles.length})</span>
+                        <span style="font-size:0.72rem; color:var(--text-muted);">Ordered by Position (High → Low)</span>
+                    </div>
+                `;
+                const rolesGrid = document.createElement('div');
+                rolesGrid.style.cssText = 'display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:6px;';
+                matchingRoles.forEach(r => {
+                    const rPill = document.createElement('div');
+                    rPill.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:4px 8px; border-radius:6px; border:1px solid var(--border-subtle); background:var(--bg-secondary); font-size:0.75rem;';
+                    const colorStyle = r.color && r.color !== '#000000' && r.color !== '#99aab5' ? `background-color:${r.color};` : 'background-color:#99aab5;';
+                    rPill.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                            <span style="width:8px; height:8px; border-radius:50%; ${colorStyle} display:inline-block; flex-shrink:0;"></span>
+                            <span style="font-weight:600; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${escapeHtml(r.name)}</span>
+                        </div>
+                        <span style="font-size:0.68rem; color:var(--text-muted); margin-left:4px;">#${r.position}</span>
+                    `;
+                    rolesGrid.appendChild(rPill);
+                });
+                rolesCard.appendChild(rolesGrid);
+                topologyTreeContainer.appendChild(rolesCard);
+            }
+        }
+    }
+
+    // Topology Event Listeners
+    if (btnOpenTopologyTree) {
+        btnOpenTopologyTree.addEventListener('click', () => {
+            if (utilitiesModal && !utilitiesModal.classList.contains('hidden')) {
+                closeModal(utilitiesModal);
+            }
+            if (topologyModal) {
+                openModal(topologyModal);
+                loadTopologyTree();
+            }
+        });
+    }
+
+    if (closeTopologyBtn) {
+        closeTopologyBtn.addEventListener('click', () => closeModal(topologyModal));
+    }
+    if (dismissTopologyBtn) {
+        dismissTopologyBtn.addEventListener('click', () => closeModal(topologyModal));
+    }
+    if (topologyRefreshBtn) {
+        topologyRefreshBtn.addEventListener('click', () => loadTopologyTree());
+    }
+
+    if (topologySearchInput) {
+        topologySearchInput.addEventListener('input', (e) => {
+            if (currentTopologyData) {
+                renderTopologyTree(currentTopologyData, e.target.value);
+            }
+        });
+    }
+
+    if (btnExpandAllTopology) {
+        btnExpandAllTopology.addEventListener('click', () => {
+            if (!topologyTreeContainer) return;
+            topologyTreeContainer.querySelectorAll('.topol-channels-sublist').forEach(el => {
+                el.style.display = 'flex';
+            });
+            topologyTreeContainer.querySelectorAll('.topol-chevron').forEach(el => {
+                el.style.transform = 'rotate(0deg)';
+            });
+        });
+    }
+
+    if (btnCollapseAllTopology) {
+        btnCollapseAllTopology.addEventListener('click', () => {
+            if (!topologyTreeContainer) return;
+            topologyTreeContainer.querySelectorAll('.topol-channels-sublist').forEach(el => {
+                el.style.display = 'none';
+            });
+            topologyTreeContainer.querySelectorAll('.topol-chevron').forEach(el => {
+                el.style.transform = 'rotate(-90deg)';
+            });
+        });
+    }
+
+    // =========================================================================
     // 10. Global Keyboard Shortcuts
     // =========================================================================
     document.addEventListener('keydown', (e) => {
         // Escape closes any active modal
         if (e.key === 'Escape') {
-            const openModals = [confirmModal, summaryModal, helpModal, templatesModal, utilitiesModal, tourOverlay];
+            const openModals = [confirmModal, summaryModal, helpModal, templatesModal, utilitiesModal, topologyModal, musicModal, supportModal, tourOverlay];
             openModals.forEach(m => {
                 if (m && !m.classList.contains('hidden')) {
                     closeModal(m);
                 }
             });
+        }
+
+        // Ctrl+T or Cmd+T toggles Topology modal
+        if ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T')) {
+            e.preventDefault();
+            if (topologyModal) {
+                if (topologyModal.classList.contains('hidden')) {
+                    openModal(topologyModal);
+                    loadTopologyTree();
+                } else {
+                    closeModal(topologyModal);
+                }
+            }
+        }
+
+        // Ctrl+K or Cmd+K focuses Copilot chat input
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            if (copilotInput) {
+                copilotInput.focus();
+                copilotInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
 
         // Ctrl+Enter or Cmd+Enter triggers Start / Confirm
@@ -4946,6 +5334,205 @@
     // Initialize telemetry gauge state on page load and continuously refresh
     fetchRateLimitTelemetry();
     setInterval(fetchRateLimitTelemetry, 1500);
+
+    // =========================================================================
+    // Pipeline Stepper State Sync
+    // =========================================================================
+    const PIPELINE_STAGES = ['init', 'cleanup', 'roles', 'channels', 'permissions', 'emojis', 'messages', 'completed'];
+
+    function updatePipelineStepper(currentStageKey) {
+        if (!pipelineStepper) return;
+        const normalized = (currentStageKey || '').toLowerCase();
+        
+        let activeIndex = 0;
+        if (normalized.includes('init') || normalized.includes('prep') || normalized.includes('fetch')) activeIndex = 0;
+        else if (normalized.includes('clean') || normalized.includes('purg')) activeIndex = 1;
+        else if (normalized.includes('role')) activeIndex = 2;
+        else if (normalized.includes('chan') || normalized.includes('cat')) activeIndex = 3;
+        else if (normalized.includes('perm') || normalized.includes('overwrit')) activeIndex = 4;
+        else if (normalized.includes('emoji') || normalized.includes('stick')) activeIndex = 5;
+        else if (normalized.includes('msg') || normalized.includes('message')) activeIndex = 6;
+        else if (normalized.includes('complete') || normalized.includes('finish') || normalized.includes('done')) activeIndex = 7;
+
+        const stepItems = pipelineStepper.querySelectorAll('.pipeline-step-item');
+        const connectors = pipelineStepper.querySelectorAll('.pipeline-step-connector');
+
+        stepItems.forEach((item, idx) => {
+            const stepNum = parseInt(item.dataset.stepIndex, 10);
+            item.classList.remove('is-active', 'is-completed');
+            const node = item.querySelector('.pipeline-step-node');
+            
+            if (stepNum < activeIndex) {
+                item.classList.add('is-completed');
+                if (node) node.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="step-check-icon"><polyline points="20 6 9 17 4 12"/></svg>`;
+            } else if (stepNum === activeIndex) {
+                item.classList.add('is-active');
+                if (node) {
+                    if (activeIndex === 7) {
+                        node.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="step-check-icon"><polyline points="20 6 9 17 4 12"/></svg>`;
+                    } else {
+                        node.innerHTML = `<span class="step-spinner"></span>`;
+                    }
+                }
+            } else {
+                if (node) node.textContent = (stepNum + 1).toString();
+            }
+        });
+
+        connectors.forEach((conn, idx) => {
+            conn.classList.toggle('is-completed', idx < activeIndex);
+        });
+    }
+
+    // Compact density is locked by default
+    document.body.classList.add('density-compact');
+
+    // =========================================================================
+    // Live Preflight Visual Diff Modal Engine
+    // =========================================================================
+    if (openDiffVisualizerBtn) {
+        openDiffVisualizerBtn.addEventListener('click', () => {
+            if (diffVisualizerModal) {
+                openModal(diffVisualizerModal);
+                loadPreflightDiff();
+            }
+        });
+    }
+
+    if (closeDiffVisualizerBtn) {
+        closeDiffVisualizerBtn.addEventListener('click', () => closeModal(diffVisualizerModal));
+    }
+    if (dismissDiffVisualizerBtn) {
+        dismissDiffVisualizerBtn.addEventListener('click', () => closeModal(diffVisualizerModal));
+    }
+    if (refreshDiffBtn) {
+        refreshDiffBtn.addEventListener('click', () => loadPreflightDiff());
+    }
+    if (btnRunPreflightDiff) {
+        btnRunPreflightDiff.addEventListener('click', () => loadPreflightDiff());
+    }
+    if (proceedFromDiffBtn) {
+        proceedFromDiffBtn.addEventListener('click', () => {
+            closeModal(diffVisualizerModal);
+            if (startBtn && !isRunning) startBtn.click();
+        });
+    }
+
+    async function loadPreflightDiff() {
+        const token = userTokenInput ? userTokenInput.value.trim() : '';
+        const sourceId = sourceIdInput ? sourceIdInput.value.trim() : '';
+        const targetId = targetIdInput ? targetIdInput.value.trim() : '';
+
+        if (!token || !sourceId || !targetId) {
+            if (diffEmptyPromptState) diffEmptyPromptState.classList.remove('hidden');
+            if (diffLoadingState) diffLoadingState.classList.add('hidden');
+            if (diffComparisonGrid) diffComparisonGrid.classList.add('hidden');
+            return;
+        }
+
+        if (diffEmptyPromptState) diffEmptyPromptState.classList.add('hidden');
+        if (diffLoadingState) diffLoadingState.classList.remove('hidden');
+        if (diffComparisonGrid) diffComparisonGrid.classList.add('hidden');
+
+        try {
+            const [sourceRes, targetRes] = await Promise.all([
+                fetch(`/api/preview/tree?token=${encodeURIComponent(token)}&guildId=${encodeURIComponent(sourceId)}`),
+                fetch(`/api/preview/tree?token=${encodeURIComponent(token)}&guildId=${encodeURIComponent(targetId)}`)
+            ]);
+
+            const sourceData = await sourceRes.json();
+            const targetData = await targetRes.json();
+
+            if (!sourceData.success || !targetData.success) {
+                showToast(sourceData.error || targetData.error || 'Failed to fetch guild hierarchies for comparison.', 'error');
+                if (diffEmptyPromptState) diffEmptyPromptState.classList.remove('hidden');
+                if (diffLoadingState) diffLoadingState.classList.add('hidden');
+                return;
+            }
+
+            renderDiffComparison(sourceData.tree, targetData.tree);
+            if (diffLoadingState) diffLoadingState.classList.add('hidden');
+            if (diffComparisonGrid) diffComparisonGrid.classList.remove('hidden');
+        } catch (err) {
+            showToast('Error communicating with server during preflight diff.', 'error');
+            if (diffEmptyPromptState) diffEmptyPromptState.classList.remove('hidden');
+            if (diffLoadingState) diffLoadingState.classList.add('hidden');
+        }
+    }
+
+    function renderDiffComparison(sourceTree, targetTree) {
+        if (!sourceTree || !targetTree) return;
+
+        if (diffSourceName) diffSourceName.textContent = sourceTree.guild?.name || 'Source Server';
+        if (diffTargetName) diffTargetName.textContent = targetTree.guild?.name || 'Target Server';
+
+        const sourceRoles = sourceTree.roles || [];
+        const sourceChannels = sourceTree.categories?.reduce((acc, cat) => acc + (cat.channels ? cat.channels.length : 0), 0) + (sourceTree.uncategorizedChannels ? sourceTree.uncategorizedChannels.length : 0);
+        
+        const targetRoles = targetTree.roles || [];
+        const targetChannels = targetTree.categories?.reduce((acc, cat) => acc + (cat.channels ? cat.channels.length : 0), 0) + (targetTree.uncategorizedChannels ? targetTree.uncategorizedChannels.length : 0);
+
+        if (diffSourceMeta) diffSourceMeta.textContent = `${sourceRoles.length} Roles • ${sourceChannels} Channels`;
+        if (diffTargetMeta) diffTargetMeta.textContent = `${targetRoles.length} Roles • ${targetChannels} Channels`;
+
+        // Update stats
+        if (diffToCreateCount) diffToCreateCount.textContent = (sourceRoles.length + sourceChannels).toString();
+        if (diffToSyncCount) diffToSyncCount.textContent = sourceRoles.length.toString();
+        if (diffPurgeCount) diffPurgeCount.textContent = (targetRoles.length + targetChannels).toString();
+        if (diffPreserveCount) diffPreserveCount.textContent = (targetRoles.filter(r => r.managed).length || 0).toString();
+
+        // Render Source Tree
+        if (diffSourceTree) {
+            let html = '';
+            (sourceTree.categories || []).forEach(cat => {
+                html += `<div class="diff-tree-cat">📁 ${cat.name || 'Category'}<span class="diff-badge-status to-create">+ CREATE</span></div>`;
+                (cat.channels || []).forEach(ch => {
+                    const icon = ch.type === 2 || ch.type === 'GUILD_VOICE' ? '🔊' : '#';
+                    html += `<div class="diff-tree-chan"><span>${icon} ${ch.name}</span><span class="diff-badge-status to-create">+ CREATE</span></div>`;
+                });
+            });
+            (sourceTree.uncategorizedChannels || []).forEach(ch => {
+                const icon = ch.type === 2 || ch.type === 'GUILD_VOICE' ? '🔊' : '#';
+                html += `<div class="diff-tree-chan"><span>${icon} ${ch.name}</span><span class="diff-badge-status to-create">+ CREATE</span></div>`;
+            });
+            diffSourceTree.innerHTML = html || '<p style="padding:10px;color:var(--text-muted);">No channels found.</p>';
+        }
+
+        // Render Target Tree
+        if (diffTargetTree) {
+            let html = '';
+            (targetTree.categories || []).forEach(cat => {
+                html += `<div class="diff-tree-cat">📁 ${cat.name || 'Category'}<span class="diff-badge-status to-purge">- PURGE</span></div>`;
+                (cat.channels || []).forEach(ch => {
+                    const icon = ch.type === 2 || ch.type === 'GUILD_VOICE' ? '🔊' : '#';
+                    html += `<div class="diff-tree-chan"><span>${icon} ${ch.name}</span><span class="diff-badge-status to-purge">- PURGE</span></div>`;
+                });
+            });
+            (targetTree.uncategorizedChannels || []).forEach(ch => {
+                const icon = ch.type === 2 || ch.type === 'GUILD_VOICE' ? '🔊' : '#';
+                html += `<div class="diff-tree-chan"><span>${icon} ${ch.name}</span><span class="diff-badge-status to-purge">- PURGE</span></div>`;
+            });
+            diffTargetTree.innerHTML = html || '<p style="padding:10px;color:var(--text-muted);">No channels on target.</p>';
+        }
+    }
+
+    // Hook stepper to clone:stage & hydrateJobState
+    const originalHydrateJobState = hydrateJobState;
+    hydrateJobState = function(job) {
+        originalHydrateJobState(job);
+        if (job) {
+            if (job.status === 'completed') {
+                updatePipelineStepper('completed');
+            } else if (job.stage) {
+                updatePipelineStepper(job.stage.label || job.stage.stage);
+            }
+        }
+    };
+
+    socket.on('clone:stage', (data) => {
+        const stageName = data.label || data.stage || 'Processing...';
+        updatePipelineStepper(stageName);
+    });
 
 
     // ==========================================================================

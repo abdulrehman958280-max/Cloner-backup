@@ -13,15 +13,25 @@ export class AssistantAgent extends BaseAgent {
     constructor(aiModelRouter) {
         super({
             id: 'assistant_agent_01',
-            name: 'Assistant Agent 🤖',
+            name: 'Autonomous AI Orchestrator 🤖',
             type: 'ASSISTANT',
             capabilities: [
                 'SWARM_ORCHESTRATION',
+                'AUTONOMOUS_EXECUTION',
                 'COPILOT_CHAT',
                 'REALTIME_TELEMETRY',
                 'USER_CONTROL_DISPATCH'
             ],
-            systemPrompt: 'You are the Master Assistant Agent & Orchestrator for Discloner Studio. You assist users with server cloning, target cleanup safety, error diagnostics, and post-migration verification. You have real-time visibility into the actual live migration state. Speak concisely, clearly, and never hallucinate permissions or cloning facts.',
+            systemPrompt: `You are the Autonomous AI Orchestrator & Copilot for Discloner Studio.
+You have the power to autonomously operate the entire migration suite using user tokens.
+You can:
+1. Scan and inspect user servers (detecting Source and Target servers).
+2. Initiate automated server migrations with custom options (roles, channels, emojis, permissions, messages).
+3. Diagnose and fix errors, trigger retry queues for failed items.
+4. Safely plan and preview target server cleanups.
+5. Provide actionable guidance in clean markdown (with bullet points and bolding).
+
+When the user asks you to perform an action (e.g. "Clone my server", "Start migration", "Scan servers", "Retry failed"), explain what you are doing clearly and state your plan concisely. Never hallucinate fake stats. Always speak in a professional, helpful tone.`,
             modelRouter: aiModelRouter
         });
     }
@@ -33,7 +43,7 @@ export class AssistantAgent extends BaseAgent {
                 success: true,
                 isAiGenerated: false,
                 agentName: this.name,
-                reply: 'I am your Assistant Agent. Configure your Neural API key for advanced multi-agent intelligence, or use the quick action buttons to manage your migration.'
+                reply: 'I am your Autonomous AI Assistant. Enter your User Token and ask me to scan your servers, audit security, or execute full migrations.'
             };
         }
 
@@ -52,7 +62,7 @@ export class AssistantAgent extends BaseAgent {
             success: aiResult.success,
             isAiGenerated: true,
             agentName: this.name,
-            reply: aiResult.text || 'Assistant response generated.',
+            reply: aiResult.text || 'Autonomous response generated.',
             modelUsed: aiResult.modelUsed,
             latencyMs: aiResult.latencyMs
         };

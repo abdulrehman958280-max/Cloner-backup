@@ -238,6 +238,62 @@ export class IntelligenceToolsRegistry {
                 }
             }
 
+            case 'startAutonomousClone': {
+                const { userToken, sourceId, targetId, options = {}, sessionId = null } = args;
+                if (!userToken) {
+                    return { success: false, error: 'User token is required to execute migration.' };
+                }
+                if (!sourceId || !targetId) {
+                    return { success: false, error: 'Source server ID and Target server ID are required.' };
+                }
+                if (!this.jobManager) {
+                    return { success: false, error: 'Job manager service unavailable.' };
+                }
+                try {
+                    const job = this.jobManager.startJob({
+                        userToken,
+                        sourceId,
+                        targetId,
+                        options: {
+                            roles: options.roles !== false,
+                            channels: options.channels !== false,
+                            categories: options.categories !== false,
+                            permissions: options.permissions !== false,
+                            emojis: options.emojis !== false,
+                            stickers: options.stickers !== false,
+                            serverIcon: options.serverIcon !== false,
+                            serverBanner: options.serverBanner !== false,
+                            messages: Boolean(options.messages),
+                            messageLimit: options.messageLimit || 50,
+                            skipExisting: options.skipExisting !== false,
+                            speedPreset: options.speedPreset || 'stealth',
+                            cleanTarget: options.cleanTarget !== false
+                        },
+                        sessionId
+                    });
+                    return {
+                        success: true,
+                        jobId: job.id,
+                        status: job.status,
+                        sourceId,
+                        targetId,
+                        message: `Autonomous migration job initialized (Job ID: ${job.id}).`
+                    };
+                } catch (err) {
+                    return { success: false, error: sanitizeText(err.message || 'Failed to start migration job.') };
+                }
+            }
+
+            case 'cancelAutonomousClone': {
+                const { jobId: targetJobId, sessionId = null, userToken = null } = args;
+                const idToCancel = targetJobId || jobId;
+                if (!idToCancel || !this.jobManager) {
+                    return { success: false, error: 'Job ID required to cancel migration.' };
+                }
+                const cancelled = this.jobManager.cancelJob(idToCancel, sessionId, userToken);
+                return { success: cancelled, message: cancelled ? `Migration job ${idToCancel} cancelled.` : 'Could not cancel job or job not found.' };
+            }
+
             // AI Operational Tool 1: Deep Failure Diagnostics with Soft-Retry
             case 'diagnoseMigrationFailure': {
                 const logs = job ? (job.logs || []).filter(l => l.type === 'error') : [];
