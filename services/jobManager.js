@@ -209,7 +209,10 @@ class JobManager extends EventEmitter {
                 rateLimits: 0
             },
             stats: null,
-            error: null
+            error: null,
+            _approvalPromise: null,
+            _resolveApproval: null,
+            _rejectApproval: null
         };
 
         // Add initial log
@@ -346,6 +349,23 @@ class JobManager extends EventEmitter {
             }
         };
 
+        const onPlanGenerated = async (plan) => {
+            job.cleanupPlan = plan;
+            
+            // Wait for approval
+            job._approvalPromise = new Promise((resolve, reject) => {
+                job._resolveApproval = resolve;
+                job._rejectApproval = reject;
+            });
+            
+            this.emit(`job:${jobId}`, { event: 'clone:plan_generated', data: { plan, jobId } });
+            if (this.io) {
+                this.io.to(`job:${jobId}`).emit('clone:plan_generated', { plan, jobId });
+            }
+            
+            return await job._approvalPromise;
+        };
+
         try {
             const stats = await executor({
                 userToken,
@@ -355,6 +375,7 @@ class JobManager extends EventEmitter {
                 onStage,
                 onProgress,
                 onLog,
+                onPlanGenerated,
                 isCancelled: () => job.isCancelled
             });
 
@@ -500,6 +521,11 @@ class JobManager extends EventEmitter {
 
         if (job.status === 'running') {
             job.isCancelled = true;
+            if (job._rejectApproval) {
+                job._rejectApproval(new Error('Operation cancelled by user during approval stage.'));
+                job._resolveApproval = null;
+                job._rejectApproval = null;
+            }
             job.lastActivityAt = Date.now();
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:cancelling', {
@@ -507,6 +533,54 @@ class JobManager extends EventEmitter {
                     jobId
                 });
             }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Approves the pending cleanup plan for a job.
+     */
+    approveJob(jobId, sessionId = null, userToken = null) {
+        const job = this.jobs.get(jobId);
+        if (!job) return false;
+
+        if (sessionId || userToken) {
+            const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken) return false;
+        }
+
+        if (job.status === 'running' && job._resolveApproval) {
+            job.lastActivityAt = Date.now();
+            job._resolveApproval(true);
+            job._resolveApproval = null;
+            job._rejectApproval = null;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Rejects the pending cleanup plan for a job.
+     */
+    rejectJob(jobId, sessionId = null, userToken = null) {
+        const job = this.jobs.get(jobId);
+        if (!job) return false;
+
+        if (sessionId || userToken) {
+            const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (!matchesSession && !matchesToken) return false;
+        }
+
+        if (job.status === 'running' && job._rejectApproval) {
+            job.lastActivityAt = Date.now();
+            job._rejectApproval(new Error('Cleanup plan was rejected by the user.'));
+            job._resolveApproval = null;
+            job._rejectApproval = null;
             return true;
         }
         return false;

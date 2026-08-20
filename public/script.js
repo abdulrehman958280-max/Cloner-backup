@@ -2416,6 +2416,103 @@
         appendLog('stage', `Stage: ${stageName}`, 'STAGE');
     });
 
+    socket.on('clone:plan_generated', (data) => {
+        const { plan, jobId } = data;
+        const modal = document.getElementById('cleanupPreviewModal');
+        const listContainer = document.getElementById('cleanupPreviewLists');
+        const btnConfirm = document.getElementById('confirmCleanupActionBtn');
+        const btnCancel = document.getElementById('cancelCleanupActionBtn');
+        const confirmInput = document.getElementById('cleanupConfirmInput');
+        const btnClose = document.getElementById('closeCleanupPreviewBtn');
+
+        if (!modal || !plan) return;
+
+        // Populate summary
+        document.getElementById('cleanupDeleteCount').textContent = 
+            (plan.summary.channelsToDeleteCount || 0) + (plan.summary.rolesToDeleteCount || 0);
+        document.getElementById('cleanupPreserveCount').textContent = 
+            (plan.summary.channelsToPreserveCount || 0) + (plan.summary.rolesToPreserveCount || 0);
+        document.getElementById('cleanupWarnCount').textContent = plan.summary.warnings || 0;
+
+        // Populate lists
+        let html = '';
+        if (plan.roles && plan.roles.toDelete && plan.roles.toDelete.length > 0) {
+            html += `<h4 style="margin-top: 10px; font-weight: 600;">Roles to Delete</h4><ul>`;
+            plan.roles.toDelete.slice(0, 20).forEach(r => html += `<li>${r.name}</li>`);
+            if (plan.roles.toDelete.length > 20) html += `<li>...and ${plan.roles.toDelete.length - 20} more</li>`;
+            html += `</ul>`;
+        }
+        if (plan.channels && plan.channels.toDelete && plan.channels.toDelete.length > 0) {
+            html += `<h4 style="margin-top: 10px; font-weight: 600;">Channels to Delete</h4><ul>`;
+            plan.channels.toDelete.slice(0, 20).forEach(c => html += `<li>${c.name} (${c.type})</li>`);
+            if (plan.channels.toDelete.length > 20) html += `<li>...and ${plan.channels.toDelete.length - 20} more</li>`;
+            html += `</ul>`;
+        }
+        if (html === '') html = '<p>No items scheduled for deletion.</p>';
+        listContainer.innerHTML = html;
+
+        // Reset and show modal
+        confirmInput.value = '';
+        btnConfirm.disabled = true;
+        modal.classList.remove('hidden');
+
+        // Input validation
+        const validateInput = () => {
+            btnConfirm.disabled = confirmInput.value !== 'CONFIRM';
+        };
+        confirmInput.removeEventListener('input', validateInput);
+        confirmInput.addEventListener('input', validateInput);
+
+        // Handlers
+        const handleConfirm = async () => {
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Approving...';
+            try {
+                await fetch(`/api/jobs/${jobId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-session-id': clientSessionId,
+                        'x-user-token': userTokenInput.value.trim()
+                    }
+                });
+                modal.classList.add('hidden');
+                appendLog('info', 'Cleanup plan approved. Proceeding with deletion...', 'APPROVE');
+            } catch (err) {
+                appendLog('error', 'Failed to approve plan: ' + err.message, 'ERROR');
+            }
+        };
+
+        const handleReject = async () => {
+            try {
+                await fetch(`/api/jobs/${jobId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-session-id': clientSessionId,
+                        'x-user-token': userTokenInput.value.trim()
+                    }
+                });
+                modal.classList.add('hidden');
+                appendLog('info', 'Cleanup plan rejected. Job cancelled.', 'REJECT');
+            } catch (err) {
+                appendLog('error', 'Failed to reject plan: ' + err.message, 'ERROR');
+            }
+        };
+
+        // Cleanup old listeners to prevent double-firing
+        const newBtnConfirm = btnConfirm.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
+        const newBtnCancel = btnCancel.cloneNode(true);
+        btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+        const newBtnClose = btnClose.cloneNode(true);
+        btnClose.parentNode.replaceChild(newBtnClose, btnClose);
+
+        newBtnConfirm.addEventListener('click', handleConfirm);
+        newBtnCancel.addEventListener('click', handleReject);
+        newBtnClose.addEventListener('click', handleReject);
+    });
+
     socket.on('clone:progress', (data) => {
         const rawPercent = data.percent !== undefined ? data.percent : (data.progress !== undefined ? data.progress : 0);
         const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
@@ -4465,10 +4562,13 @@
 
     if (fullscreenCopilotBtn && copilotDrawer) {
         fullscreenCopilotBtn.addEventListener('click', () => {
-            copilotDrawer.classList.toggle('copilot-fullscreen-mode');
-            const isFull = copilotDrawer.classList.contains('copilot-fullscreen-mode');
-            fullscreenCopilotBtn.setAttribute('title', isFull ? 'Exit Fullscreen' : 'Toggle Fullscreen');
-            showToast(isFull ? 'Fullscreen chat mode activated' : 'Exited fullscreen', 'info');
+            const clayApp = copilotDrawer.querySelector('.copilot-clay-app');
+            if (clayApp) {
+                clayApp.classList.toggle('is-fullscreen');
+                const isFull = clayApp.classList.contains('is-fullscreen');
+                fullscreenCopilotBtn.setAttribute('title', isFull ? 'Exit Fullscreen' : 'Toggle Fullscreen');
+                showToast(isFull ? 'Fullscreen chat mode activated' : 'Exited fullscreen', 'info');
+            }
         });
     }
 

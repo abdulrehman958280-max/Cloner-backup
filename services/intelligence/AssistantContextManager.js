@@ -84,6 +84,11 @@ export class AssistantContextManager {
             case AGENT_EVENT_TYPES.CLEANUP_COMPLETED:
                 job.cleaner.status = 'COMPLETED';
                 break;
+                
+            case 'PLAN_GENERATED':
+                job.status = 'AWAITING_APPROVAL';
+                job.phase = 'AWAITING_APPROVAL';
+                break;
 
             case AGENT_EVENT_TYPES.CLONE_STARTED:
                 job.status = 'RUNNING';

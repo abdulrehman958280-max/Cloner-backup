@@ -1181,10 +1181,17 @@
                 <div class="cleanup-preview-lists" id="cleanupPreviewLists">
                     <!-- Items populated dynamically -->
                 </div>
+                
+                <div class="cleanup-confirmation-section" style="margin-top: 16px;">
+                    <label for="cleanupConfirmInput" class="field-label" style="font-weight: 600; color: var(--danger, #ef4444);">
+                        Type "CONFIRM" to proceed with deletion
+                    </label>
+                    <input type="text" id="cleanupConfirmInput" class="neu-input" placeholder="CONFIRM" autocomplete="off">
+                </div>
             </div>
             <div class="modal-actions-row">
                 <button type="button" class="neu-btn-secondary" id="cancelCleanupActionBtn">Cancel</button>
-                <button type="button" class="neu-btn-danger" id="confirmCleanupActionBtn">Confirm & Start Clone</button>
+                <button type="button" class="neu-btn-danger" id="confirmCleanupActionBtn" disabled>Confirm & Start Clone</button>
             </div>
         </div>
     </div>
@@ -1199,7 +1206,7 @@
 
     <!-- AI Migration Copilot Full-Page Claymorphic Experience -->
     <div class="copilot-fullpage-overlay hidden" id="copilotDrawer" role="dialog" aria-modal="true" aria-labelledby="copilotMainTitle">
-        <div class="copilot-clay-app" id="copilotClayApp">
+        <div class="copilot-clay-app is-fullscreen" id="copilotClayApp">
             <!-- Mobile Drag Indicator Bar -->
             <div class="copilot-mobile-bar" aria-hidden="true"></div>
 

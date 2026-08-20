@@ -233,6 +233,22 @@ app.all('/api/jobs/:jobId/cancel', (req, res) => {
     res.json({ success: cancelled });
 });
 
+// Approve Job via REST
+app.post('/api/jobs/:jobId/approve', (req, res) => {
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || req.body.userToken || null;
+    const approved = jobManager.approveJob(req.params.jobId, sessionId, userToken);
+    res.json({ success: approved });
+});
+
+// Reject Job via REST
+app.post('/api/jobs/:jobId/reject', (req, res) => {
+    const sessionId = getSessionId(req);
+    const userToken = req.headers['x-user-token'] || req.query.userToken || req.body.userToken || null;
+    const rejected = jobManager.rejectJob(req.params.jobId, sessionId, userToken);
+    res.json({ success: rejected });
+});
+
 // Fetch accessible user guilds
 app.post('/api/guilds/fetch', async (req, res) => {
     const { userToken } = req.body;
