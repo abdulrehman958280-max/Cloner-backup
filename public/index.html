@@ -91,7 +91,7 @@
     <div class="app-wrapper" id="appRoot">
         
         <!-- Header -->
-        <header class="app-header" id="mainHeader">
+        <header class="app-header animate-entrance-down delay-0" id="mainHeader">
             <div class="header-inner">
                 <!-- Brand -->
                 <div class="header-brand">
@@ -128,6 +128,12 @@
                             <line x1="23" y1="9" x2="17" y2="15"/>
                             <line x1="17" y1="9" x2="23" y2="15"/>
                         </svg>
+                        <div class="audio-equalizer-bars hidden" id="audioEqBars" aria-hidden="true">
+                            <span class="audio-eq-bar"></span>
+                            <span class="audio-eq-bar"></span>
+                            <span class="audio-eq-bar"></span>
+                            <span class="audio-eq-bar"></span>
+                        </div>
                         <audio id="backgroundAudioPlayer" loop preload="auto" src="/audio/bgm.wav" style="display:none;"></audio>
                     </button>
 
@@ -159,7 +165,7 @@
         </header>
 
         <!-- Hero Section -->
-        <section class="hero-section">
+        <section class="hero-section animate-entrance delay-1">
             <div class="hero-content">
                 <div class="hero-badge">
                     <span class="hero-badge-dot"></span>
@@ -175,17 +181,17 @@
 
                 <!-- Clean Workflow Stepper -->
                 <div class="workflow-stepper" aria-label="Migration Workflow">
-                    <div class="step-chip active">
+                    <div class="step-chip active animate-entrance delay-2">
                         <span class="step-chip-num">1</span>
                         <span class="step-chip-text">Token</span>
                     </div>
-                    <span class="step-divider" aria-hidden="true">→</span>
-                    <div class="step-chip active">
+                    <span class="step-divider animate-entrance delay-2" aria-hidden="true">→</span>
+                    <div class="step-chip active animate-entrance delay-3">
                         <span class="step-chip-num">2</span>
                         <span class="step-chip-text">Source & Target</span>
                     </div>
-                    <span class="step-divider" aria-hidden="true">→</span>
-                    <div class="step-chip active">
+                    <span class="step-divider animate-entrance delay-3" aria-hidden="true">→</span>
+                    <div class="step-chip active animate-entrance delay-4">
                         <span class="step-chip-num">3</span>
                         <span class="step-chip-text">Clone</span>
                     </div>
@@ -201,7 +207,7 @@
                 <form id="clonerForm" autocomplete="off">
                     
                     <!-- Unified Clean Setup Card -->
-                    <div class="neu-card" id="migrationSetupCard">
+                    <div class="neu-card animate-entrance delay-5" id="migrationSetupCard">
                         <div class="neu-card-header">
                             <div class="card-icon-bubble">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -398,7 +404,7 @@
                             </div>
 
                             <!-- 3. Advanced Configuration Accordion (Houses all scope options & sliders) -->
-                            <div class="advanced-accordion-section">
+                            <div class="advanced-accordion-section scroll-animate">
                                 <button type="button" class="advanced-accordion-btn" id="advancedToggleBtn" aria-expanded="false" aria-controls="advancedPanel">
                                     <div class="accordion-left">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="gear-icon">
@@ -655,7 +661,7 @@
                                             </div>
 
                                             <!-- Configuration Action Toolbar (Save / Reset preferences) -->
-                                            <div class="config-actions-bar" id="configActionsBar">
+                                            <div class="config-actions-bar scroll-animate" id="configActionsBar">
                                                 <div class="config-btns-group">
                                                     <button type="button" class="neu-btn-save-config" id="saveConfigBtn" title="Persist advanced preferences to browser storage">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="save-icon" id="saveConfigIcon">
@@ -737,7 +743,7 @@
                     </div>
 
                     <!-- 4. Primary CTA Buttons -->
-                    <div class="cta-actions-group">
+                    <div class="cta-actions-group scroll-animate">
                         <button type="submit" id="startBtn" class="neu-btn-primary">
                             <span class="btn-inner">
                                 <span id="startBtnText">START CLONING</span>
@@ -759,7 +765,7 @@
             </section>
 
             <!-- Right Column: Telemetry & Activity Console -->
-            <section class="workspace-col telemetry-column" aria-label="Clone Status and Activity Console">
+            <section class="workspace-col telemetry-column animate-entrance delay-6" aria-label="Clone Status and Activity Console">
                 
                 <!-- Telemetry / Status Card -->
                 <div class="neu-card" id="progressCard">
@@ -1183,60 +1189,186 @@
         </div>
     </div>
 
-    <!-- AI Migration Copilot Floating Widget & Drawer -->
+    <!-- AI Migration Copilot Floating Liquid Button -->
     <div class="copilot-widget-container" id="copilotWidget">
-        <button type="button" class="copilot-floating-btn" id="toggleCopilotBtn" title="Clone Intelligence Copilot" aria-label="Open AI Copilot">
+        <button type="button" class="copilot-floating-btn" id="toggleCopilotBtn" title="Open AI Migration Copilot (Ctrl+K)" aria-label="Open AI Migration Copilot">
             <span class="copilot-pulse-dot"></span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="copilot-btn-icon">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            <span class="copilot-btn-label">Copilot AI</span>
+            <span class="copilot-ai-text">AI</span>
         </button>
+    </div>
 
-        <div class="copilot-drawer hidden" id="copilotDrawer">
-            <div class="copilot-header">
-                <div class="copilot-title-group">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="copilot-title-icon">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
+    <!-- AI Migration Copilot Full-Page Claymorphic Experience -->
+    <div class="copilot-fullpage-overlay hidden" id="copilotDrawer" role="dialog" aria-modal="true" aria-labelledby="copilotMainTitle">
+        <div class="copilot-clay-app" id="copilotClayApp">
+            <!-- Mobile Drag Indicator Bar -->
+            <div class="copilot-mobile-bar" aria-hidden="true"></div>
+
+            <!-- Left Clay Sidebar: System Hub & Diagnostic Presets (Desktop) -->
+            <aside class="copilot-clay-sidebar" id="copilotClaySidebar">
+                <!-- Sidebar Brand Header -->
+                <div class="copilot-sidebar-header">
+                    <div class="copilot-clay-avatar-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="copilot-clay-avatar-svg">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </div>
                     <div>
-                        <h4 class="copilot-title">Clone Intelligence Copilot</h4>
-                        <span class="copilot-subtitle">Advanced Neural Intelligence Engine</span>
+                        <div class="copilot-sidebar-title">Discloner Copilot</div>
+                        <div class="copilot-sidebar-subtitle">Neural Intelligence Engine</div>
                     </div>
                 </div>
-                <div class="copilot-header-actions">
-                    <button type="button" class="copilot-icon-btn" id="clearCopilotChatBtn" title="Clear chat messages" aria-label="Clear chat">
+
+                <!-- Clay Neural Status Card -->
+                <div class="copilot-clay-card copilot-neural-status-card">
+                    <div class="copilot-card-header-row">
+                        <span class="copilot-card-label">Neural Multi-LLM</span>
+                        <span class="copilot-clay-pill-online">
+                            <span class="pulse-emerald-dot"></span> Active
+                        </span>
+                    </div>
+                    <div class="copilot-model-spec-row">
+                        <span class="copilot-spec-badge" id="copilotActiveModelBadge">⚡ DeepSeek-R1 / Llama-3.3</span>
+                        <span class="copilot-spec-badge green">Failover Safe</span>
+                    </div>
+                    <div class="copilot-status-caption">Auto-switches models if rate limits or latency spike.</div>
+                </div>
+
+                <!-- Clay Migration Context Card -->
+                <div class="copilot-clay-card copilot-context-card">
+                    <div class="copilot-card-header-row">
+                        <span class="copilot-card-label">Live Migration Context</span>
+                    </div>
+                    <div class="copilot-context-items">
+                        <div class="copilot-context-item">
+                            <span class="context-key">Source:</span>
+                            <span class="context-val" id="copilotCtxSource">Not Selected</span>
+                        </div>
+                        <div class="copilot-context-item">
+                            <span class="context-key">Target:</span>
+                            <span class="context-val" id="copilotCtxTarget">Not Selected</span>
+                        </div>
+                        <div class="copilot-context-item">
+                            <span class="context-key">Status:</span>
+                            <span class="context-val highlight" id="copilotCtxStatus">Idle</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- One-Click Diagnostic Prompts -->
+                <div class="copilot-clay-card copilot-presets-card">
+                    <div class="copilot-card-header-row">
+                        <span class="copilot-card-label">Quick Diagnostic Presets</span>
+                    </div>
+                    <div class="copilot-preset-buttons-list">
+                        <button type="button" class="copilot-clay-preset-btn" data-query="Diagnose current migration state and check for errors">
+                            <span class="preset-icon">🩺</span>
+                            <span class="preset-text">Full Migration Diagnostic</span>
+                        </button>
+                        <button type="button" class="copilot-clay-preset-btn" data-query="Analyze role permission hierarchy and bot admin position">
+                            <span class="preset-icon">🛡️</span>
+                            <span class="preset-text">Role & Permission Audit</span>
+                        </button>
+                        <button type="button" class="copilot-clay-preset-btn" data-query="Explain what will be deleted if I use Target Clean-up">
+                            <span class="preset-icon">🧹</span>
+                            <span class="preset-text">Cleanup Safety Check</span>
+                        </button>
+                        <button type="button" class="copilot-clay-preset-btn" data-query="What is the recommended cloning speed and rate limit pacing?">
+                            <span class="preset-icon">⚡</span>
+                            <span class="preset-text">Rate-Limit & Pacing Tips</span>
+                        </button>
+                        <button type="button" class="copilot-clay-preset-btn" data-query="Summarize recent warnings and potential bot bottlenecks">
+                            <span class="preset-icon">⚠️</span>
+                            <span class="preset-text">Explain Live Warnings</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sidebar Footer Actions -->
+                <div class="copilot-sidebar-footer">
+                    <button type="button" class="copilot-clay-mini-btn" id="clearCopilotChatBtn" title="Clear conversation history">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span>Clear Chat</span>
                     </button>
-                    <button type="button" class="copilot-close-btn" id="closeCopilotBtn" aria-label="Close copilot">✕</button>
+                    <button type="button" class="copilot-clay-mini-btn" id="exportCopilotChatBtn" title="Copy entire chat to clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span>Copy Transcript</span>
+                    </button>
                 </div>
-            </div>
+            </aside>
 
-            <div class="copilot-messages-container" id="copilotMessages" role="log" aria-live="polite">
-                <div class="copilot-msg copilot-msg-ai">
-                    <div class="copilot-msg-bubble">
-                        Hello! I am your <strong>Clone Intelligence Copilot</strong> backed by the Discloner Neural Multi-LLM Cascade. I can diagnose migration failures, analyze role permission hierarchies, inspect cleanup safety, and recommend optimal pacing. How can I help you today?
+            <!-- Main Clay Conversation Deck -->
+            <main class="copilot-clay-main">
+                <!-- Top Clay App Bar -->
+                <header class="copilot-clay-header">
+                    <div class="copilot-header-left">
+                        <div class="copilot-header-avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="copilot-main-title" id="copilotMainTitle">AI Migration Copilot</h3>
+                            <div class="copilot-header-meta">
+                                <span class="copilot-meta-dot"></span>
+                                <span class="copilot-meta-text">Online • Neural Diagnostic Assistant</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="copilot-header-actions">
+                        <button type="button" class="copilot-header-btn" id="fullscreenCopilotBtn" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fs-expand-icon"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        </button>
+                        <button type="button" class="copilot-header-btn copilot-close-clay-btn" id="closeCopilotBtn" title="Close Copilot (Esc)" aria-label="Close Copilot">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Scrollable Clay Chat Stream -->
+                <div class="copilot-messages-container" id="copilotMessages" role="log" aria-live="polite">
+                    <div class="copilot-msg copilot-msg-ai">
+                        <div class="copilot-clay-bubble copilot-ai-bubble">
+                            <div class="copilot-bubble-header">
+                                <span class="copilot-bubble-author">🤖 Discloner Intelligence</span>
+                                <span class="copilot-bubble-time">Just now</span>
+                            </div>
+                            <div class="copilot-bubble-body">
+                                Welcome to your <strong>Full-Page Claymorphic AI Migration Copilot</strong>! Backed by our multi-model neural cascade, I can diagnose permission bottlenecks, calculate rate-limit pacing, verify channel & role mappings, and safeguard target cleanups.
+                                <br/><br/>
+                                You can pick one of the diagnostic presets or ask any question below!
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="copilot-chips-bar" id="copilotQuickChips">
-                <button type="button" class="copilot-chip" data-query="What is the current migration status?">📊 Status</button>
-                <button type="button" class="copilot-chip" data-query="Diagnose migration error">🩺 Diagnose Error</button>
-                <button type="button" class="copilot-chip" data-query="Analyze permission conflicts">🛡️ Permissions</button>
-                <button type="button" class="copilot-chip" data-query="What will be deleted in cleanup?">🧹 Cleanup Plan</button>
-                <button type="button" class="copilot-chip" data-query="Explain recent migration warnings">⚠️ Warnings</button>
-            </div>
+                <!-- Clay Quick Chips Carousel -->
+                <div class="copilot-chips-bar" id="copilotQuickChips">
+                    <button type="button" class="copilot-chip" data-query="What is the current migration status and health?">📊 Live Status</button>
+                    <button type="button" class="copilot-chip" data-query="Diagnose migration errors and suggest fixes">🩺 Diagnose Error</button>
+                    <button type="button" class="copilot-chip" data-query="Analyze role permission hierarchy & hierarchy ordering">🛡️ Role Hierarchy</button>
+                    <button type="button" class="copilot-chip" data-query="What are safe settings for target server cleanup?">🧹 Cleanup Safety</button>
+                    <button type="button" class="copilot-chip" data-query="How can I clone messages faster without rate limits?">⚡ Fast Message Cloning</button>
+                    <button type="button" class="copilot-chip" data-query="Explain audit logs and safety rules">📜 Audit Logs</button>
+                </div>
 
-            <form class="copilot-input-form" id="copilotForm">
-                <input type="text" class="copilot-input" id="copilotInput" placeholder="Ask Copilot about your migration..." autocomplete="off">
-                <button type="submit" class="copilot-send-btn" id="copilotSendBtn" aria-label="Send message">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="22" y1="2" x2="11" y2="13"/>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                    </svg>
-                </button>
-            </form>
+                <!-- Clay Input Command Deck -->
+                <form class="copilot-input-form" id="copilotForm">
+                    <div class="copilot-clay-input-wrapper">
+                        <input type="text" class="copilot-input" id="copilotInput" placeholder="Ask Copilot about roles, channels, rate limits, errors..." autocomplete="off">
+                    </div>
+                    <button type="submit" class="copilot-clay-send-btn" id="copilotSendBtn" aria-label="Send query to Copilot">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="send-icon-svg">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        <span class="send-btn-label">Send</span>
+                    </button>
+                </form>
+                <div class="copilot-keyboard-hint">
+                    <span>💡 Tip: Press <kbd>Enter</kbd> to send • <kbd>Shift+Enter</kbd> for new line • <kbd>Esc</kbd> to close</span>
+                </div>
+            </main>
         </div>
     </div>
 

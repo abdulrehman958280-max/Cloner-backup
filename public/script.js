@@ -1593,6 +1593,7 @@
             }
             if (stageDot) stageDot.classList.remove('pulsing');
         }
+        if (typeof updateCopilotLiveContext === 'function') updateCopilotLiveContext();
     }
 
     function setFormDisabled(disabled) {
@@ -1775,12 +1776,24 @@
         tickEtaTimer();
     }
 
+    function setStatTextWithPop(element, newValue) {
+        if (!element) return;
+        const strVal = String(newValue);
+        if (element.textContent !== strVal) {
+            element.textContent = strVal;
+            element.classList.remove('stat-val-pop');
+            // Trigger reflow to restart CSS animation
+            void element.offsetWidth;
+            element.classList.add('stat-val-pop');
+        }
+    }
+
     function updateLiveStatCounts() {
-        if (liveStatRoles) liveStatRoles.textContent = statCounters.roles;
-        if (liveStatChannels) liveStatChannels.textContent = statCounters.channels;
-        if (liveStatEmojis) liveStatEmojis.textContent = (statCounters.emojis || 0) + (statCounters.stickers || 0);
-        if (liveStatMessages) liveStatMessages.textContent = (cloneMessagesCheckbox && cloneMessagesCheckbox.checked) ? statCounters.messages : '0';
-        if (liveStatWarnings) liveStatWarnings.textContent = statCounters.warnings;
+        setStatTextWithPop(liveStatRoles, statCounters.roles);
+        setStatTextWithPop(liveStatChannels, statCounters.channels);
+        setStatTextWithPop(liveStatEmojis, (statCounters.emojis || 0) + (statCounters.stickers || 0));
+        setStatTextWithPop(liveStatMessages, (cloneMessagesCheckbox && cloneMessagesCheckbox.checked) ? statCounters.messages : '0');
+        setStatTextWithPop(liveStatWarnings, statCounters.warnings);
     }
 
     // ==========================================================================
@@ -2115,6 +2128,84 @@
 
         playChime('success');
         openModal(summaryModal);
+        launchConfettiCelebration();
+    }
+
+    // ==========================================================================
+    // Canvas Confetti Celebration Particle System
+    // ==========================================================================
+    function launchConfettiCelebration() {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'confetti-canvas';
+            document.body.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            let width = (canvas.width = window.innerWidth);
+            let height = (canvas.height = window.innerHeight);
+
+            const onResize = () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            };
+            window.addEventListener('resize', onResize);
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#ffffff'];
+            const particles = [];
+            const particleCount = 90;
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: width / 2 + (Math.random() - 0.5) * 200,
+                    y: height / 2,
+                    vx: (Math.random() - 0.5) * 16,
+                    vy: (Math.random() - 0.8) * 18 - 4,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 12,
+                    opacity: 1,
+                    decay: Math.random() * 0.015 + 0.008
+                });
+            }
+
+            let animationFrameId;
+            const render = () => {
+                ctx.clearRect(0, 0, width, height);
+                let aliveCount = 0;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4; // gravity
+                    p.vx *= 0.98; // air resistance
+                    p.rotation += p.rotationSpeed;
+                    p.opacity -= p.decay;
+
+                    if (p.opacity > 0) {
+                        aliveCount++;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate((p.rotation * Math.PI) / 180);
+                        ctx.globalAlpha = Math.max(0, p.opacity);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                        ctx.restore();
+                    }
+                });
+
+                if (aliveCount > 0) {
+                    animationFrameId = requestAnimationFrame(render);
+                } else {
+                    cancelAnimationFrame(animationFrameId);
+                    window.removeEventListener('resize', onResize);
+                    canvas.remove();
+                }
+            };
+            render();
+        } catch (e) {
+            // Silently fall back if canvas not supported
+        }
     }
 
     // ==========================================================================
@@ -3377,6 +3468,7 @@
             targetSelectionStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
+        if (typeof updateCopilotLiveContext === 'function') updateCopilotLiveContext();
         showToast(`Source server set to "${guild.name}"`, 'success');
     }
 
@@ -3464,6 +3556,7 @@
             startBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
+        if (typeof updateCopilotLiveContext === 'function') updateCopilotLiveContext();
         showToast(`Target server set to "${guild.name}"`, 'success');
     }
 
@@ -3577,6 +3670,7 @@
     const audioToggleBtn = document.getElementById('audioToggleBtn');
     const audioIconOn = document.getElementById('audioIconOn');
     const audioIconOff = document.getElementById('audioIconOff');
+    const audioEqBars = document.getElementById('audioEqBars');
     const backgroundAudioPlayer = document.getElementById('backgroundAudioPlayer');
 
     // Music Manager Modal Elements
@@ -3780,6 +3874,7 @@
             if (isAudioEnabled) {
                 audioIconOn.classList.remove('hidden');
                 audioIconOff.classList.add('hidden');
+                if (audioEqBars) audioEqBars.classList.remove('hidden');
                 if (audioToggleBtn) {
                     audioToggleBtn.classList.add('audio-active');
                     audioToggleBtn.setAttribute('title', 'Background Audio & Chimes: Playing (Click to Mute)');
@@ -3789,6 +3884,7 @@
             } else {
                 audioIconOn.classList.add('hidden');
                 audioIconOff.classList.remove('hidden');
+                if (audioEqBars) audioEqBars.classList.add('hidden');
                 if (audioToggleBtn) {
                     audioToggleBtn.classList.remove('audio-active');
                     audioToggleBtn.setAttribute('title', 'Background Audio & Chimes: Muted (Click to Play)');
@@ -4257,12 +4353,39 @@
     const copilotDrawer = document.getElementById('copilotDrawer');
     const closeCopilotBtn = document.getElementById('closeCopilotBtn');
     const clearCopilotChatBtn = document.getElementById('clearCopilotChatBtn');
+    const exportCopilotChatBtn = document.getElementById('exportCopilotChatBtn');
+    const fullscreenCopilotBtn = document.getElementById('fullscreenCopilotBtn');
     const copilotForm = document.getElementById('copilotForm');
     const copilotInput = document.getElementById('copilotInput');
     const copilotMessages = document.getElementById('copilotMessages');
     const copilotQuickChips = document.getElementById('copilotQuickChips');
+    const copilotPresetBtns = document.querySelectorAll('.copilot-clay-preset-btn');
+    const copilotCtxSource = document.getElementById('copilotCtxSource');
+    const copilotCtxTarget = document.getElementById('copilotCtxTarget');
+    const copilotCtxStatus = document.getElementById('copilotCtxStatus');
 
     let activeThinkingBubble = null;
+
+    function updateCopilotLiveContext() {
+        if (copilotCtxSource) {
+            copilotCtxSource.textContent = selectedSource ? selectedSource.name : (sourceIdInput && sourceIdInput.value ? `ID: ${sourceIdInput.value}` : 'Not Selected');
+        }
+        if (copilotCtxTarget) {
+            copilotCtxTarget.textContent = selectedTarget ? selectedTarget.name : (targetIdInput && targetIdInput.value ? `ID: ${targetIdInput.value}` : 'Not Selected');
+        }
+        if (copilotCtxStatus) {
+            if (isRunning) {
+                copilotCtxStatus.textContent = 'Migrating...';
+                copilotCtxStatus.className = 'context-val highlight';
+            } else if (currentJobId) {
+                copilotCtxStatus.textContent = 'Completed';
+                copilotCtxStatus.className = 'context-val';
+            } else {
+                copilotCtxStatus.textContent = 'Idle';
+                copilotCtxStatus.className = 'context-val';
+            }
+        }
+    }
 
     // Listen for real-time AI thinking events via Socket.IO
     socket.on('ai:thinking', (event) => {
@@ -4291,7 +4414,6 @@
         const reason = event.reason || 'Quota Exceeded';
 
         showToast(`⚡ Auto-Failover: ${fromName} → ${toName} (${reason})`, 'info');
-        // Add log entry to console
         appendLog('info', `AI Failover: Switched from ${fromName} to ${toName} (${reason})`, 'NEURAL_AI');
     });
 
@@ -4299,8 +4421,14 @@
         clearCopilotChatBtn.addEventListener('click', () => {
             copilotMessages.innerHTML = `
                 <div class="copilot-msg copilot-msg-ai">
-                    <div class="copilot-msg-bubble">
-                        Hello! Chat history cleared. How can I assist with your Discord migration?
+                    <div class="copilot-clay-bubble copilot-ai-bubble">
+                        <div class="copilot-bubble-header">
+                            <span class="copilot-bubble-author">🤖 Discloner Intelligence</span>
+                            <span class="copilot-bubble-time">Just now</span>
+                        </div>
+                        <div class="copilot-bubble-body">
+                            Chat history cleared. How can I assist with your Discord server migration?
+                        </div>
                     </div>
                 </div>
             `;
@@ -4308,11 +4436,50 @@
         });
     }
 
+    if (exportCopilotChatBtn && copilotMessages) {
+        exportCopilotChatBtn.addEventListener('click', () => {
+            const msgs = copilotMessages.querySelectorAll('.copilot-msg');
+            if (!msgs || msgs.length === 0) {
+                showToast('No messages to export.', 'info');
+                return;
+            }
+            let transcript = `Discloner AI Copilot Transcript - ${new Date().toLocaleString()}\n`;
+            transcript += `========================================================\n\n`;
+            msgs.forEach(msg => {
+                const isAI = msg.classList.contains('copilot-msg-ai');
+                const author = isAI ? 'AI Copilot' : 'User';
+                const body = msg.querySelector('.copilot-bubble-body') || msg.querySelector('.copilot-msg-bubble') || msg;
+                const text = body ? body.innerText.trim() : '';
+                if (text) {
+                    transcript += `[${author}]\n${text}\n\n`;
+                }
+            });
+
+            navigator.clipboard.writeText(transcript).then(() => {
+                showToast('Chat transcript copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Could not copy to clipboard.', 'error');
+            });
+        });
+    }
+
+    if (fullscreenCopilotBtn && copilotDrawer) {
+        fullscreenCopilotBtn.addEventListener('click', () => {
+            copilotDrawer.classList.toggle('copilot-fullscreen-mode');
+            const isFull = copilotDrawer.classList.contains('copilot-fullscreen-mode');
+            fullscreenCopilotBtn.setAttribute('title', isFull ? 'Exit Fullscreen' : 'Toggle Fullscreen');
+            showToast(isFull ? 'Fullscreen chat mode activated' : 'Exited fullscreen', 'info');
+        });
+    }
+
     if (toggleCopilotBtn && copilotDrawer) {
         toggleCopilotBtn.addEventListener('click', () => {
             copilotDrawer.classList.toggle('hidden');
             if (!copilotDrawer.classList.contains('hidden')) {
-                if (copilotInput) copilotInput.focus();
+                updateCopilotLiveContext();
+                if (copilotInput) {
+                    setTimeout(() => copilotInput.focus(), 150);
+                }
             }
         });
     }
@@ -4320,6 +4487,25 @@
     if (closeCopilotBtn && copilotDrawer) {
         closeCopilotBtn.addEventListener('click', () => {
             copilotDrawer.classList.add('hidden');
+        });
+    }
+
+    // Escape key closes copilot if open
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && copilotDrawer && !copilotDrawer.classList.contains('hidden')) {
+            copilotDrawer.classList.add('hidden');
+        }
+    });
+
+    // Preset button listener
+    if (copilotPresetBtns) {
+        copilotPresetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const query = btn.dataset.query;
+                if (query) {
+                    sendCopilotQuery(query);
+                }
+            });
         });
     }
 
@@ -4363,20 +4549,48 @@
         msgDiv.className = `copilot-msg copilot-msg-${sender}`;
 
         const bubble = document.createElement('div');
-        bubble.className = 'copilot-msg-bubble';
+        bubble.className = `copilot-clay-bubble copilot-${sender}-bubble`;
+
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
+        const header = document.createElement('div');
+        header.className = 'copilot-bubble-header';
+        header.innerHTML = `
+            <span class="copilot-bubble-author">${sender === 'ai' ? '🤖 Discloner Intelligence' : '👤 You'}</span>
+            <div class="copilot-bubble-actions">
+                <span class="copilot-bubble-time">${timeStr}</span>
+                <button type="button" class="copilot-bubble-copy-btn" title="Copy message" aria-label="Copy message">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+            </div>
+        `;
+        bubble.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'copilot-bubble-body';
         if (sender === 'ai') {
-            bubble.innerHTML = formatMarkdown(text);
+            body.innerHTML = formatMarkdown(text);
         } else {
-            bubble.textContent = text;
+            body.textContent = text;
+        }
+        bubble.appendChild(body);
+
+        const copyBtn = header.querySelector('.copilot-bubble-copy-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const copyText = body.innerText || body.textContent;
+                navigator.clipboard.writeText(copyText).then(() => {
+                    showToast('Message copied to clipboard', 'success');
+                });
+            });
         }
 
         if (meta.modelUsed || meta.autoSwitched) {
             const footer = document.createElement('div');
-            footer.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; margin-top:8px; opacity:0.85; padding-top:6px; border-top:1px solid rgba(0,0,0,0.08);';
+            footer.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; margin-top:10px; opacity:0.85; padding-top:8px; border-top:1px solid rgba(0,0,0,0.06);';
             
             const modelBadge = document.createElement('span');
-            modelBadge.textContent = `🤖 ${meta.modelName || meta.modelUsed || 'AI'}${meta.latencyMs ? ` • ${meta.latencyMs}ms` : ''}`;
+            modelBadge.textContent = `⚡ ${meta.modelName || meta.modelUsed || 'AI'}${meta.latencyMs ? ` • ${meta.latencyMs}ms` : ''}`;
             footer.appendChild(modelBadge);
 
             if (meta.autoSwitched) {
@@ -4416,7 +4630,9 @@
 
         msgDiv.appendChild(bubble);
         copilotMessages.appendChild(msgDiv);
-        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+        requestAnimationFrame(() => {
+            copilotMessages.scrollTo({ top: copilotMessages.scrollHeight, behavior: 'smooth' });
+        });
     }
 
     function createThinkingBubble() {
@@ -4442,7 +4658,9 @@
         `;
 
         copilotMessages.appendChild(thinkingDiv);
-        copilotMessages.scrollTop = copilotMessages.scrollHeight;
+        requestAnimationFrame(() => {
+            copilotMessages.scrollTo({ top: copilotMessages.scrollHeight, behavior: 'smooth' });
+        });
 
         const startTime = Date.now();
         const defaultSteps = [
@@ -4629,4 +4847,24 @@
     fetchRateLimitTelemetry();
     setInterval(fetchRateLimitTelemetry, 1500);
 
+
+    // ==========================================================================
+    // Intersection Observer for Scroll Animations
+    // ==========================================================================
+    const scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                // Optional: Stop observing once visible if you only want it to animate once
+                // scrollObserver.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px"
+    });
+
+    document.querySelectorAll('.scroll-animate').forEach(el => {
+        scrollObserver.observe(el);
+    });
 })();
