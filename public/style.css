@@ -4135,14 +4135,26 @@ a {
     position: absolute;
     border-radius: var(--radius-md);
     box-shadow: 0 0 0 9999px rgba(10, 14, 22, 0.7), 0 0 24px var(--accent-glow);
-    border: 2.5px solid var(--accent);
+    border: 2px solid var(--accent);
     pointer-events: none;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     z-index: 10000;
+    animation: spotlightPulse 2.5s infinite alternate;
+}
+
+@keyframes spotlightPulse {
+    0% { box-shadow: 0 0 0 9999px rgba(10, 14, 22, 0.7), 0 0 20px var(--accent-glow); border-color: rgba(99, 102, 241, 0.7); }
+    100% { box-shadow: 0 0 0 9999px rgba(10, 14, 22, 0.75), 0 0 35px var(--accent-glow); border-color: rgba(99, 102, 241, 1); }
 }
 
 [data-theme="light"] .tour-spotlight-frame {
     box-shadow: 0 0 0 9999px rgba(20, 28, 45, 0.48), 0 0 20px rgba(49, 85, 217, 0.45);
+    animation: spotlightPulseLight 2.5s infinite alternate;
+}
+
+@keyframes spotlightPulseLight {
+    0% { box-shadow: 0 0 0 9999px rgba(20, 28, 45, 0.48), 0 0 15px rgba(49, 85, 217, 0.35); border-color: rgba(49, 85, 217, 0.7); }
+    100% { box-shadow: 0 0 0 9999px rgba(20, 28, 45, 0.55), 0 0 30px rgba(49, 85, 217, 0.6); border-color: rgba(49, 85, 217, 1); }
 }
 
 .tour-card {
@@ -4174,8 +4186,8 @@ a {
 }
 
 @keyframes tourCardPop {
-    from { opacity: 0; transform: scale(0.95) translateY(8px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    0% { opacity: 0; transform: scale(0.97) translateY(16px); filter: blur(4px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
 }
 
 .tour-card-header {

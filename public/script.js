@@ -1123,22 +1123,22 @@
         {
             targetSelector: '#userToken',
             fallbackSelector: '.form-group:first-of-type',
-            title: '1. Discord User Token',
-            desc: 'Provide your personal Discord authorization token. Tokens are processed ephemerally in-memory and are never stored or logged.',
+            title: 'Welcome to DisCloner',
+            desc: 'Secure authentication. Provide your Discord token to begin. Tokens are processed in-memory ephemerally and never logged.',
             preferredPos: 'bottom'
         },
         {
             targetSelector: '.routing-layout',
             fallbackSelector: '#sourceId',
-            title: '2. Source & Target Routing',
-            desc: 'Specify the Source Guild ID to replicate, and your fresh Target Guild ID where structure and assets will be created.',
+            title: 'Define Migration Route',
+            desc: 'Specify the Source Guild ID you wish to replicate, alongside the fresh Target Guild ID where assets will be deployed.',
             preferredPos: 'bottom'
         },
         {
             targetSelector: '#advancedToggleBtn',
             fallbackSelector: '.advanced-accordion-section',
-            title: '3. Advanced Configuration',
-            desc: 'Toggle options to clean the target server, replicate custom roles, channels & categories, role permissions, server icons, and recent message history.',
+            title: 'Configure Fidelity',
+            desc: 'Expand Advanced Configuration to tune replication logic — control channel sync, role hierarchies, and message history transfers.',
             preferredPos: 'bottom',
             onEnter: () => {
                 if (advancedPanel && advancedPanel.classList.contains('collapsed')) {
@@ -1151,8 +1151,8 @@
         {
             targetSelector: '#configActionsBar',
             fallbackSelector: '#saveConfigBtn',
-            title: '4. Save Configuration',
-            desc: 'Click "Save Configuration" to persist your customized options (excluding tokens) to local storage so you don\'t have to re-select preferences every visit.',
+            title: 'Persist Preferences',
+            desc: 'Save your configuration settings to local storage to streamline future migrations.',
             preferredPos: 'top',
             onEnter: () => {
                 if (advancedPanel && advancedPanel.classList.contains('collapsed')) {
@@ -1163,15 +1163,15 @@
         {
             targetSelector: '#startBtn',
             fallbackSelector: '.cta-actions-group',
-            title: '5. Detached Background Engine',
-            desc: 'Click "START CLONING" to begin! Migrations run detached in the background on the server — feel free to close the tab or browser anytime.',
+            title: 'Detached Execution',
+            desc: 'Launch the engine. Migrations run autonomously in the cloud—you can close this tab and return later to check the progress.',
             preferredPos: 'top'
         },
         {
             targetSelector: '#progressCard',
             fallbackSelector: '#consoleCard',
-            title: '6. Telemetry & Real-Time Console',
-            desc: 'Monitor dynamic Estimated Time Remaining (ETA), progress percentages, real-time entity counters, and search-filterable streaming logs.',
+            title: 'Real-Time Telemetry',
+            desc: 'Monitor exact ETA, execution percentages, and a searchable stream of background events directly from the dashboard.',
             preferredPos: 'left'
         }
     ];
@@ -1218,7 +1218,7 @@
         }
 
         if (tourNextBtnText) {
-            tourNextBtnText.textContent = (index === TOUR_STEPS.length - 1) ? 'Finish Tour' : 'Next';
+            tourNextBtnText.textContent = (index === TOUR_STEPS.length - 1) ? 'Let\'s Go!' : 'Next';
         }
 
         renderTourDots();
