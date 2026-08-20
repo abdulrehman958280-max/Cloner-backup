@@ -26,6 +26,8 @@ export function sanitizeSensitiveText(text) {
     return result;
 }
 
+export const sanitizeText = sanitizeSensitiveText;
+
 /**
  * Creates a sanitized context payload safe for AI ingestion
  * @param {Object} context Raw migration context

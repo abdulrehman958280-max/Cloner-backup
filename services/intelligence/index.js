@@ -1,10 +1,12 @@
 /**
  * Clone Intelligence - Unified Subsystem Index
  * Main entry point exporting analyzers, compatibility engine, ticket detector,
- * rate limit intelligence, recovery, AI model router, and copilot chat service.
+ * rate limit intelligence, recovery, AI model router, multi-agent swarm, and copilot chat service.
  */
 
 export * from './sanitizer.js';
+export * from './agentEventBus.js';
+export * from './baseAgent.js';
 export * from './sourceAnalyzer.js';
 export * from './targetAnalyzer.js';
 export * from './ticketDetector.js';
@@ -26,7 +28,9 @@ export * from './aiTools.js';
 export * from './aiChatService.js';
 export * from './cleanerAgent.js';
 export * from './clonerAgent.js';
+export * from './testerAgent.js';
 export * from './assistantAgent.js';
+export * from './sheetOptimizerAgent.js';
 export * from './agentSwarm.js';
 export * from './reportGenerator.js';
 

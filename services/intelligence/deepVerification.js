@@ -161,3 +161,5 @@ export function verifyMigrationDeeply(sourceAnalysis, targetGuild, options = {})
         mismatches
     };
 }
+
+export const runDeepVerification = verifyMigrationDeeply;

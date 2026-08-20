@@ -11,7 +11,8 @@ import {
     AiChatService,
     generateIntelligenceReport,
     sanitizeAiContext,
-    sanitizeSensitiveText
+    sanitizeSensitiveText,
+    SheetOptimizerAgent
 } from '../services/intelligence/index.js';
 
 test('SourceGuildAnalyzer extracts structural insights and rawResources', () => {
@@ -213,8 +214,8 @@ test('AiModelRouter automatically cascades and switches to next best free model 
         fetchCallCount++;
         const body = JSON.parse(opts.body || '{}');
 
-        // First model (e.g. Gemini) returns 429 Too Many Requests (Quota Full)
-        if (body.model === 'google/gemini-2.0-flash-exp:free') {
+        // First candidate model returns 429 Too Many Requests (Quota Full)
+        if (fetchCallCount === 1) {
             return {
                 ok: false,
                 status: 429,
@@ -238,11 +239,25 @@ test('AiModelRouter automatically cascades and switches to next best free model 
         assert.equal(result.success, true);
         assert.equal(result.autoSwitched, true);
         assert.ok(result.failoverChain && result.failoverChain.length >= 1);
-        assert.equal(result.failoverChain[0].fromModel, 'google/gemini-2.0-flash-exp:free');
-        assert.notEqual(result.modelUsed, 'google/gemini-2.0-flash-exp:free');
+        assert.ok(result.failoverChain[0].fromModel);
+        assert.notEqual(result.modelUsed, result.failoverChain[0].fromModel);
         assert.equal(result.text, 'AI analysis successful on failover model.');
     } finally {
         global.fetch = originalFetch;
     }
+});
+
+test('SheetOptimizerAgent optimizes clone history and audits sync connection', async () => {
+    const agent = new SheetOptimizerAgent();
+    assert.equal(agent.type, 'SHEET_OPTIMIZER');
+    assert.equal(agent.name, 'Sheet Optimizer Agent 📊');
+
+    const result = await agent.optimizeLocalHistory();
+    assert.equal(result.success, true);
+    assert.ok(typeof result.healthScore === 'number');
+
+    const audit = await agent.auditSyncConnection();
+    assert.ok(audit.status);
+    assert.ok(typeof audit.healthScore === 'number');
 });
 

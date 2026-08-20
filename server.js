@@ -22,6 +22,8 @@ import {
     predictMigrationOutcome,
     aiChatService,
     aiModelRouter,
+    agentSwarmCoordinator,
+    agentEventBus,
     generateIntelligenceReport,
     sanitizeAiContext
 } from './services/intelligence/index.js';
@@ -43,6 +45,14 @@ const io = new Server(server, {
 
 // Attach socket server to job manager
 jobManager.setSocketServer(io);
+
+// Bridge Multi-Agent Event Bus to real-time Socket.IO clients
+agentEventBus.addGlobalListener((event) => {
+    if (event.jobId && event.jobId !== 'global') {
+        io.to(`job:${event.jobId}`).emit('agent:event', event);
+    }
+    io.emit('agent:event', event);
+});
 
 // Bridge AI Failover events to real-time socket and active migration job logs
 aiModelRouter.addTelemetryListener((event, jobId) => {
@@ -488,6 +498,39 @@ app.post('/api/intelligence/chat', async (req, res) => {
     }
 });
 
+// Multi-Agent Swarm Live State Endpoint
+app.get('/api/intelligence/swarm-state', (req, res) => {
+    try {
+        const jobId = req.query.jobId || null;
+        const snapshot = agentSwarmCoordinator.getSwarmSnapshot(jobId);
+        res.json({
+            success: true,
+            snapshot
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// AI Operational Tool Direct Execution Endpoint
+app.post('/api/intelligence/tools/execute', async (req, res) => {
+    try {
+        const { toolName, args = {}, jobId = null } = req.body;
+        const userToken = req.body.userToken || req.headers['x-user-token'] || null;
+        if (!toolName) {
+            return res.status(400).json({ success: false, error: 'toolName parameter is required' });
+        }
+        const toolResult = await intelligenceToolsRegistry.executeTool(toolName, { ...args, userToken }, jobId);
+        res.json({
+            success: true,
+            toolName,
+            result: toolResult
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: sanitizeText(err.message || 'Tool execution error') });
+    }
+});
+
 // Neural AI Models & Auto-Failover Health Status
 app.get('/api/intelligence/models', (req, res) => {
     try {
@@ -808,6 +851,21 @@ setInterval(() => {
         io.emit('clone:rate_limit', { rateLimit: snapshot });
     } catch {}
 }, 1000);
+
+// Global Express Error Handler
+app.use((err, req, res, next) => {
+    console.error('Unhandled Express Error:', err);
+    res.status(500).json({ status: 'error', message: 'Internal Server Error' });
+});
+
+// Process-level exception handling to prevent crashes
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
 
 const PORT = process.env.PORT || 3000;
 if (!process.env.VERCEL) {

@@ -8,6 +8,7 @@
 import { sanitizeAiContext } from './sanitizer.js';
 import { ModelCapabilityRegistry, TASK_TYPES } from './modelCapabilityRegistry.js';
 import { createLogEntry } from '../../utils/logger.js';
+import { GoogleGenAI } from '@google/genai';
 
 // Curated pool of top Neural Free Models ranked by capability and reliability tier
 export const CURATED_FREE_MODELS = [
@@ -126,10 +127,19 @@ export const DEFAULT_FREE_MODELS = CURATED_FREE_MODELS;
 export class AiModelRouter {
     constructor(apiKey = process.env.NEURAL_AI_API_KEY || process.env.OPENROUTER_API_KEY) {
         this.apiKey = apiKey || null;
+        this.geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null;
+        this.genaiClient = null;
+        if (this.geminiApiKey) {
+            try {
+                this.genaiClient = new GoogleGenAI({ apiKey: this.geminiApiKey });
+            } catch (e) {
+                this.genaiClient = null;
+            }
+        }
         this.capabilityRegistry = new ModelCapabilityRegistry();
         this.models = [...CURATED_FREE_MODELS];
         this.modelHealth = new Map(); // modelId -> HealthState
-        this.activeModel = this.models[0]?.id || 'google/gemini-2.0-flash-exp:free';
+        this.activeModel = this.geminiApiKey ? 'google/gemini-2.0-flash' : (this.models[0]?.id || 'google/gemini-2.0-flash-exp:free');
         this.autoFailoverEnabled = true;
         this.recentFailovers = []; // History of auto-switches: [ { timestamp, from, to, reason } ]
         this.isFetchingLiveModels = false;
@@ -207,13 +217,21 @@ export class AiModelRouter {
 
     setApiKey(key) {
         this.apiKey = key ? key.trim() : null;
+        if (key && (key.startsWith('AIza') || key.includes('gemini'))) {
+            this.geminiApiKey = key.trim();
+            try {
+                this.genaiClient = new GoogleGenAI({ apiKey: this.geminiApiKey });
+            } catch (e) {
+                this.genaiClient = null;
+            }
+        }
         if (this.isAiAvailable()) {
             this.fetchLiveFreeModels().catch(() => {});
         }
     }
 
     isAiAvailable() {
-        return Boolean(this.apiKey && this.apiKey.trim().length > 0);
+        return Boolean((this.geminiApiKey && this.geminiApiKey.trim().length > 0) || (this.apiKey && this.apiKey.trim().length > 0));
     }
 
     /**
@@ -384,6 +402,74 @@ export class AiModelRouter {
         const taskType = options.taskType || (options.jsonMode ? TASK_TYPES.STRUCTURED_JSON : TASK_TYPES.SIMPLE);
         const candidateModels = this.getCandidateModels(taskType, options);
         const failoverChain = [];
+
+        // 1. Try Native Google GenAI SDK if gemini key is active
+        if (this.genaiClient) {
+            const startTime = Date.now();
+            try {
+                this.emitThinkingTelemetry({
+                    state: 'analyzing',
+                    step: 'Analyzing migration state with Google Gemini 2.0 Flash...',
+                    modelId: 'google/gemini-2.0-flash',
+                    modelName: 'Gemini 2.0 Flash (Native SDK)',
+                    attempt: 1,
+                    taskType
+                }, options.jobId);
+
+                const sysMsg = messages.find(m => m.role === 'system')?.content || '';
+                const userMsgs = messages.filter(m => m.role !== 'system').map(m => m.content).join('\n\n');
+                const fullPrompt = sysMsg ? `${sysMsg}\n\n${userMsgs}` : userMsgs;
+
+                const response = await this.genaiClient.models.generateContent({
+                    model: 'gemini-2.0-flash',
+                    contents: fullPrompt,
+                    config: {
+                        temperature: options.temperature ?? 0.3,
+                        maxOutputTokens: options.maxTokens ?? 1024,
+                        responseMimeType: options.jsonMode ? 'application/json' : undefined
+                    }
+                });
+
+                const latencyMs = Date.now() - startTime;
+                const text = response.text || '';
+
+                if (text || options.allowEmpty) {
+                    this.activeModel = 'google/gemini-2.0-flash';
+                    this.emitThinkingTelemetry({
+                        state: 'completed',
+                        step: 'Analysis complete with Gemini 2.0 Flash.',
+                        modelId: 'google/gemini-2.0-flash',
+                        modelName: 'Gemini 2.0 Flash (Native SDK)',
+                        latencyMs
+                    }, options.jobId);
+
+                    return {
+                        success: true,
+                        isAiAvailable: true,
+                        fallbackToDeterministic: false,
+                        text,
+                        modelUsed: 'google/gemini-2.0-flash',
+                        modelName: 'Gemini 2.0 Flash',
+                        modelCategory: 'native_genai',
+                        latencyMs,
+                        failoverChain: null,
+                        autoSwitched: false,
+                        taskType
+                    };
+                }
+            } catch (err) {
+                failoverChain.push({
+                    timestamp: new Date().toISOString(),
+                    fromModel: 'google/gemini-2.0-flash',
+                    fromName: 'Gemini 2.0 Flash (Native SDK)',
+                    toModel: candidateModels[0]?.id || 'OpenRouter Cascade',
+                    toName: candidateModels[0]?.name || 'OpenRouter Free Pool',
+                    reason: err.message || 'Gemini API call failed',
+                    statusCode: 500,
+                    taskType
+                });
+            }
+        }
 
         for (let i = 0; i < candidateModels.length; i++) {
             const currentModel = candidateModels[i];

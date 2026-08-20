@@ -1,16 +1,29 @@
 /**
- * Assistant Agent Module
- * Master conversational agent that coordinates swarm intent routing across Cleaner and Cloner agents
- * while maintaining unified shared state context.
+ * Clone Intelligence - Assistant Agent (Orchestrator)
+ * Master conversational agent and central coordinator powering the Copilot UI.
+ * Integrates live job/agent telemetry, rate limit stats, verification scores,
+ * and multi-agent event history to provide accurate responses without hallucinating.
  */
-import { sanitizeAiContext, sanitizeSensitiveText } from './sanitizer.js';
-import { TASK_TYPES } from './modelCapabilityRegistry.js';
 
-export class AssistantAgent {
+import { BaseAgent } from './baseAgent.js';
+import { TASK_TYPES } from './modelCapabilityRegistry.js';
+import { sanitizeAiContext, sanitizeSensitiveText } from './sanitizer.js';
+
+export class AssistantAgent extends BaseAgent {
     constructor(aiModelRouter) {
-        this.name = 'Assistant Agent 🤖';
-        this.modelRouter = aiModelRouter;
-        this.systemPrompt = 'You are the Master Assistant Agent for Discloner Studio. You guide users across server cloning, cleanup safety, diagnostics, and verification, maintaining complete synchronization with the shared migration state.';
+        super({
+            id: 'assistant_agent_01',
+            name: 'Assistant Agent 🤖',
+            type: 'ASSISTANT',
+            capabilities: [
+                'SWARM_ORCHESTRATION',
+                'COPILOT_CHAT',
+                'REALTIME_TELEMETRY',
+                'USER_CONTROL_DISPATCH'
+            ],
+            systemPrompt: 'You are the Master Assistant Agent & Orchestrator for Discloner Studio. You assist users with server cloning, target cleanup safety, error diagnostics, and post-migration verification. You have real-time visibility into the actual live migration state. Speak concisely, clearly, and never hallucinate permissions or cloning facts.',
+            modelRouter: aiModelRouter
+        });
     }
 
     async execute(query, sharedState = {}) {
@@ -26,13 +39,13 @@ export class AssistantAgent {
 
         const messages = [
             { role: 'system', content: this.systemPrompt },
-            { role: 'user', content: `Shared Migration State:\n${JSON.stringify(sanitizeAiContext(sharedState))}\n\nUser Query:\n${cleanQuery}` }
+            { role: 'user', content: `Live Migration State Context:\n${JSON.stringify(sanitizeAiContext(sharedState))}\n\nUser Prompt:\n${cleanQuery}` }
         ];
 
         const aiResult = await this.modelRouter.executePrompt(messages, {
             taskType: TASK_TYPES.FAST_CHAT,
             temperature: 0.3,
-            maxTokens: 700
+            maxTokens: 800
         });
 
         return {

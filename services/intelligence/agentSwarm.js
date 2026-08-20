@@ -1,71 +1,28 @@
 /**
  * Clone Intelligence - Multi-Agent Swarm Coordinator
- * The Master Assistant Agent operates the Copilot chat UI, coordinating and delegating
- * specialized tasks across the Cleaner, Cloner, Diagnostics, and Verification agents
- * while sharing unified migration state.
+ * Master orchestrator managing CleanerAgent, ClonerAgent, TesterAgent, DiagnosticsAgent,
+ * and AssistantAgent across job lifecycles and real-time user Copilot interactions.
  */
 
 import { sanitizeAiContext, sanitizeSensitiveText } from './sanitizer.js';
 import { CleanerAgent } from './cleanerAgent.js';
 import { ClonerAgent } from './clonerAgent.js';
 import { AssistantAgent } from './assistantAgent.js';
-
-export class BaseAgent {
-    constructor(name, systemPrompt, aiModelRouter) {
-        this.name = name;
-        this.systemPrompt = systemPrompt;
-        this.modelRouter = aiModelRouter;
-    }
-
-    async execute(query, sharedState = {}) {
-        if (!this.modelRouter || !this.modelRouter.isAiAvailable()) {
-            return {
-                success: true,
-                isAiGenerated: false,
-                agentName: this.name,
-                reply: `[${this.name} - Offline Mode] Operational with deterministic rules.`
-            };
-        }
-
-        const messages = [
-            { role: 'system', content: this.systemPrompt },
-            { role: 'user', content: `Shared Migration State:\n${JSON.stringify(sanitizeAiContext(sharedState))}\n\nQuery/Task:\n${sanitizeSensitiveText(query)}` }
-        ];
-
-        const aiResult = await this.modelRouter.executePrompt(messages, {
-            taskType: 'complex',
-            temperature: 0.2,
-            maxTokens: 700
-        });
-
-        return {
-            success: aiResult.success,
-            isAiGenerated: true,
-            agentName: this.name,
-            reply: aiResult.text || 'Agent analysis completed.',
-            modelUsed: aiResult.modelUsed,
-            latencyMs: aiResult.latencyMs
-        };
-    }
-}
+import { TesterAgent } from './testerAgent.js';
+import { SheetOptimizerAgent } from './sheetOptimizerAgent.js';
+import { BaseAgent } from './baseAgent.js';
+import { agentEventBus } from './agentEventBus.js';
 
 export class DiagnosticsAgent extends BaseAgent {
     constructor(aiModelRouter) {
-        super(
-            'Diagnostics Agent 🩺',
-            'You are the specialized Diagnostics & Error Agent for Discloner Studio. Your expertise is in Discord API error classification (429 rate limits, missing permissions, hierarchy conflicts) and guiding robust retry queues.',
-            aiModelRouter
-        );
-    }
-}
-
-export class VerificationAgent extends BaseAgent {
-    constructor(aiModelRouter) {
-        super(
-            'Verification Agent 🛡️',
-            'You are the specialized Verification Agent for Discloner Studio. Your expertise is in post-migration deep structural verification, diff accuracy reports, and scoring.',
-            aiModelRouter
-        );
+        super({
+            id: 'diagnostics_agent_01',
+            name: 'Diagnostics Agent 🩺',
+            type: 'DIAGNOSTICS',
+            capabilities: ['ERROR_CLASSIFICATION', 'RETRY_ANALYSIS', 'RATE_LIMIT_ADVICE'],
+            systemPrompt: 'You are the specialized Diagnostics & Error Agent for Discloner Studio. Your expertise is in Discord API error classification (429 rate limits, missing permissions, hierarchy conflicts) and guiding robust retry queues.',
+            modelRouter: aiModelRouter
+        });
     }
 }
 
@@ -73,11 +30,46 @@ export class AgentSwarmCoordinator {
     constructor(aiModelRouter, toolsRegistry) {
         this.modelRouter = aiModelRouter;
         this.tools = toolsRegistry;
+        
+        // Specialized Agent Instances
         this.cleanerAgent = new CleanerAgent(aiModelRouter);
         this.clonerAgent = new ClonerAgent(aiModelRouter);
+        this.testerAgent = new TesterAgent(aiModelRouter);
         this.assistantAgent = new AssistantAgent(aiModelRouter);
         this.diagnosticsAgent = new DiagnosticsAgent(aiModelRouter);
-        this.verificationAgent = new VerificationAgent(aiModelRouter);
+        this.sheetAgent = new SheetOptimizerAgent(aiModelRouter);
+
+        this.agentsMap = new Map([
+            ['CLEANER', this.cleanerAgent],
+            ['CLONER', this.clonerAgent],
+            ['TESTER', this.testerAgent],
+            ['ASSISTANT', this.assistantAgent],
+            ['DIAGNOSTICS', this.diagnosticsAgent],
+            ['SHEET', this.sheetAgent]
+        ]);
+    }
+
+    getAgent(type) {
+        return this.agentsMap.get(type?.toUpperCase()) || this.assistantAgent;
+    }
+
+    getSwarmSnapshot(jobId = null) {
+        const events = jobId ? agentEventBus.getJobEventHistory(jobId) : [];
+        const snapshot = {};
+        for (const [key, agent] of this.agentsMap.entries()) {
+            snapshot[key.toLowerCase()] = {
+                id: agent.id,
+                name: agent.name,
+                type: agent.type,
+                state: agent.state,
+                capabilities: agent.capabilities,
+                metrics: agent.metrics
+            };
+        }
+        return {
+            agents: snapshot,
+            recentEvents: events.slice(-20)
+        };
     }
 
     // Determine if query requires a specialized agent's deep expertise
@@ -92,8 +84,11 @@ export class AgentSwarmCoordinator {
         if (q.includes('error') || q.includes('fail') || q.includes('bug') || q.includes('rate limit') || q.includes('retry') || q.includes('diagnos')) {
             return { agent: this.diagnosticsAgent, domain: 'Diagnostics' };
         }
-        if (q.includes('verify') || q.includes('score') || q.includes('diff') || q.includes('audit') || q.includes('report')) {
-            return { agent: this.verificationAgent, domain: 'Verification' };
+        if (q.includes('sheet') || q.includes('excel') || q.includes('google script') || q.includes('export') || q.includes('history')) {
+            return { agent: this.sheetAgent, domain: 'Sheet Optimizer' };
+        }
+        if (q.includes('verify') || q.includes('score') || q.includes('diff') || q.includes('audit') || q.includes('test') || q.includes('report')) {
+            return { agent: this.testerAgent, domain: 'Tester' };
         }
         return null;
     }
@@ -122,7 +117,7 @@ export class AgentSwarmCoordinator {
             }
         }
 
-        // Construct shared state context shared across agents
+        // Construct shared state context across agents
         const sharedState = currentJob ? {
             jobId: currentJob.id,
             status: currentJob.status,
@@ -133,20 +128,23 @@ export class AgentSwarmCoordinator {
             sourceSummary: currentJob.sourceAnalysis,
             targetSummary: currentJob.targetAnalysis,
             cleanupPlan: currentJob.intelligenceContext?.cleanupPlan,
-            verification: currentJob.verificationReport
-        } : { note: 'No active migration job currently running. Standby mode.' };
+            verification: currentJob.verificationReport,
+            swarmState: this.getSwarmSnapshot(currentJob.id)
+        } : {
+            note: 'No active migration job currently running. Standby mode.',
+            swarmState: this.getSwarmSnapshot(null)
+        };
 
         // Check if a specialized agent should perform domain-specific analysis
         const specializedMatch = this.routeSpecializedAgent(cleanQuery);
         let specializedInsight = null;
         if (specializedMatch) {
-            const specRes = await specializedMatch.agent.execute(cleanQuery, sharedState);
+            const specRes = await specializedMatch.agent.execute(cleanQuery, { sharedState });
             if (specRes && specRes.reply) {
                 specializedInsight = `[Specialized ${specRes.agentName} Report]:\n${specRes.reply}`;
             }
         }
 
-        // The Master Assistant Agent operates the Copilot chat UI, incorporating specialized insights if available
         const assistantQuery = specializedInsight
             ? `${cleanQuery}\n\nContext from specialized domain expert:\n${specializedInsight}`
             : cleanQuery;

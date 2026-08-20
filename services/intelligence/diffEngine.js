@@ -51,3 +51,5 @@ export function computeTargetDelta(targetBeforeAnalysis, targetAfterGuild, verif
         summary
     };
 }
+
+export const generateBeforeAfterDiff = computeTargetDelta;

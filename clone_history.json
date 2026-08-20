@@ -1,35 +1,760 @@
 [
   {
-    "time": "08/19/2026, 03:04:12 PM",
+    "time": "08/20/2026, 02:05:52 AM",
     "username": "Unknown User",
     "token": "fake-token-test-12345678901234567890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "cleanTarget",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787191552089",
+    "timestamp": 1787191552110
+  },
+  {
+    "time": "08/20/2026, 02:05:52 AM",
+    "username": "Unknown User",
+    "token": "fake-token-test-12345678901234567890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787191552089",
+    "timestamp": 1787191552090
+  },
+  {
+    "time": "08/20/2026, 02:05:52 AM",
+    "username": "Unknown User",
+    "token": "fake-token-test-12345678901234567890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787191552113",
+    "timestamp": 1787191552113
+  },
+  {
+    "time": "08/20/2026, 02:05:48 AM",
+    "username": "Unknown User",
+    "token": "token1",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787191548900
+  },
+  {
+    "time": "08/20/2026, 02:05:48 AM",
+    "username": "Unknown User",
+    "token": "token1",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787191548679
+  },
+  {
+    "time": "08/20/2026, 02:04:49 AM",
+    "username": "Unknown User",
+    "token": "# MAST...ion.",
+    "sourceId": "Token Input (No Clone)",
+    "sourceGuildName": "N/A",
+    "targetId": "Token Input (No Clone)",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": null,
+    "timestamp": 1787191489761
+  },
+  {
+    "time": "08/20/2026, 01:52:28 AM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787190748345",
+    "timestamp": 1787190748346
+  },
+  {
+    "time": "08/20/2026, 01:52:24 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787190744908
+  },
+  {
+    "time": "08/20/2026, 01:35:43 AM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "1423673798112186464",
+    "sourceGuildName": "N/A",
+    "targetId": "1538903509460582470",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787142252667_w9f6ankk5",
+    "timestamp": 1787189743859
+  },
+  {
+    "time": "08/20/2026, 01:34:58 AM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "sourceGuildName": "N/A",
+    "targetId": "Token Input (No Clone)",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": null,
+    "timestamp": 1787189698770
+  },
+  {
+    "time": "08/20/2026, 01:18:22 AM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "cleanTarget",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787188702194",
+    "timestamp": 1787188702218
+  },
+  {
+    "time": "08/20/2026, 01:18:18 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787188698388
+  },
+  {
+    "time": "08/20/2026, 01:07:03 AM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787188023637",
+    "timestamp": 1787188023637
+  },
+  {
+    "time": "08/20/2026, 01:07:00 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787188020140
+  },
+  {
+    "time": "08/20/2026, 01:06:59 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787188019920
+  },
+  {
+    "time": "08/20/2026, 01:01:47 AM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "sourceGuildName": "N/A",
+    "targetId": "Token Input (No Clone)",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": null,
+    "timestamp": 1787187707214
+  },
+  {
+    "time": "08/20/2026, 01:01:05 AM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787187665586",
+    "timestamp": 1787187665587
+  },
+  {
+    "time": "08/20/2026, 01:01:02 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787187662558
+  },
+  {
+    "time": "08/20/2026, 01:00:41 AM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787187641701",
+    "timestamp": 1787187641701
+  },
+  {
+    "time": "08/20/2026, 01:00:37 AM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787187637735
+  },
+  {
+    "time": "08/19/2026, 07:09:42 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "cleanTarget",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787166582950",
+    "timestamp": 1787166582971
+  },
+  {
+    "time": "08/19/2026, 07:09:40 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787166580029
+  },
+  {
+    "time": "08/19/2026, 07:09:39 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787166579808
+  },
+  {
+    "time": "08/19/2026, 07:04:21 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787166261355",
+    "timestamp": 1787166261355
+  },
+  {
+    "time": "08/19/2026, 07:04:16 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787166256969
+  },
+  {
+    "time": "08/19/2026, 07:01:58 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "1369707819196219484",
+    "sourceGuildName": "N/A",
+    "targetId": "1538903509460582470",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787142252667_w9f6ankk5",
+    "timestamp": 1787166118386
+  },
+  {
+    "time": "08/19/2026, 07:01:45 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "sourceGuildName": "N/A",
+    "targetId": "Token Input (No Clone)",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": null,
+    "timestamp": 1787166105189
+  },
+  {
+    "time": "08/19/2026, 06:57:38 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787165858862",
+    "timestamp": 1787165858862
+  },
+  {
+    "time": "08/19/2026, 06:57:35 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787165855321
+  },
+  {
+    "time": "08/19/2026, 06:48:13 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "sourceGuildName": "N/A",
+    "targetId": "129384756102938475",
+    "targetGuildName": "N/A",
+    "rolesCount": "N/A",
+    "channelsCount": "N/A",
+    "status": "LOGGED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sess_1787165293811",
+    "timestamp": 1787165293811
+  },
+  {
+    "time": "08/19/2026, 06:48:10 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "sourceGuildName": "N/A",
+    "targetId": "222222222222222222",
+    "targetGuildName": "N/A",
+    "rolesCount": 0,
+    "channelsCount": 0,
+    "status": "COMPLETED",
+    "durationSec": "N/A",
+    "optionsSummary": "N/A",
+    "fidelityScore": "N/A",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787165290593
+  },
+  {
+    "time": "08/19/2026, 06:45:57 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787165157647",
+    "timestamp": 1787165157648
+  },
+  {
+    "time": "08/19/2026, 06:45:54 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787165154796
+  },
+  {
+    "time": "08/19/2026, 06:41:35 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787164895585",
+    "timestamp": 1787164895586
+  },
+  {
+    "time": "08/19/2026, 06:41:31 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787164891783
+  },
+  {
+    "time": "08/19/2026, 06:41:08 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787164868468",
+    "timestamp": 1787164868468
+  },
+  {
+    "time": "08/19/2026, 06:41:04 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787164864576
+  },
+  {
+    "time": "08/19/2026, 06:39:36 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "1318668861519826986",
+    "targetId": "1538903509460582470",
+    "sessionId": "sess_1787142252667_w9f6ankk5",
+    "timestamp": 1787164776833
+  },
+  {
+    "time": "08/19/2026, 06:38:06 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "targetId": "Token Input (No Clone)",
+    "sessionId": null,
+    "timestamp": 1787164686169
+  },
+  {
+    "time": "08/19/2026, 06:16:19 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787163379063",
+    "timestamp": 1787163379064
+  },
+  {
+    "time": "08/19/2026, 06:16:15 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787163375474
+  },
+  {
+    "time": "08/19/2026, 06:11:37 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787163097881",
+    "timestamp": 1787163097882
+  },
+  {
+    "time": "08/19/2026, 06:11:28 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787163088918
+  },
+  {
+    "time": "08/19/2026, 06:06:26 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "1267751230164439062",
+    "targetId": "1538903509460582470",
+    "sessionId": "sess_1787142252667_w9f6ankk5",
+    "timestamp": 1787162786845
+  },
+  {
+    "time": "08/19/2026, 06:06:03 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "targetId": "Token Input (No Clone)",
+    "sessionId": null,
+    "timestamp": 1787162763906
+  },
+  {
+    "time": "08/19/2026, 05:53:56 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787162036572",
+    "timestamp": 1787162036572
+  },
+  {
+    "time": "08/19/2026, 05:53:52 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787162032325
+  },
+  {
+    "time": "08/19/2026, 05:47:30 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787161650619",
+    "timestamp": 1787161650620
+  },
+  {
+    "time": "08/19/2026, 05:47:27 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787161647054
+  },
+  {
+    "time": "08/19/2026, 05:47:26 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": "sock_socket_test_123",
+    "timestamp": 1787161646829
+  },
+  {
+    "time": "08/19/2026, 05:46:19 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
+    "sourceId": "110293847561829401",
+    "targetId": "129384756102938475",
+    "sessionId": "sess_1787161579611",
+    "timestamp": 1787161579611
+  },
+  {
+    "time": "08/19/2026, 05:46:15 PM",
+    "username": "Unknown User",
+    "token": "[REDACTED_TOKEN]",
+    "sourceId": "111111111111111111",
+    "targetId": "222222222222222222",
+    "sessionId": null,
+    "timestamp": 1787161575821
+  },
+  {
+    "time": "08/19/2026, 05:02:55 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "1402907214447902763",
+    "targetId": "1538903509460582470",
+    "sessionId": "sess_1787142252667_w9f6ankk5",
+    "timestamp": 1787158975985
+  },
+  {
+    "time": "08/19/2026, 05:02:04 PM",
+    "username": "noor.exe95",
+    "token": "MTI3OT...JXQ4",
+    "sourceId": "Token Input (No Clone)",
+    "targetId": "Token Input (No Clone)",
+    "sessionId": null,
+    "timestamp": 1787158924497
+  },
+  {
+    "time": "08/19/2026, 05:01:36 PM",
+    "username": "Unknown User",
+    "token": "Refact...ity.",
+    "sourceId": "Token Input (No Clone)",
+    "targetId": "Token Input (No Clone)",
+    "sessionId": null,
+    "timestamp": 1787158896911
+  },
+  {
+    "time": "08/19/2026, 03:04:12 PM",
+    "username": "Unknown User",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787151852607",
     "timestamp": 1787151852607
   },
   {
-    "time": "08/19/2026, 03:04:12 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787151852603
-  },
-  {
-    "time": "08/19/2026, 03:04:12 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787151852522",
-    "timestamp": 1787151852523
-  },
-  {
     "time": "08/19/2026, 03:04:08 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -38,7 +763,7 @@
   {
     "time": "08/19/2026, 03:04:07 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -47,34 +772,16 @@
   {
     "time": "08/19/2026, 03:03:24 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787151804500",
     "timestamp": 1787151804500
   },
   {
-    "time": "08/19/2026, 03:03:24 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787151804496
-  },
-  {
-    "time": "08/19/2026, 03:03:24 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787151804452",
-    "timestamp": 1787151804453
-  },
-  {
     "time": "08/19/2026, 03:03:21 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -83,7 +790,7 @@
   {
     "time": "08/19/2026, 03:03:20 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -92,34 +799,16 @@
   {
     "time": "08/19/2026, 02:42:18 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787150538872",
     "timestamp": 1787150538872
   },
   {
-    "time": "08/19/2026, 02:42:18 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787150538868
-  },
-  {
-    "time": "08/19/2026, 02:42:18 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150538825",
-    "timestamp": 1787150538827
-  },
-  {
     "time": "08/19/2026, 02:42:15 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -128,7 +817,7 @@
   {
     "time": "08/19/2026, 02:42:14 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -137,214 +826,88 @@
   {
     "time": "08/19/2026, 02:41:56 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": null,
     "timestamp": 1787150516225
   },
   {
-    "time": "08/19/2026, 02:41:56 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150516230",
-    "timestamp": 1787150516230
-  },
-  {
-    "time": "08/19/2026, 02:41:56 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150516180",
-    "timestamp": 1787150516181
-  },
-  {
     "time": "08/19/2026, 02:41:51 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
     "timestamp": 1787150511884
   },
   {
-    "time": "08/19/2026, 02:41:51 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "sessionId": "sock_socket_test_123",
-    "timestamp": 1787150511642
-  },
-  {
     "time": "08/19/2026, 02:41:25 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787150485521",
     "timestamp": 1787150485522
   },
   {
-    "time": "08/19/2026, 02:41:25 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150485568",
-    "timestamp": 1787150485569
-  },
-  {
-    "time": "08/19/2026, 02:41:25 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787150485564
-  },
-  {
     "time": "08/19/2026, 02:41:22 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
     "timestamp": 1787150482382
   },
   {
-    "time": "08/19/2026, 02:41:22 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "sessionId": "sock_socket_test_123",
-    "timestamp": 1787150482139
-  },
-  {
     "time": "08/19/2026, 02:40:36 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787150436254",
     "timestamp": 1787150436255
   },
   {
-    "time": "08/19/2026, 02:40:36 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150436190",
-    "timestamp": 1787150436191
-  },
-  {
-    "time": "08/19/2026, 02:40:36 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787150436250
-  },
-  {
     "time": "08/19/2026, 02:40:31 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
     "timestamp": 1787150431834
   },
   {
-    "time": "08/19/2026, 02:40:31 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "sessionId": "sock_socket_test_123",
-    "timestamp": 1787150431591
-  },
-  {
     "time": "08/19/2026, 02:40:03 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787150403430",
     "timestamp": 1787150403431
   },
   {
-    "time": "08/19/2026, 02:40:03 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787150403474
-  },
-  {
-    "time": "08/19/2026, 02:40:03 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150403479",
-    "timestamp": 1787150403480
-  },
-  {
     "time": "08/19/2026, 02:39:55 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
     "timestamp": 1787150395341
   },
   {
-    "time": "08/19/2026, 02:39:55 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "sessionId": "sock_socket_test_123",
-    "timestamp": 1787150395100
-  },
-  {
     "time": "08/19/2026, 02:39:09 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": null,
     "timestamp": 1787150349267
   },
   {
-    "time": "08/19/2026, 02:39:09 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150349271",
-    "timestamp": 1787150349271
-  },
-  {
-    "time": "08/19/2026, 02:39:09 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150349223",
-    "timestamp": 1787150349225
-  },
-  {
     "time": "08/19/2026, 02:39:06 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -353,7 +916,7 @@
   {
     "time": "08/19/2026, 02:39:05 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -362,34 +925,16 @@
   {
     "time": "08/19/2026, 02:38:41 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": null,
     "timestamp": 1787150321457
   },
   {
-    "time": "08/19/2026, 02:38:41 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150321412",
-    "timestamp": 1787150321413
-  },
-  {
-    "time": "08/19/2026, 02:38:41 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787150321461",
-    "timestamp": 1787150321461
-  },
-  {
     "time": "08/19/2026, 02:38:37 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -398,7 +943,7 @@
   {
     "time": "08/19/2026, 02:38:36 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -407,34 +952,16 @@
   {
     "time": "08/19/2026, 02:03:13 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787148193707",
     "timestamp": 1787148193707
   },
   {
-    "time": "08/19/2026, 02:03:13 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787148193660",
-    "timestamp": 1787148193661
-  },
-  {
-    "time": "08/19/2026, 02:03:13 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787148193702
-  },
-  {
     "time": "08/19/2026, 02:03:10 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -443,7 +970,7 @@
   {
     "time": "08/19/2026, 02:03:09 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -452,79 +979,34 @@
   {
     "time": "08/19/2026, 02:00:52 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": "sess_1787148052886",
     "timestamp": 1787148052887
   },
   {
-    "time": "08/19/2026, 02:00:52 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787148052942",
-    "timestamp": 1787148052942
-  },
-  {
-    "time": "08/19/2026, 02:00:52 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": null,
-    "timestamp": 1787148052937
-  },
-  {
     "time": "08/19/2026, 02:00:49 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
     "timestamp": 1787148049486
   },
   {
-    "time": "08/19/2026, 02:00:49 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "sessionId": "sock_socket_test_123",
-    "timestamp": 1787148049236
-  },
-  {
     "time": "08/19/2026, 01:59:58 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "sessionId": null,
     "timestamp": 1787147998159
   },
   {
-    "time": "08/19/2026, 01:59:58 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787147998111",
-    "timestamp": 1787147998113
-  },
-  {
-    "time": "08/19/2026, 01:59:58 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "sessionId": "sess_1787147998163",
-    "timestamp": 1787147998163
-  },
-  {
     "time": "08/19/2026, 01:59:54 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": null,
@@ -533,7 +1015,7 @@
   {
     "time": "08/19/2026, 01:59:53 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "sessionId": "sock_socket_test_123",
@@ -542,71 +1024,31 @@
   {
     "time": "08/18/2026, 05:43:39 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787031819884
   },
   {
-    "time": "08/18/2026, 05:43:39 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787031819887
-  },
-  {
-    "time": "08/18/2026, 05:43:39 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787031819839
-  },
-  {
     "time": "08/18/2026, 05:43:36 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787031816599
   },
   {
-    "time": "08/18/2026, 05:43:36 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787031816354
-  },
-  {
     "time": "08/18/2026, 03:51:44 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787025104597
   },
   {
-    "time": "08/18/2026, 03:51:44 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787025104594
-  },
-  {
-    "time": "08/18/2026, 03:51:44 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787025104554
-  },
-  {
     "time": "08/18/2026, 03:51:40 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787025100025
@@ -614,7 +1056,7 @@
   {
     "time": "08/18/2026, 03:51:39 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787025099781
@@ -622,47 +1064,23 @@
   {
     "time": "08/18/2026, 03:51:16 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787025076798
   },
   {
-    "time": "08/18/2026, 03:51:16 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787025076843
-  },
-  {
-    "time": "08/18/2026, 03:51:16 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787025076839
-  },
-  {
     "time": "08/18/2026, 03:51:12 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787025072830
   },
   {
-    "time": "08/18/2026, 03:51:12 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787025072590
-  },
-  {
     "time": "08/18/2026, 03:20:32 AM",
     "username": "mrrich.exe",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.Gal1GT.t3Jg9VXEIbzzVE5Bdxfy5F5x5Z-IwtbI3k5elE",
+    "token": "MTMzMj...5elE",
     "sourceId": "781200531993133056",
     "targetId": "1527292522492067840",
     "timestamp": 1787023232977
@@ -670,7 +1088,7 @@
   {
     "time": "08/18/2026, 03:19:47 AM",
     "username": "mrrich.exe",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.Gal1GT.t3Jg9VXEIbzzVE5Bdxfy5F5x5Z-IwtbI3k5elE",
+    "token": "MTMzMj...5elE",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1787023187961
@@ -678,167 +1096,71 @@
   {
     "time": "08/18/2026, 03:14:24 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787022864752
   },
   {
-    "time": "08/18/2026, 03:14:24 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787022864700
-  },
-  {
-    "time": "08/18/2026, 03:14:24 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787022864747
-  },
-  {
     "time": "08/18/2026, 03:14:19 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787022859674
   },
   {
-    "time": "08/18/2026, 03:14:19 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787022859431
-  },
-  {
     "time": "08/18/2026, 02:19:47 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787019587470
   },
   {
-    "time": "08/18/2026, 02:19:47 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787019587418
-  },
-  {
-    "time": "08/18/2026, 02:19:47 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787019587466
-  },
-  {
     "time": "08/18/2026, 02:19:44 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787019584487
   },
   {
-    "time": "08/18/2026, 02:19:44 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787019584238
-  },
-  {
     "time": "08/18/2026, 02:08:06 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787018886387
   },
   {
-    "time": "08/18/2026, 02:08:06 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787018886432
-  },
-  {
-    "time": "08/18/2026, 02:08:06 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787018886436
-  },
-  {
     "time": "08/18/2026, 02:08:03 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787018883378
   },
   {
-    "time": "08/18/2026, 02:08:03 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787018883131
-  },
-  {
     "time": "08/18/2026, 01:36:07 AM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1787016967936
   },
   {
-    "time": "08/18/2026, 01:36:07 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787016967983
-  },
-  {
-    "time": "08/18/2026, 01:36:07 AM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1787016967979
-  },
-  {
     "time": "08/18/2026, 01:36:04 AM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1787016964747
   },
   {
-    "time": "08/18/2026, 01:36:04 AM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1787016964453
-  },
-  {
     "time": "08/17/2026, 04:59:31 PM",
     "username": "Unknown User",
-    "token": "test_html_token",
+    "token": "test_h...oken",
     "sourceId": "111",
     "targetId": "222",
     "timestamp": 1786985971543
@@ -846,7 +1168,7 @@
   {
     "time": "08/17/2026, 04:59:24 PM",
     "username": "Unknown User",
-    "token": "test_verification_token",
+    "token": "test_v...oken",
     "sourceId": "111222333",
     "targetId": "444555666",
     "timestamp": 1786985964035
@@ -854,47 +1176,23 @@
   {
     "time": "08/17/2026, 04:58:57 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1786985937171
   },
   {
-    "time": "08/17/2026, 04:58:57 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786985937124
-  },
-  {
-    "time": "08/17/2026, 04:58:57 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786985937168
-  },
-  {
     "time": "08/17/2026, 04:58:35 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1786985915640
   },
   {
-    "time": "08/17/2026, 04:58:35 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1786985915396
-  },
-  {
     "time": "08/17/2026, 04:58:06 PM",
     "username": "Unknown User",
-    "token": "test_dummy_token",
+    "token": "test_d...oken",
     "sourceId": "123",
     "targetId": "456",
     "timestamp": 1786985886907
@@ -902,7 +1200,7 @@
   {
     "time": "08/17/2026, 04:56:51 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1267751230164439062",
     "targetId": "1538903509460582470",
     "timestamp": 1786985811638
@@ -910,7 +1208,7 @@
   {
     "time": "08/17/2026, 04:56:41 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786985801002
@@ -918,47 +1216,23 @@
   {
     "time": "08/17/2026, 04:52:36 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1786985556206
   },
   {
-    "time": "08/17/2026, 04:52:36 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786985556162
-  },
-  {
-    "time": "08/17/2026, 04:52:36 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786985556203
-  },
-  {
     "time": "08/17/2026, 04:52:32 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1786985552644
   },
   {
-    "time": "08/17/2026, 04:52:32 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1786985552352
-  },
-  {
     "time": "08/17/2026, 02:53:29 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1786978409972
@@ -966,39 +1240,23 @@
   {
     "time": "08/17/2026, 02:53:30 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1786978410013
   },
   {
-    "time": "08/17/2026, 02:53:30 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786978410016
-  },
-  {
     "time": "08/17/2026, 02:53:26 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1786978406558
   },
   {
-    "time": "08/17/2026, 02:53:26 PM",
-    "username": "Unknown User",
-    "token": "token1",
-    "sourceId": "111111111111111111",
-    "targetId": "222222222222222222",
-    "timestamp": 1786978406313
-  },
-  {
     "time": "08/17/2026, 02:21:30 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1423673798112186464",
     "targetId": "1538903509460582470",
     "timestamp": 1786976490053
@@ -1006,7 +1264,7 @@
   {
     "time": "08/17/2026, 02:20:54 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786976454696
@@ -1014,31 +1272,15 @@
   {
     "time": "08/17/2026, 02:14:58 PM",
     "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
+    "token": "fake-t...7890",
     "sourceId": "110293847561829401",
     "targetId": "129384756102938475",
     "timestamp": 1786976098902
   },
   {
-    "time": "08/17/2026, 02:14:58 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786976098855
-  },
-  {
-    "time": "08/17/2026, 02:14:58 PM",
-    "username": "Unknown User",
-    "token": "fake-token-test-12345678901234567890",
-    "sourceId": "110293847561829401",
-    "targetId": "129384756102938475",
-    "timestamp": 1786976098906
-  },
-  {
     "time": "08/17/2026, 02:14:55 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1786976095231
@@ -1046,7 +1288,7 @@
   {
     "time": "08/17/2026, 02:14:54 PM",
     "username": "Unknown User",
-    "token": "token1",
+    "token": "[REDACTED_TOKEN]",
     "sourceId": "111111111111111111",
     "targetId": "222222222222222222",
     "timestamp": 1786976094980
@@ -1054,7 +1296,7 @@
   {
     "time": "08/17/2026, 02:09:40 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1369707819196219484",
     "targetId": "1538903509460582470",
     "timestamp": 1786975780888
@@ -1062,7 +1304,7 @@
   {
     "time": "08/17/2026, 02:08:41 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1369707819196219484",
     "targetId": "1538903509460582470",
     "timestamp": 1786975721135
@@ -1070,7 +1312,7 @@
   {
     "time": "08/17/2026, 02:08:08 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786975688774
@@ -1078,7 +1320,7 @@
   {
     "time": "08/17/2026, 01:35:43 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1407962458563280966",
     "targetId": "1538903509460582470",
     "timestamp": 1786973743449
@@ -1086,7 +1328,7 @@
   {
     "time": "08/17/2026, 01:34:11 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "1407962458563280966",
     "targetId": "1538903509460582470",
     "timestamp": 1786973651642
@@ -1094,7 +1336,7 @@
   {
     "time": "08/17/2026, 01:33:34 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786973614901
@@ -1102,7 +1344,7 @@
   {
     "time": "08/17/2026, 01:32:35 PM",
     "username": "noor.exe95",
-    "token": "MTI3OTY5NDM1ODAxODI2NTE4Mg.GzlYp0.grSQl-XM9TqWptlnpBSnVYf8AQPXJrPnjv0kig",
+    "token": "MTI3OT...0kig",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786973555594
@@ -1110,7 +1352,7 @@
   {
     "time": "08/17/2026, 01:06:10 PM",
     "username": "mrrich.exe",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.GQd5GI.66ZK2FbAx_FMnrk3zUvVyv8bePz1B1FnJ88XNg",
+    "token": "MTMzMj...8XNg",
     "sourceId": "1363349696029917415",
     "targetId": "1538527298628751402",
     "timestamp": 1786971970395
@@ -1118,7 +1360,7 @@
   {
     "time": "08/17/2026, 01:02:46 PM",
     "username": "mrrich.exe",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.GQd5GI.66ZK2FbAx_FMnrk3zUvVyv8bePz1B1FnJ88XNg",
+    "token": "MTMzMj...8XNg",
     "sourceId": "1363349696029917415",
     "targetId": "1538527298628751402",
     "timestamp": 1786971766235
@@ -1126,7 +1368,7 @@
   {
     "time": "08/17/2026, 01:02:20 PM",
     "username": "mrrich.exe",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.GQd5GI.66ZK2FbAx_FMnrk3zUvVyv8bePz1B1FnJ88XNg",
+    "token": "MTMzMj...8XNg",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786971740988
@@ -1134,7 +1376,7 @@
   {
     "time": "08/17/2026, 01:00:24 PM",
     "username": "Unknown User",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.GuLHg4.H3-XIwBGizEeT6cSNjnP5WKEhlu5SMfb4zR2_k",
+    "token": "MTMzMj...R2_k",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786971624831
@@ -1142,7 +1384,7 @@
   {
     "time": "08/17/2026, 12:59:02 PM",
     "username": "Unknown User",
-    "token": "MTMzMjYxODI5OTY3ODI2NTM1Ng.GuLHg4.H3-XIwBGizEeT6cSNjnP5WKEhlu5SMfb4zR2_k",
+    "token": "MTMzMj...R2_k",
     "sourceId": "Token Input (No Clone)",
     "targetId": "Token Input (No Clone)",
     "timestamp": 1786971542055

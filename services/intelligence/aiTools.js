@@ -5,10 +5,14 @@
  * before gracefully falling back to deterministic heuristics.
  */
 
-import { sanitizeAiContext, sanitizeSensitiveText } from './sanitizer.js';
+import { sanitizeAiContext, sanitizeSensitiveText, sanitizeText } from './sanitizer.js';
 import { TASK_TYPES } from './modelCapabilityRegistry.js';
 import { classifyError, getFriendlyErrorMessage } from '../reliability/index.js';
 import { fetchUserGuilds } from '../guildService.js';
+import { predictMigrationOutcome } from './predictionEngine.js';
+import { RecoveryIntelligence } from './recoveryIntelligence.js';
+import { runDeepVerification } from './deepVerification.js';
+import { SheetOptimizerAgent } from './sheetOptimizerAgent.js';
 
 export class IntelligenceToolsRegistry {
     constructor(jobManager = null, aiModelRouter = null) {
@@ -264,6 +268,97 @@ export class IntelligenceToolsRegistry {
                         };
                     }
                 });
+            }
+
+            // AI Operational Tool 4: Predict Migration Outcome & Time
+            case 'predictMigrationDuration': {
+                const source = job?.sourceAnalysis;
+                const target = job?.targetAnalysis;
+                const comp = job?.compatibility;
+
+                if (!source || !target) {
+                    return { error: 'Source and target server analysis required to compute predictions.' };
+                }
+
+                const prediction = predictMigrationOutcome(source, target, comp || {});
+                return {
+                    success: true,
+                    expectedAccuracy: prediction.expectedAccuracy,
+                    accuracyStr: prediction.accuracyPercentageStr,
+                    reasonsForDeduction: prediction.reasonsForDeduction || [],
+                    estimatedDurationSec: Math.ceil((source.channelsCount || 0) * 1.2 + (source.customRolesCount || 0) * 0.8) + 15
+                };
+            }
+
+            // AI Operational Tool 5: Generate Recovery Plan
+            case 'generateRecoveryPlan': {
+                const recovery = new RecoveryIntelligence();
+                const failedItems = job?.failedQueue?.getPendingRetries() || [];
+                const lastError = job?.error;
+
+                return this.executeAiOperationWithSoftRetry({
+                    taskName: 'generateRecoveryPlan',
+                    taskType: TASK_TYPES.DEEP_REASONING,
+                    jobId,
+                    currentJob: job,
+                    systemPrompt: 'You are an AI Migration Recovery Engineer. Generate a tailored recovery plan for a stalled or degraded Discord migration.',
+                    userPrompt: `Migration Job ID: ${jobId || 'N/A'}\nFailed Items: ${failedItems.length}\nLast Error: ${lastError || 'None'}`,
+                    deterministicFallback: async () => {
+                        return {
+                            recoverySteps: [
+                                'Pause current migration pipeline if active.',
+                                'Verify bot token retains Administrator and Manage Roles privileges.',
+                                `Enqueue ${failedItems.length} failed items into bounded retry queue.`,
+                                'Resume migration with exponential backoff and rate-limit pacing.'
+                            ],
+                            canAutoRecover: failedItems.length > 0
+                        };
+                    }
+                });
+            }
+
+            // AI Operational Tool 6: Audit Guild Permissions
+            case 'auditGuildPermissions': {
+                const target = job?.targetAnalysis || {};
+                const missing = target.missingPermissions || [];
+                const isOwner = target.isOwner || false;
+
+                return {
+                    success: true,
+                    isTargetOwner: isOwner,
+                    highestRolePosition: target.highestRolePosition || 0,
+                    missingPermissions: missing,
+                    isFullyConfigured: missing.length === 0,
+                    securityWarnings: missing.length > 0 ? [`Missing required grants: ${missing.join(', ')}`] : []
+                };
+            }
+
+            // AI Operational Tool 7: Verify Deep Fidelity
+            case 'verifyDeepFidelity': {
+                if (!job || !job.sourceAnalysis || !job.targetGuild) {
+                    return { success: false, error: 'Migration job and target guild reference required for deep verification.' };
+                }
+                const report = runDeepVerification(job.sourceAnalysis, job.targetGuild);
+                job.verificationReport = report;
+                return {
+                    success: true,
+                    status: report.status,
+                    score: report.score,
+                    summary: report.summary,
+                    mismatches: report.mismatches || []
+                };
+            }
+
+            // AI Operational Tool 8: Optimize Google Sheet / History Data
+            case 'optimizeSheetData': {
+                const sheetAgent = new SheetOptimizerAgent(this.aiModelRouter);
+                const result = await sheetAgent.optimizeLocalHistory();
+                const audit = await sheetAgent.auditSyncConnection();
+                return {
+                    success: true,
+                    ...result,
+                    syncAudit: audit
+                };
             }
 
             default:

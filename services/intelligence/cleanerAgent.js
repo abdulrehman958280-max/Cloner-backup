@@ -1,47 +1,91 @@
 /**
- * Cleaner Agent Module
- * Specialized agent responsible for target server pruning safety, protecting @everyone and managed roles,
- * and identifying ticket channels while sharing live migration state.
+ * Clone Intelligence - Cleaner Agent
+ * Specialized worker agent responsible for target server pruning safety, protecting @everyone,
+ * managed roles, and ticket/support channels while sharing live migration state and publishing lifecycle events.
  */
-import { sanitizeAiContext, sanitizeSensitiveText } from './sanitizer.js';
-import { TASK_TYPES } from './modelCapabilityRegistry.js';
 
-export class CleanerAgent {
+import { BaseAgent, AGENT_STATES } from './baseAgent.js';
+import { TASK_TYPES } from './modelCapabilityRegistry.js';
+import { evaluateChannelForTicket, scanGuildForTickets } from './ticketDetector.js';
+import { generateCleanupPlan } from './cleanupIntelligence.js';
+import { agentEventBus, AGENT_EVENT_TYPES } from './agentEventBus.js';
+
+export class CleanerAgent extends BaseAgent {
     constructor(aiModelRouter) {
-        this.name = 'Cleaner Agent 🧹';
-        this.modelRouter = aiModelRouter;
-        this.systemPrompt = 'You are the specialized Cleaner Agent for Discloner Studio. Your core responsibility is target server cleanup safety analysis, protecting protected roles and ticket channels, and ensuring zero accidental data loss during server pruning.';
+        super({
+            id: 'cleaner_agent_01',
+            name: 'Cleaner Agent 🧹',
+            type: 'CLEANER',
+            capabilities: [
+                'TARGET_DISCOVERY',
+                'PROTECTED_RESOURCE_DETECTION',
+                'TICKET_CHANNEL_ANALYSIS',
+                'CLEANUP_PLANNING',
+                'SAFE_PRUNING_EXECUTION'
+            ],
+            systemPrompt: 'You are the specialized Cleaner Agent for Discloner Studio. Your core responsibility is target server cleanup safety analysis, protecting default/managed roles and support ticket channels, generating transparent cleanup plans, and ensuring zero accidental data loss.',
+            modelRouter: aiModelRouter
+        });
     }
 
-    async execute(query, sharedState = {}) {
-        const cleanQuery = sanitizeSensitiveText(query).trim();
-        if (!this.modelRouter || !this.modelRouter.isAiAvailable()) {
+    /**
+     * Runs full target discovery, ticket detection, and cleanup plan generation
+     */
+    async discoverAndPlanCleanup(targetGuildSnapshot, options = {}) {
+        await this.start(options.jobId || 'cleaner_job');
+        this.setState(AGENT_STATES.PREFLIGHT, 'Cleaner Agent running preflight target server discovery...');
+
+        try {
+            if (!targetGuildSnapshot) {
+                this.setState(AGENT_STATES.FAILED, 'Target server snapshot missing for cleanup discovery.');
+                return { success: false, error: 'Target server snapshot required.' };
+            }
+
+            // 1. Detect tickets across target channels
+            const channels = targetGuildSnapshot.channels || [];
+            const ticketScan = scanGuildForTickets(channels);
+
+            // 2. Generate deterministic cleanup plan
+            const cleanupPlan = generateCleanupPlan(targetGuildSnapshot, {
+                cleanTarget: options.cleanTarget !== false, // default true
+                preserveTickets: options.preserveTickets !== false, // default true
+                protectedRoleNames: options.protectedRoleNames || []
+            });
+
+            this.setState(AGENT_STATES.READY, `Target cleanup plan created. ${cleanupPlan.rolesToDelete.length} roles, ${cleanupPlan.channelsToDelete.length} channels planned for pruning. ${ticketScan.ticketCount} ticket channel(s) protected.`);
+
+            agentEventBus.publish({
+                jobId: this.jobId,
+                agentId: this.id,
+                agentType: this.type,
+                eventType: AGENT_EVENT_TYPES.PLAN_CREATED,
+                stage: 'PLAN_CREATED',
+                status: 'INFO',
+                progress: 100,
+                message: `Cleanup plan generated: ${cleanupPlan.rolesToDelete.length} roles, ${cleanupPlan.channelsToDelete.length} channels targeted.`,
+                metadata: {
+                    rolesCount: cleanupPlan.rolesToDelete.length,
+                    channelsCount: cleanupPlan.channelsToDelete.length,
+                    ticketCount: ticketScan.ticketCount
+                }
+            });
+
             return {
                 success: true,
-                isAiGenerated: false,
-                agentName: this.name,
-                reply: '[Cleaner Agent - Offline Mode] Cleaner engine is active with deterministic safety rules. Protected roles and ticket channels are fully secured.'
+                cleanupPlan,
+                ticketScan
             };
+        } catch (err) {
+            await this.recover(err);
+            this.setState(AGENT_STATES.FAILED, `Cleaner Agent discovery error: ${err.message}`);
+            return { success: false, error: err.message };
         }
+    }
 
-        const messages = [
-            { role: 'system', content: this.systemPrompt },
-            { role: 'user', content: `Shared Migration State:\n${JSON.stringify(sanitizeAiContext(sharedState))}\n\nCleaning Task/Query:\n${cleanQuery}` }
-        ];
-
-        const aiResult = await this.modelRouter.executePrompt(messages, {
-            taskType: TASK_TYPES.COMPLEX,
-            temperature: 0.2,
-            maxTokens: 700
-        });
-
-        return {
-            success: aiResult.success,
-            isAiGenerated: true,
-            agentName: this.name,
-            reply: aiResult.text || 'Cleaner agent analysis completed.',
-            modelUsed: aiResult.modelUsed,
-            latencyMs: aiResult.latencyMs
-        };
+    /**
+     * Legacy / Chat interface execution method
+     */
+    async execute(query, sharedState = {}) {
+        return super.execute(query, { sharedState, taskType: TASK_TYPES.COMPLEX });
     }
 }

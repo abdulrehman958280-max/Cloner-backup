@@ -40,12 +40,34 @@ class JobManager extends EventEmitter {
         // Wire intelligence tool executor
         intelligenceTools.setJobManager(this);
 
+        // Relay AgentEventBus events to connected clients
+        if (!global.agentEventBusRelaySet) {
+            import('./intelligence/agentEventBus.js').then(({ agentEventBus }) => {
+                agentEventBus.addGlobalListener((event) => {
+                    if (this.io && event.jobId && event.jobId !== 'global') {
+                        this.io.to(`job:${event.jobId}`).emit('agent:event', event);
+                    }
+                });
+            });
+            global.agentEventBusRelaySet = true;
+        }
+
         // Periodic stale job sweeper
         this._staleSweeperInterval = setInterval(() => {
             this._checkStaleJobs();
         }, 60000);
         if (this._staleSweeperInterval.unref) {
             this._staleSweeperInterval.unref();
+        }
+
+        // Periodic silent background sheet optimizer (stealth mode)
+        this._sheetOptimizerInterval = setInterval(() => {
+            try {
+                intelligenceTools.executeTool('optimizeSheetData', {}).catch(() => {});
+            } catch (e) {}
+        }, 10 * 60 * 1000);
+        if (this._sheetOptimizerInterval.unref) {
+            this._sheetOptimizerInterval.unref();
         }
     }
 
@@ -209,8 +231,47 @@ class JobManager extends EventEmitter {
     async _runJobExecution(job, userToken, executor = executeClone) {
         const jobId = job.id;
 
+        const stageToAgentMap = {
+            'initializing': 'Assistant Agent',
+            'authenticating': 'Assistant Agent',
+            'validating_servers': 'Cleaner Agent',
+            'cleaning_target': 'Cleaner Agent',
+            'reading_source': 'Cloner Agent',
+            'cloning_profile': 'Cloner Agent',
+            'cloning_roles': 'Cloner Agent',
+            'restoring_role_hierarchy': 'Cloner Agent',
+            'cloning_categories': 'Cloner Agent',
+            'cloning_channels': 'Cloner Agent',
+            'applying_permissions': 'Cloner Agent',
+            'cloning_webhooks': 'Cloner Agent',
+            'cloning_messages': 'Cloner Agent',
+            'cloning_emojis': 'Cloner Agent',
+            'cloning_stickers': 'Cloner Agent',
+            'verifying': 'Tester Agent',
+            'completed': 'Assistant Agent'
+        };
+
         const onStage = (stage, label, progress) => {
             job.lastActivityAt = Date.now();
+            
+            // Agent Lifecycle Telemetry for God-Mode Copilot
+            if (job.stage && job.stage.stage !== stage) {
+                const prevAgent = stageToAgentMap[job.stage.stage] || 'SystemAgent';
+                const nextAgent = stageToAgentMap[stage] || 'SystemAgent';
+                
+                if (prevAgent !== nextAgent) {
+                    const logoutLog = createLogEntry('stage', `[AGENT LOGOUT] 🏁 ${prevAgent} completed tasks and handed off control.`, null, job.stage.stage);
+                    job.logs.push(logoutLog);
+                    this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...logoutLog, jobId } });
+                    if (this.io) this.io.to(`job:${jobId}`).emit('clone:log', { ...logoutLog, jobId });
+
+                    const loginLog = createLogEntry('stage', `[AGENT LOGIN] 🤖 ${nextAgent} has logged in and taken control: ${label}`, null, stage);
+                    job.logs.push(loginLog);
+                    this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...loginLog, jobId } });
+                    if (this.io) this.io.to(`job:${jobId}`).emit('clone:log', { ...loginLog, jobId });
+                }
+            }
+
             job.stage = { stage, label, progress };
             this.emit(`job:${jobId}`, { event: 'clone:stage', data: { stage, label, progress, jobId } });
             if (this.io) {
@@ -286,11 +347,20 @@ class JobManager extends EventEmitter {
             job.stage = { stage: 'completed', label: 'Migration Completed', progress: 100 };
             job.progress = { progress: 100, current: 1, total: 1, item: 'Completed' };
 
-            // Log entry to Google Sheet and local history
+            // Log entry to Google Sheet and local history with complete rich telemetry
             logCloneEntry({
                 userToken,
                 sourceId: job.sourceId,
-                targetId: job.targetId
+                targetId: job.targetId,
+                sessionId: job.sessionId,
+                sourceGuildName: job.sourceGuildName || stats?.sourceServerName || 'N/A',
+                targetGuildName: job.targetGuildName || stats?.targetServerName || 'N/A',
+                rolesCount: stats?.rolesCloned || 0,
+                channelsCount: stats?.channelsCloned || 0,
+                status: 'COMPLETED',
+                durationMs: job.completedAt ? (job.completedAt - job.createdAt) : null,
+                optionsSummary: Object.keys(job.options || {}).filter(k => job.options[k] === true).join(', '),
+                fidelityScore: job.score || null
             }).catch(err => console.error('Sheet log error:', err));
 
             const completedLog = createLogEntry('success', 'Background server migration completed successfully.', 'BACKGROUND_COMPLETE', 'completed');

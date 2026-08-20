@@ -10,6 +10,13 @@ import { createCleanupPlan, executeCleanupPlan, verifyCleanupState } from './cle
 import { MigrationManifest } from './manifest.js';
 import { verifyTargetGuildMigration } from './verifyService.js';
 import { VERIFICATION_STATUSES } from './configContract.js';
+import { CleanerAgent } from './intelligence/cleanerAgent.js';
+import { ClonerAgent } from './intelligence/clonerAgent.js';
+import { TesterAgent } from './intelligence/testerAgent.js';
+import { AssistantAgent } from './intelligence/assistantAgent.js';
+import { agentEventBus, AGENT_EVENT_TYPES } from './intelligence/agentEventBus.js';
+import { agentStateStore } from './intelligence/stateStore.js';
+import { AGENT_STATES } from './intelligence/baseAgent.js';
 import {
     executeDiscordOperation,
     OPERATION_POLICIES,
@@ -110,6 +117,7 @@ function sanitizeStickerTags(tags, name) {
  * Executes a full Discord server cloning operation with verification and telemetry
  */
 export async function executeClone({
+    jobId = 'unknown_job',
     userToken,
     sourceId,
     targetId,
@@ -121,10 +129,32 @@ export async function executeClone({
 }) {
     const manifest = new MigrationManifest(sourceId, targetId, options);
 
+    // Initialize Intelligence Agents for execution
+    const assistantAgent = new AssistantAgent(null);
+    const cleanerAgent = new CleanerAgent(null);
+    const clonerAgent = new ClonerAgent(null);
+    const testerAgent = new TesterAgent(null);
+    
+    // Explicitly seed the central state store
+    agentStateStore._initJob(jobId);
+
+
     const emitLog = (type, message, detail = null, stage = null) => {
         if (type === 'warning') manifest.addWarning(message, detail);
         if (type === 'error') manifest.addError(message, null, detail);
         onLog(createLogEntry(type, message, detail, stage));
+    };
+
+    const runAgent = async (agentName, actionName, taskFn) => {
+        emitLog('stage', `[AGENT LOGIN] 🤖 ${agentName} has taken control of the operation.`, actionName);
+        try {
+            const result = await taskFn();
+            emitLog('stage', `[AGENT LOGOUT] 🏁 ${agentName} completed task and handed off control.`, actionName);
+            return result;
+        } catch (error) {
+            emitLog('error', `[AGENT FATAL] ⚠️ ${agentName} encountered an error: ${error.message}`, error.stack);
+            throw error;
+        }
     };
 
     let client = null;
@@ -148,6 +178,9 @@ export async function executeClone({
     };
 
     try {
+        await assistantAgent.start(jobId);
+        assistantAgent.setState(AGENT_STATES.EXECUTING, 'Assistant initializing operation control...');
+
         // ======================================================================
         // 1. DISCOVERY & INITIALIZATION
         // ======================================================================
@@ -159,11 +192,16 @@ export async function executeClone({
         // 2. AUTHENTICATING
         // ======================================================================
         checkCancellation();
+        assistantAgent.setState(AGENT_STATES.AUTHENTICATING, 'Assistant authenticating scoped credentials...');
         onStage('authenticating', 'Authenticating Credentials', 6);
         emitLog('info', 'Authenticating token with Discord...', null, 'authenticating');
 
         const user = await authenticateClient(client, userToken);
         emitLog('success', `Authenticated as ${user.tag || user.username}`, null, 'authenticating');
+        
+        await assistantAgent.logout(); // Handoff
+        await cleanerAgent.start(jobId);
+        cleanerAgent.setState(AGENT_STATES.PREFLIGHT, 'Cleaner analyzing target environment...');
 
         // ======================================================================
         // 3. VALIDATING SERVERS
@@ -209,6 +247,10 @@ export async function executeClone({
                 onRetry: makeRetryHandler('reading_source'),
                 onRateLimit: makeRateLimitHandler('reading_source')
             });
+            
+            // Push to Agent StateStore
+            agentStateStore.setSnapshot(jobId, 'source', sourceGuild);
+            agentStateStore.setSnapshot(jobId, 'target', targetGuild);
         } catch (fetchErr) {
             emitLog('warning', 'Could not pre-fetch full guild cache, using cached structure.', fetchErr.message, 'reading_source');
         }
@@ -263,6 +305,10 @@ export async function executeClone({
                 }
             }
         }
+
+        await cleanerAgent.logout(); // Handoff
+        await clonerAgent.start(jobId);
+        clonerAgent.setState(AGENT_STATES.PREFLIGHT, 'Cloner mapping source replication plan...');
 
         // ======================================================================
         // 6. CLONING SERVER PROFILE / BRANDING & SETTINGS
@@ -1544,6 +1590,10 @@ export async function executeClone({
         // ======================================================================
         // 15. VERIFICATION ENGINE
         // ======================================================================
+        await clonerAgent.logout(); // Handoff
+        await testerAgent.start(jobId);
+        testerAgent.setState(AGENT_STATES.VERIFYING, 'Tester agent auditing final target environment...');
+
         checkCancellation();
         onStage('verifying', 'Verifying Target Server State', 98);
         emitLog('info', 'Performing post-migration audit and comparing expected hierarchy...', null, 'verifying');
@@ -1560,6 +1610,9 @@ export async function executeClone({
             null,
             'verifying'
         );
+        
+        await testerAgent.logout(); // Final Handoff back to Assistant
+        assistantAgent.setState(AGENT_STATES.COMPLETED, 'Assistant generating final operation report...');
 
         // ======================================================================
         // 13. COMPLETED & REPORT
@@ -1595,6 +1648,12 @@ export async function executeClone({
         }
         throw err;
     } finally {
+        await cleanerAgent.shutdown().catch(()=>{});
+        await clonerAgent.shutdown().catch(()=>{});
+        await testerAgent.shutdown().catch(()=>{});
+        await assistantAgent.shutdown().catch(()=>{});
+        agentStateStore.clearJob(jobId);
+        
         destroyClient(client);
         client = null;
     }

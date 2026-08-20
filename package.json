@@ -12,6 +12,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@google/genai": "^2.17.1",
     "discord.js-selfbot-v13": "^3.7.1",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"

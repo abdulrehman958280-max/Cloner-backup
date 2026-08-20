@@ -145,20 +145,67 @@ export class AiChatService {
 
         const safeContext = sanitizeAiContext(rawContext);
 
+        // Fetch deep system metrics to give AI "God Mode" view
+        let systemMetrics = {};
+        try {
+            const { getCloneHistory, getSheetConfig } = await import('../sheetService.js');
+            const { globalRateLimiter } = await import('../reliability/index.js');
+            const { getSystemMemory } = await import('../../utils/logger.js');
+            
+            let allJobs = [];
+            let activeJobCount = 0;
+            // Best effort global job stats if tools registry has jobManager linked
+            if (this.tools && this.tools.jobManager) {
+                activeJobCount = this.tools.jobManager.getActiveJobCount();
+                const iterator = this.tools.jobManager.jobs.values();
+                for (const j of iterator) {
+                    allJobs.push({ id: j.id, status: j.status, progress: j.progress?.progress || 0 });
+                }
+            }
+
+            let rateLimitStatus = 'N/A';
+            if (globalRateLimiter) {
+                rateLimitStatus = {
+                    totalRequests: globalRateLimiter.totalRequests || 0,
+                    total429s: globalRateLimiter.total429s || 0,
+                    activeCooldowns: globalRateLimiter.cooldowns ? globalRateLimiter.cooldowns.size : 0
+                };
+            }
+
+            // Real-time logbox and agent handoff data
+            const recentSystemLogs = getSystemMemory().slice(0, 50).map(l => `[${l.timestamp}] ${l.type.toUpperCase()}: ${l.message} ${l.detail ? `(${l.detail})` : ''}`);
+
+            systemMetrics = {
+                activeJobCount,
+                recentJobs: allJobs.slice(0, 5),
+                rateLimitStatus,
+                googleSheetConfig: getSheetConfig(),
+                recentSheetTelemetry: getCloneHistory().slice(0, 3), // last 3 logs
+                liveSystemLogboxData: recentSystemLogs
+            };
+        } catch (e) {
+            console.error('Failed to inject deep system metrics into Copilot:', e.message);
+        }
+
         // Check if AI is online
         if (this.modelRouter && this.modelRouter.isAiAvailable()) {
-            const systemPrompt = `You are "Clone Intelligence Copilot", an expert Discord migration assistant for Discloner Studio.
-You assist the user with server replication, diagnostics, cleanup safety, rate-limit pacing, and verification.
-Deterministic state is authoritative. Never make up statistics.
+            const systemPrompt = `You are "Clone Intelligence Copilot", the supreme orchestrator AI for Discloner Studio with God-Mode access.
+You assist the user with server replication, diagnostics, cleanup safety, rate-limit pacing, verification, and deep system insights.
+You can see all autonomous sub-agents logging in and out (like SourceAnalyzerAgent, CleanerAgent, RolesSyncAgent, etc.). Each agent handles a specific domain.
+Deterministic state is authoritative. Never make up statistics. You have real-time access to the entire tool's background processes, including Google Sheet logs, global rate limits, and live Logbox data.
 
-Live Migration State:
+Live Migration State (Current Job):
 ${JSON.stringify(safeContext, null, 2)}
+
+Deep System Metrics & Real-time Telemetry (God Mode):
+${JSON.stringify(systemMetrics, null, 2)}
 
 Guidelines:
 1. Provide concise, clear, and actionable responses.
-2. If the user asks about errors, reference exact counts and suggest remediation.
-3. If the user asks to retry failed items, explain what will be retried.
-4. Format key takeaways using markdown bolding and bullet points.`;
+2. If asked about the system or agents, explain what the specialized agents are doing in real-time using the logbox data.
+3. If the user asks about errors, reference exact counts, rate limits, and suggest remediation.
+4. If the user asks to retry failed items, explain what will be retried.
+5. Format key takeaways using markdown bolding and bullet points. Do not act like a generic AI, act like the God-Mode overseer of this migration system.`;
 
             const messages = [
                 { role: 'system', content: systemPrompt },
