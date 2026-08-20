@@ -43,16 +43,8 @@ const io = new Server(server, {
     }
 });
 
-// Attach socket server to job manager
+// Attach socket server to job manager (handles single authoritative event relay)
 jobManager.setSocketServer(io);
-
-// Bridge Multi-Agent Event Bus to real-time Socket.IO clients
-agentEventBus.addGlobalListener((event) => {
-    if (event.jobId && event.jobId !== 'global') {
-        io.to(`job:${event.jobId}`).emit('agent:event', event);
-    }
-    io.emit('agent:event', event);
-});
 
 // Bridge AI Failover events to real-time socket and active migration job logs
 aiModelRouter.addTelemetryListener((event, jobId) => {
@@ -481,14 +473,20 @@ app.post('/api/intelligence/cleanup-preview', async (req, res) => {
 // Clone Intelligence Copilot Chat Endpoint
 app.post('/api/intelligence/chat', async (req, res) => {
     const { message, jobId } = req.body;
+    const sessionId = getSessionId(req);
     const userToken = req.body.userToken || req.headers['x-user-token'] || null;
     if (!message || typeof message !== 'string') {
         return res.status(400).json({ success: false, error: 'Message text is required.' });
     }
 
-    const currentJob = jobId ? jobManager.getJob(jobId) : null;
+    let currentJob = jobId ? jobManager.getJob(jobId) : null;
+    if (!currentJob) {
+        currentJob = jobManager.getRawActiveOrLatestJobForSession(sessionId, userToken);
+    }
+    const activeJobId = jobId || currentJob?.id || null;
+
     try {
-        const response = await aiChatService.handleMessage(message, jobId, currentJob, userToken);
+        const response = await aiChatService.handleMessage(message, activeJobId, currentJob, userToken);
         res.json({
             success: true,
             ...response

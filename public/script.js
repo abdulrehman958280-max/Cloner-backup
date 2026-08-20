@@ -2135,6 +2135,10 @@
 
     function connectJobEventSource(jobId) {
         if (!jobId) return;
+        if (socket && socket.connected) {
+            // Primary Socket.IO channel is active. Skip SSE fallback to prevent dual transport duplication.
+            return;
+        }
         if (sseSource) {
             try { sseSource.close(); } catch (e) {}
             sseSource = null;
@@ -2342,9 +2346,21 @@
         }
     });
 
+    socket.on('agent:event', (event) => {
+        if (!event) return;
+        const level = event.status === 'SUCCESS' ? 'success' : event.status === 'WARNING' ? 'warning' : event.status === 'ERROR' ? 'error' : event.stage === 'STAGE' ? 'stage' : 'info';
+        if (event.message) {
+            appendLog(level, event.message, event.action || event.stage, event.timestamp, event.eventId);
+        }
+        if (event.rateLimit) {
+            updateRateLimitTelemetry(event.rateLimit);
+        }
+    });
+
     socket.on('clone:log', (entry) => {
+        if (!entry) return;
         const level = entry.level || entry.type || 'info';
-        appendLog(level, entry.message, entry.detail, entry.timestamp);
+        appendLog(level, entry.message, entry.detail, entry.timestamp, entry.eventId || entry.id);
 
         if (level === 'warning') {
             statCounters.warnings++;
@@ -2500,9 +2516,30 @@
     // 7. Activity Console Engine
     // ==========================================================================
 
-    function appendLog(level, message, detail, timestamp) {
+    const renderedEventIds = new Set();
+    const renderedLogSignatures = new Set();
+
+    function appendLog(level, message, detail, timestamp, eventId = null) {
+        if (!message) return;
+
+        // 1. Exact Event ID Deduplication
+        if (eventId) {
+            if (renderedEventIds.has(eventId)) return; // Skip duplicate event
+            renderedEventIds.add(eventId);
+            if (renderedEventIds.size > 2000) {
+                const firstVal = renderedEventIds.values().next().value;
+                renderedEventIds.delete(firstVal);
+            }
+        }
+
+        // 2. Signature Window Deduplication (prevents double logging of identical message & detail)
         const timeStr = timestamp || formatCurrentTime();
-        const logObj = { id: Date.now() + Math.random(), level, message, detail, timeStr };
+        const signature = `${level}|${message}|${detail || ''}|${timeStr.substring(0, 7)}`;
+        if (renderedLogSignatures.has(signature)) return;
+        renderedLogSignatures.add(signature);
+        setTimeout(() => renderedLogSignatures.delete(signature), 3000);
+
+        const logObj = { id: eventId || (Date.now() + Math.random()), eventId, level, message, detail, timeStr };
         allLogs.push(logObj);
 
         if (allLogs.length > 2000) {

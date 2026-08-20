@@ -37,16 +37,16 @@ class JobManager extends EventEmitter {
         this.MAX_ACTIVE_JOBS = RELIABILITY_CONFIG.concurrency.maxJobs || 3;
         this.STALE_JOB_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of zero activity for large migrations
 
+        this.processedEventIds = new Map(); // jobId -> Set<eventId>
+
         // Wire intelligence tool executor
         intelligenceTools.setJobManager(this);
 
-        // Relay AgentEventBus events to connected clients
+        // Relay AgentEventBus events idempotently to connected clients
         if (!global.agentEventBusRelaySet) {
             import('./intelligence/agentEventBus.js').then(({ agentEventBus }) => {
                 agentEventBus.addGlobalListener((event) => {
-                    if (this.io && event.jobId && event.jobId !== 'global') {
-                        this.io.to(`job:${event.jobId}`).emit('agent:event', event);
-                    }
+                    this.processEvent(event);
                 });
             });
             global.agentEventBusRelaySet = true;
@@ -598,6 +598,98 @@ class JobManager extends EventEmitter {
 
         const target = runningJob || latestJob;
         return target ? this.getJobSnapshot(target.id, sessionId, userToken) : null;
+    }
+
+    /**
+     * Idempotent Event Reducer
+     * Processes events from AgentEventBus, updates JobStateStore, and broadcasts once.
+     */
+    processEvent(event) {
+        if (!event || !event.jobId || event.jobId === 'global') return;
+        const job = this.jobs.get(event.jobId);
+        if (!job) return;
+
+        // Initialize per-job deduplication set
+        if (!this.processedEventIds.has(event.jobId)) {
+            this.processedEventIds.set(event.jobId, new Set());
+        }
+        const processedSet = this.processedEventIds.get(event.jobId);
+
+        // Deduplication check
+        if (event.eventId && processedSet.has(event.eventId)) {
+            return; // Skip duplicate processing
+        }
+
+        if (event.eventId) {
+            processedSet.add(event.eventId);
+            if (processedSet.size > 2000) {
+                const firstVal = processedSet.values().next().value;
+                processedSet.delete(firstVal);
+            }
+        }
+
+        job.lastActivityAt = Date.now();
+        if (event.agentType) {
+            job.activeAgent = event.agentType;
+        }
+        if (event.stage) {
+            job.currentTask = event.stage;
+        }
+        if (event.resourceName || event.resourceId) {
+            job.currentResource = event.resourceName || event.resourceId;
+        }
+
+        // Add log entry safely if message exists
+        if (event.message) {
+            const level = event.status === 'SUCCESS' ? 'success' : event.status === 'WARNING' ? 'warning' : event.status === 'ERROR' ? 'error' : 'info';
+            const logEntry = createLogEntry(
+                level,
+                event.message,
+                event.action || event.stage,
+                event.stage
+            );
+            logEntry.eventId = event.eventId;
+
+            const lastLog = job.logs[job.logs.length - 1];
+            if (!lastLog || lastLog.eventId !== event.eventId) {
+                if (job.logs.length >= this.MAX_LOGS_PER_JOB) {
+                    job.logs.shift();
+                }
+                job.logs.push(logEntry);
+            }
+        }
+
+        // Single Authoritative Broadcast to socket room
+        if (this.io) {
+            this.io.to(`job:${event.jobId}`).emit('agent:event', event);
+        }
+    }
+
+    /**
+     * Returns the raw active or latest job instance for a session (for backend intelligence context)
+     */
+    getRawActiveOrLatestJobForSession(sessionId = null, userToken = null) {
+        let runningJob = null;
+        let latestJob = null;
+        const tokenFingerprint = userToken ? this._hashToken(userToken) : null;
+
+        for (const job of this.jobs.values()) {
+            const matchesSession = sessionId && job.sessionId === sessionId;
+            const matchesToken = tokenFingerprint && job.tokenFingerprint === tokenFingerprint;
+            if (sessionId || userToken) {
+                if (!matchesSession && !matchesToken) continue;
+            }
+
+            if (job.status === 'running') {
+                runningJob = job;
+                break;
+            }
+            if (!latestJob || job.startedAt > latestJob.startedAt) {
+                latestJob = job;
+            }
+        }
+
+        return runningJob || latestJob || null;
     }
 
     /**

@@ -127,6 +127,9 @@ export class AiChatService {
         }
 
         // Gather sanitized state context for fallback AI
+        const stageLabelStr = typeof currentJob?.stage === 'object' ? (currentJob.stage.label || currentJob.stage.stage) : (currentJob?.stage || 'idle');
+        const progressNum = typeof currentJob?.progress === 'object' ? (currentJob.progress.progress ?? 0) : (currentJob?.progress ?? 0);
+
         const rawContext = currentJob ? {
             sourceSummary: currentJob.sourceAnalysis,
             targetSummary: currentJob.targetAnalysis,
@@ -135,10 +138,13 @@ export class AiChatService {
             migrationState: {
                 jobId: currentJob.id,
                 status: currentJob.status,
-                stage: currentJob.stage,
-                progress: currentJob.progress,
-                statCounters: currentJob.statCounters,
-                error: currentJob.error
+                stage: stageLabelStr,
+                progress: progressNum,
+                activeAgent: currentJob.activeAgent || 'AssistantAgent',
+                currentTask: currentJob.currentTask || stageLabelStr,
+                currentResource: currentJob.currentResource || currentJob.progress?.item || 'N/A',
+                statCounters: currentJob.statCounters || {},
+                error: currentJob.error || null
             },
             verification: currentJob.verificationReport
         } : {};
@@ -253,8 +259,11 @@ Guidelines:
                 };
             }
             const stats = job.statCounters || {};
+            const stageStr = typeof job.stage === 'object' ? (job.stage.label || job.stage.stage || 'executing') : (job.stage || 'idle');
+            const progressVal = typeof job.progress === 'object' ? (job.progress.progress ?? 0) : (job.progress ?? 0);
             return {
-                reply: `Migration Job [${job.id}] is currently **${job.status.toUpperCase()}** at stage **${job.stage || 'idle'}** (${job.progress || 0}% completed).\n\n` +
+                reply: `Migration Job [${job.id}] is currently **${(job.status || 'running').toUpperCase()}** at stage **${stageStr}** (${progressVal}% completed).\n\n` +
+                    `• Active Agent: **${job.activeAgent || 'AssistantAgent'}**\n` +
                     `• Roles: ${stats.roles || 0}\n` +
                     `• Channels: ${stats.channels || 0}\n` +
                     `• Emojis/Stickers: ${stats.emojis || 0}\n` +

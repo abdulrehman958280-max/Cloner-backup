@@ -43,24 +43,30 @@ export class AgentEventBus extends EventEmitter {
     }
 
     /**
-     * Publishes a structured event to the bus and buffers it for job history
+     * Publishes a structured normalized event to the bus and buffers it for job history
      */
-    publish(eventPayload) {
+    publish(eventPayload = {}) {
+        const eventId = eventPayload.eventId || eventPayload.id || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        
         const event = {
-            id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-            timestamp: new Date().toISOString(),
+            eventId: eventId,
+            id: eventId, // backward compatibility
+            timestamp: eventPayload.timestamp || new Date().toISOString(),
             jobId: eventPayload.jobId || 'global',
             agentId: eventPayload.agentId || 'system',
             agentType: eventPayload.agentType || 'SYSTEM', // CLEANER, CLONER, TESTER, ASSISTANT
             eventType: eventPayload.eventType || AGENT_EVENT_TYPES.AGENT_STARTED,
             stage: eventPayload.stage || 'EXECUTING',
+            action: eventPayload.action || eventPayload.stage || null,
             resourceType: eventPayload.resourceType || null,
             resourceId: eventPayload.resourceId || null,
-            status: eventPayload.status || 'INFO',
+            resourceName: eventPayload.resourceName || null,
+            status: eventPayload.status || 'INFO', // INFO, SUCCESS, WARNING, ERROR, SKIPPED, RETRY
             progress: eventPayload.progress ?? null,
             message: eventPayload.message || '',
             errorCode: eventPayload.errorCode || null,
             retryCount: eventPayload.retryCount || 0,
+            latency: eventPayload.latency || null,
             metadata: eventPayload.metadata || {}
         };
 
