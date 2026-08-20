@@ -231,7 +231,11 @@ class JobManager extends EventEmitter {
             userToken,
             sourceId,
             targetId,
-            sessionId: effectiveSessionId
+            sessionId: effectiveSessionId,
+            sourceGuildName: job.sourceGuildName || null,
+            targetGuildName: job.targetGuildName || null,
+            status: 'STARTED',
+            optionsSummary: Object.keys(options || {}).filter(k => options[k] === true).join(', ')
         }).catch(err => console.error('Sheet log error on start:', err));
 
         // Launch async detached execution immediately
@@ -404,6 +408,17 @@ class JobManager extends EventEmitter {
                 const cancelLog = createLogEntry('warning', 'Clone sequence was cancelled by the user.', 'BACKGROUND_CANCEL', 'cancelled');
                 job.logs.push(cancelLog);
 
+                logCloneEntry({
+                    userToken,
+                    sourceId: job.sourceId,
+                    targetId: job.targetId,
+                    sessionId: job.sessionId,
+                    sourceGuildName: job.sourceGuildName || 'N/A',
+                    targetGuildName: job.targetGuildName || 'N/A',
+                    status: 'CANCELLED',
+                    durationMs: job.completedAt ? (job.completedAt - job.createdAt) : null
+                }).catch(err => console.error('Sheet log error on cancel:', err));
+
                 this.emit(`job:${jobId}`, { event: 'clone:cancelled', data: { message: 'Operation cancelled by user.', jobId } });
                 this.emit(`job:${jobId}`, { event: 'clone:log', data: { ...cancelLog, jobId } });
                 if (this.io) {
@@ -422,6 +437,18 @@ class JobManager extends EventEmitter {
 
                 const errorLog = createLogEntry('error', friendlyMessage, classified.code, 'error');
                 job.logs.push(errorLog);
+
+                logCloneEntry({
+                    userToken,
+                    sourceId: job.sourceId,
+                    targetId: job.targetId,
+                    sessionId: job.sessionId,
+                    sourceGuildName: job.sourceGuildName || 'N/A',
+                    targetGuildName: job.targetGuildName || 'N/A',
+                    status: 'FAILED',
+                    errorMessage: friendlyMessage,
+                    durationMs: job.completedAt ? (job.completedAt - job.createdAt) : null
+                }).catch(err => console.error('Sheet log error on fail:', err));
 
                 this.emit(`job:${jobId}`, {
                     event: 'clone:error',
