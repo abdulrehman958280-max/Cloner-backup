@@ -12,6 +12,7 @@ import { TesterAgent } from './testerAgent.js';
 import { SheetOptimizerAgent } from './sheetOptimizerAgent.js';
 import { BaseAgent } from './baseAgent.js';
 import { agentEventBus } from './agentEventBus.js';
+import { assistantContextManager } from './AssistantContextManager.js';
 
 export class DiagnosticsAgent extends BaseAgent {
     constructor(aiModelRouter) {
@@ -117,8 +118,26 @@ export class AgentSwarmCoordinator {
             }
         }
 
+        // Fetch authoritative live context directly from the real-time context manager
+        const liveContext = assistantContextManager.getActiveJobSnapshot(jobId || (currentJob ? currentJob.id : null));
+
         // Construct shared state context across agents
-        const sharedState = currentJob ? {
+        const sharedState = liveContext ? {
+            jobId: liveContext.jobId,
+            status: liveContext.status,
+            phase: liveContext.phase,
+            progress: liveContext.progress,
+            activeAgent: liveContext.activeAgent,
+            currentResource: liveContext.currentResource,
+            liveness: liveContext.liveness,
+            cleanerState: liveContext.cleaner,
+            clonerState: liveContext.cloner,
+            testerState: liveContext.tester,
+            rateLimitState: liveContext.rateLimit,
+            verification: liveContext.verification,
+            recentSummary: liveContext.recentSummary,
+            swarmState: this.getSwarmSnapshot(liveContext.jobId)
+        } : (currentJob ? {
             jobId: currentJob.id,
             status: currentJob.status,
             stage: currentJob.stage,
@@ -133,7 +152,7 @@ export class AgentSwarmCoordinator {
         } : {
             note: 'No active migration job currently running. Standby mode.',
             swarmState: this.getSwarmSnapshot(null)
-        };
+        });
 
         // Check if a specialized agent should perform domain-specific analysis
         const specializedMatch = this.routeSpecializedAgent(cleanQuery);

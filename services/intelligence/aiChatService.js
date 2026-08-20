@@ -7,6 +7,7 @@
 import { sanitizeSensitiveText, sanitizeAiContext } from './sanitizer.js';
 import { TASK_TYPES } from './modelCapabilityRegistry.js';
 import { AgentSwarmCoordinator } from './agentSwarm.js';
+import { assistantContextManager } from './AssistantContextManager.js';
 
 export class AiChatService {
     constructor(aiModelRouter, toolsRegistry, swarmCoordinator = null) {
@@ -130,7 +131,26 @@ export class AiChatService {
         const stageLabelStr = typeof currentJob?.stage === 'object' ? (currentJob.stage.label || currentJob.stage.stage) : (currentJob?.stage || 'idle');
         const progressNum = typeof currentJob?.progress === 'object' ? (currentJob.progress.progress ?? 0) : (currentJob?.progress ?? 0);
 
-        const rawContext = currentJob ? {
+        // Fetch authoritative live context directly from the real-time context manager
+        const liveContextFallback = assistantContextManager.getActiveJobSnapshot(jobId || (currentJob ? currentJob.id : null));
+
+        const rawContext = liveContextFallback ? {
+            migrationState: {
+                jobId: liveContextFallback.jobId,
+                status: liveContextFallback.status,
+                phase: liveContextFallback.phase,
+                progress: liveContextFallback.progress,
+                activeAgent: liveContextFallback.activeAgent,
+                currentResource: liveContextFallback.currentResource,
+                liveness: liveContextFallback.liveness,
+                cleanerState: liveContextFallback.cleaner,
+                clonerState: liveContextFallback.cloner,
+                testerState: liveContextFallback.tester,
+                rateLimitState: liveContextFallback.rateLimit,
+                verification: liveContextFallback.verification,
+                recentSummary: liveContextFallback.recentSummary
+            }
+        } : (currentJob ? {
             sourceSummary: currentJob.sourceAnalysis,
             targetSummary: currentJob.targetAnalysis,
             compatibility: currentJob.compatibility,
@@ -147,7 +167,7 @@ export class AiChatService {
                 error: currentJob.error || null
             },
             verification: currentJob.verificationReport
-        } : {};
+        } : {});
 
         const safeContext = sanitizeAiContext(rawContext);
 
@@ -240,19 +260,40 @@ Guidelines:
             }
         }
 
+        // Fetch authoritative live context directly from the real-time context manager
+        const liveContext = assistantContextManager.getActiveJobSnapshot(jobId || (currentJob ? currentJob.id : null));
+
         // Graceful Deterministic Fallback Response Engine
-        return this.generateDeterministicReply(cleanQuery, currentJob);
+        return this.generateDeterministicReply(cleanQuery, currentJob, liveContext);
     }
 
     /**
      * Deterministic rule-based assistant reply when AI is offline or disabled
      */
-    generateDeterministicReply(query, job) {
+    generateDeterministicReply(query, job, liveContext = null) {
         const q = query.toLowerCase();
 
         // 1. Status / Progress query
         if (q.includes('status') || q.includes('progress') || q.includes('how is it going') || q.includes('state')) {
+            if (liveContext && liveContext.liveness !== 'UNKNOWN') {
+                return {
+                    reply: `Migration Job [${liveContext.jobId}] is currently **${liveContext.status}** at phase **${liveContext.phase}** (${liveContext.progress}% completed).\n\n` +
+                        `• Active Agent: **${liveContext.activeAgent || 'N/A'}**\n` +
+                        `• Cloned: ${liveContext.cloner?.completed || 0} | Failed: ${liveContext.cloner?.failed || 0}\n` +
+                        `• Rate Limit: **${liveContext.rateLimit?.status || 'HEALTHY'}**\n` +
+                        `• Last Event: ${liveContext.recentSummary || 'N/A'}`,
+                    actions: this.deriveSuggestedActions(job)
+                };
+            }
             if (!job) {
+                if (assistantContextManager.activeJobs.size > 0) {
+                    const activeJobsList = Array.from(assistantContextManager.activeJobs.values());
+                    const summaries = activeJobsList.map(j => `• Job [${j.jobId}] is currently at phase **${j.phase || 'UNKNOWN'}** (${j.progress || 0}% completed).`);
+                    return {
+                        reply: `There ${activeJobsList.length === 1 ? 'is' : 'are'} currently ${activeJobsList.length} active migration(s):\n\n${summaries.join('\n')}`,
+                        actions: ['Check Errors', 'Cleanup Safety']
+                    };
+                }
                 return {
                     reply: 'No migration job is currently active. Configure your source and target servers and click "Start Server Sync" to begin.',
                     actions: ['Start Migration']
@@ -274,8 +315,11 @@ Guidelines:
 
         // 2. Errors / Failed items query
         if (q.includes('error') || q.includes('failed') || q.includes('problem') || q.includes('issue')) {
-            if (!job) {
+            if (!job && assistantContextManager.activeJobs.size === 0) {
                 return { reply: 'No errors logged. No job is currently running.', actions: [] };
+            }
+            if (!job && assistantContextManager.activeJobs.size > 0) {
+                return { reply: `There are ${assistantContextManager.activeJobs.size} active jobs, but no specific job was selected to check for errors.`, actions: ['Check Status'] };
             }
             const failedCount = job.failedQueue?.getStats()?.totalFailed || 0;
             if (failedCount === 0 && !job.error) {

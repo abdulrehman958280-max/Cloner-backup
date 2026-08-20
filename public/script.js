@@ -278,12 +278,19 @@
     }
 
     function applyTheme(theme) {
+        const iconLight = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-light') : null;
+        const iconDark = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon-dark') : null;
+
         if (theme === 'dark') {
             htmlElement.setAttribute('data-theme', 'dark');
             if (themeToggleBtn) themeToggleBtn.setAttribute('aria-checked', 'true');
+            if (iconLight) iconLight.classList.add('hidden');
+            if (iconDark) iconDark.classList.remove('hidden');
         } else {
             htmlElement.setAttribute('data-theme', 'light');
             if (themeToggleBtn) themeToggleBtn.setAttribute('aria-checked', 'false');
+            if (iconLight) iconLight.classList.remove('hidden');
+            if (iconDark) iconDark.classList.add('hidden');
         }
         try {
             localStorage.setItem('discloner-theme', theme);
@@ -2350,7 +2357,20 @@
         if (!event) return;
         const level = event.status === 'SUCCESS' ? 'success' : event.status === 'WARNING' ? 'warning' : event.status === 'ERROR' ? 'error' : event.stage === 'STAGE' ? 'stage' : 'info';
         if (event.message) {
-            appendLog(level, event.message, event.action || event.stage, event.timestamp, event.eventId);
+            // Deduplicate inside appendLog, but track stats
+            const isNew = appendLog(level, event.message, event.action || event.stage, event.timestamp, event.eventId);
+            if (isNew) {
+                if (level === 'warning') statCounters.warnings++;
+                if (level === 'success') {
+                    const lower = event.message.toLowerCase();
+                    if (lower.includes('role')) statCounters.roles++;
+                    if (lower.includes('channel') || lower.includes('category')) statCounters.channels++;
+                    if (lower.includes('emoji')) statCounters.emojis++;
+                    if (lower.includes('sticker')) statCounters.stickers++;
+                    if (lower.includes('message')) statCounters.messages++;
+                }
+                updateLiveStatCounts();
+            }
         }
         if (event.rateLimit) {
             updateRateLimitTelemetry(event.rateLimit);
@@ -2360,20 +2380,22 @@
     socket.on('clone:log', (entry) => {
         if (!entry) return;
         const level = entry.level || entry.type || 'info';
-        appendLog(level, entry.message, entry.detail, entry.timestamp, entry.eventId || entry.id);
+        const isNew = appendLog(level, entry.message, entry.detail, entry.timestamp, entry.eventId || entry.id);
 
-        if (level === 'warning') {
-            statCounters.warnings++;
+        if (isNew) {
+            if (level === 'warning') {
+                statCounters.warnings++;
+            }
+            if (entry.message && level === 'success') {
+                const lower = entry.message.toLowerCase();
+                if (lower.includes('role')) statCounters.roles++;
+                if (lower.includes('channel') || lower.includes('category')) statCounters.channels++;
+                if (lower.includes('emoji')) statCounters.emojis++;
+                if (lower.includes('sticker')) statCounters.stickers++;
+                if (lower.includes('message')) statCounters.messages++;
+            }
+            updateLiveStatCounts();
         }
-        if (entry.message && level === 'success') {
-            const lower = entry.message.toLowerCase();
-            if (lower.includes('role')) statCounters.roles++;
-            if (lower.includes('channel') || lower.includes('category')) statCounters.channels++;
-            if (lower.includes('emoji')) statCounters.emojis++;
-            if (lower.includes('sticker')) statCounters.stickers++;
-            if (lower.includes('message')) statCounters.messages++;
-        }
-        updateLiveStatCounts();
     });
 
     socket.on('clone:completed', (payload) => {
@@ -2520,11 +2542,11 @@
     const renderedLogSignatures = new Set();
 
     function appendLog(level, message, detail, timestamp, eventId = null) {
-        if (!message) return;
+        if (!message) return false;
 
         // 1. Exact Event ID Deduplication
         if (eventId) {
-            if (renderedEventIds.has(eventId)) return; // Skip duplicate event
+            if (renderedEventIds.has(eventId)) return false; // Skip duplicate event
             renderedEventIds.add(eventId);
             if (renderedEventIds.size > 2000) {
                 const firstVal = renderedEventIds.values().next().value;
@@ -2535,7 +2557,7 @@
         // 2. Signature Window Deduplication (prevents double logging of identical message & detail)
         const timeStr = timestamp || formatCurrentTime();
         const signature = `${level}|${message}|${detail || ''}|${timeStr.substring(0, 7)}`;
-        if (renderedLogSignatures.has(signature)) return;
+        if (renderedLogSignatures.has(signature)) return false;
         renderedLogSignatures.add(signature);
         setTimeout(() => renderedLogSignatures.delete(signature), 3000);
 
@@ -2552,6 +2574,8 @@
             renderLogItem(logObj);
             handleAutoScroll();
         }
+        
+        return true;
     }
 
     function formatCurrentTime() {
@@ -4232,27 +4256,12 @@
     const toggleCopilotBtn = document.getElementById('toggleCopilotBtn');
     const copilotDrawer = document.getElementById('copilotDrawer');
     const closeCopilotBtn = document.getElementById('closeCopilotBtn');
-    const toggleModelPanelBtn = document.getElementById('toggleModelPanelBtn');
     const clearCopilotChatBtn = document.getElementById('clearCopilotChatBtn');
-    const copilotModelsPanel = document.getElementById('copilotModelsPanel');
     const copilotForm = document.getElementById('copilotForm');
     const copilotInput = document.getElementById('copilotInput');
     const copilotMessages = document.getElementById('copilotMessages');
     const copilotQuickChips = document.getElementById('copilotQuickChips');
-    const copilotActiveModelCard = document.getElementById('copilotActiveModelCard');
-    const copilotActiveModelLabel = document.getElementById('copilotActiveModelLabel');
-    const copilotModelTierBadge = document.getElementById('copilotModelTierBadge');
-    const copilotAiStatusDot = document.getElementById('copilotAiStatusDot');
-    const copilotFreeModelsCount = document.getElementById('copilotFreeModelsCount');
-    const copilotFailoverAlert = document.getElementById('copilotFailoverAlert');
-    const refreshAiModelsBtn = document.getElementById('refreshAiModelsBtn');
-    const copilotSpecContext = document.getElementById('copilotSpecContext');
-    const copilotSpecLatency = document.getElementById('copilotSpecLatency');
-    const copilotSpecFeatures = document.getElementById('copilotSpecFeatures');
-    const copilotLiveStatusBanner = document.getElementById('copilotLiveStatusBanner');
-    const copilotLiveStatusText = document.getElementById('copilotLiveStatusText');
 
-    let currentOpenRouterData = null;
     let activeThinkingBubble = null;
 
     // Listen for real-time AI thinking events via Socket.IO
@@ -4260,46 +4269,16 @@
         if (!event) return;
 
         if (event.status === 'analyzing') {
-            if (copilotLiveStatusBanner && copilotLiveStatusText) {
-                copilotLiveStatusBanner.classList.remove('hidden', 'is-switching');
-                copilotLiveStatusText.textContent = `Analyzing with ${event.modelName || event.model}...`;
-            }
             if (activeThinkingBubble && typeof activeThinkingBubble.updateStep === 'function') {
                 activeThinkingBubble.updateStep(`⚡ Evaluating migration intelligence with ${event.modelName || event.model}...`);
             }
-            updateActiveModelDisplay({
-                id: event.model,
-                name: event.modelName,
-                tier: event.tier
-            });
         } else if (event.status === 'switching') {
             const from = event.fromName || event.fromModel || 'Previous';
             const to = event.toName || event.toModel || 'Next';
             const reason = event.reason || 'Quota limit reached';
 
-            if (copilotLiveStatusBanner && copilotLiveStatusText) {
-                copilotLiveStatusBanner.classList.remove('hidden');
-                copilotLiveStatusBanner.classList.add('is-switching');
-                copilotLiveStatusText.textContent = `⚡ Switching: Quota on ${from} → Failover to ${to}`;
-            }
-
             if (activeThinkingBubble && typeof activeThinkingBubble.addFailoverAlert === 'function') {
                 activeThinkingBubble.addFailoverAlert(from, to, reason);
-            }
-
-            if (copilotActiveModelCard) {
-                copilotActiveModelCard.classList.add('pulse-highlight');
-                setTimeout(() => copilotActiveModelCard.classList.remove('pulse-highlight'), 1300);
-            }
-
-            updateActiveModelDisplay({
-                id: event.toModel,
-                name: event.toName
-            });
-        } else if (event.status === 'completed') {
-            if (copilotLiveStatusBanner) {
-                copilotLiveStatusBanner.classList.add('hidden');
-                copilotLiveStatusBanner.classList.remove('is-switching');
             }
         }
     });
@@ -4312,130 +4291,9 @@
         const reason = event.reason || 'Quota Exceeded';
 
         showToast(`⚡ Auto-Failover: ${fromName} → ${toName} (${reason})`, 'info');
-
-        if (copilotFailoverAlert) {
-            copilotFailoverAlert.textContent = `⚡ Auto-switched: ${fromName} → ${toName}`;
-            copilotFailoverAlert.classList.remove('hidden');
-        }
-
-        if (copilotActiveModelCard) {
-            copilotActiveModelCard.classList.add('pulse-highlight');
-            setTimeout(() => copilotActiveModelCard.classList.remove('pulse-highlight'), 1300);
-        }
-
         // Add log entry to console
         appendLog('info', `AI Failover: Switched from ${fromName} to ${toName} (${reason})`, 'NEURAL_AI');
-        syncOpenRouterModelsStatus();
     });
-
-    function updateActiveModelDisplay(modelInfo) {
-        if (!modelInfo) return;
-        if (copilotActiveModelLabel && modelInfo.name) {
-            copilotActiveModelLabel.textContent = modelInfo.name;
-        }
-        if (copilotModelTierBadge && modelInfo.tier) {
-            copilotModelTierBadge.textContent = `Tier ${modelInfo.tier}`;
-        }
-        if (copilotSpecContext && modelInfo.contextWindow) {
-            copilotSpecContext.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> ${(modelInfo.contextWindow / 1000).toFixed(0)}k Context`;
-        }
-        if (copilotSpecLatency && modelInfo.latencyScore) {
-            copilotSpecLatency.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ~${modelInfo.latencyScore}ms`;
-        }
-    }
-
-    async function syncOpenRouterModelsStatus() {
-        try {
-            const res = await fetch('/api/intelligence/models');
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data.success) {
-                currentOpenRouterData = data;
-                const activeObj = (data.models || []).find(m => m.id === data.activeModel);
-
-                if (activeObj) {
-                    updateActiveModelDisplay(activeObj);
-                } else if (copilotActiveModelLabel) {
-                    copilotActiveModelLabel.textContent = data.activeModel || 'Gemini 2.0 Flash (Free)';
-                }
-
-                if (copilotFreeModelsCount) {
-                    const availableCount = (data.models || []).filter(m => m.status === 'available').length;
-                    copilotFreeModelsCount.textContent = `${availableCount}/${data.totalFreeModels || 12} Free LLMs Available (Auto-Failover)`;
-                }
-                if (copilotAiStatusDot) {
-                    copilotAiStatusDot.style.background = data.isConfigured ? '#10b981' : '#f59e0b';
-                }
-                if (data.recentFailovers && data.recentFailovers.length > 0 && copilotFailoverAlert) {
-                    const lastFailover = data.recentFailovers[0];
-                    copilotFailoverAlert.textContent = `⚡ Auto-switched to ${lastFailover.toName || lastFailover.toModel} (${lastFailover.reason})`;
-                    copilotFailoverAlert.classList.remove('hidden');
-                }
-                renderModelsPanel(data);
-            }
-        } catch (err) {
-            // Ignore background sync errors
-        }
-    }
-
-    function renderModelsPanel(data) {
-        if (!copilotModelsPanel || !data || !data.models) return;
-        copilotModelsPanel.innerHTML = '';
-
-        const title = document.createElement('div');
-        title.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:11px; margin-bottom:4px; color:var(--text-secondary);';
-        title.innerHTML = '<span>NEURAL CASCADE MODELS</span><span>REGISTRY PRIORITY</span>';
-        copilotModelsPanel.appendChild(title);
-
-        data.models.forEach((m, idx) => {
-            const row = document.createElement('div');
-            row.className = `model-select-item ${m.id === data.activeModel ? 'is-selected' : ''}`;
-            
-            const isAvailable = m.status === 'available';
-            const statusColor = isAvailable ? '#10b981' : '#ef4444';
-            const tierBadge = m.tier ? `<span class="active-model-tier-badge" style="font-size:9px;">T${m.tier}</span>` : '';
-            
-            row.innerHTML = `
-                <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
-                    <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${statusColor}; flex-shrink:0;"></span>
-                    <span style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:11.5px;">#${idx + 1} ${escapeHtml(m.name || m.id)}</span>
-                    ${tierBadge}
-                </div>
-                <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                    <span style="font-size:10px; color:var(--text-muted);">${m.latency || (m.latencyScore ? m.latencyScore + 'ms' : 'Fast')}</span>
-                    ${m.id === data.activeModel ? '<span style="font-size:9.5px; font-weight:700; color:var(--accent,#3b82f6);">ACTIVE</span>' : ''}
-                </div>
-            `;
-
-            row.addEventListener('click', async () => {
-                try {
-                    const selectRes = await fetch('/api/intelligence/models/select', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ modelId: m.id })
-                    });
-                    const selData = await selectRes.json();
-                    if (selData.success) {
-                        showToast(`Active model changed to ${m.name || m.id}`, 'success');
-                        syncOpenRouterModelsStatus();
-                    }
-                } catch (e) {
-                    showToast(`Failed to switch model: ${e.message}`, 'error');
-                }
-            });
-
-            copilotModelsPanel.appendChild(row);
-        });
-    }
-
-    if (toggleModelPanelBtn && copilotModelsPanel) {
-        toggleModelPanelBtn.addEventListener('click', () => {
-            copilotModelsPanel.classList.toggle('hidden');
-            if (!copilotModelsPanel.classList.contains('hidden')) {
-                syncOpenRouterModelsStatus();
-            }
-        });
-    }
 
     if (clearCopilotChatBtn && copilotMessages) {
         clearCopilotChatBtn.addEventListener('click', () => {
@@ -4450,36 +4308,10 @@
         });
     }
 
-    if (refreshAiModelsBtn) {
-        refreshAiModelsBtn.addEventListener('click', async () => {
-            refreshAiModelsBtn.disabled = true;
-            refreshAiModelsBtn.style.opacity = '0.5';
-            try {
-                const res = await fetch('/api/intelligence/models/refresh', { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    showToast(data.message || 'Discovered live free OpenRouter models!', 'success');
-                    syncOpenRouterModelsStatus();
-                } else {
-                    showToast('Failed to refresh models.', 'error');
-                }
-            } catch (err) {
-                showToast(`Sync failed: ${err.message}`, 'error');
-            } finally {
-                refreshAiModelsBtn.disabled = false;
-                refreshAiModelsBtn.style.opacity = '1';
-            }
-        });
-    }
-
-    // Sync on page load and when drawer is opened
-    syncOpenRouterModelsStatus();
-
     if (toggleCopilotBtn && copilotDrawer) {
         toggleCopilotBtn.addEventListener('click', () => {
             copilotDrawer.classList.toggle('hidden');
             if (!copilotDrawer.classList.contains('hidden')) {
-                syncOpenRouterModelsStatus();
                 if (copilotInput) copilotInput.focus();
             }
         });
@@ -4731,7 +4563,6 @@
                     autoSwitched: data.autoSwitched,
                     actions: actions
                 });
-                syncOpenRouterModelsStatus();
             } else {
                 appendCopilotMessage('ai', `⚠️ ${data.error || 'Could not process query.'}`);
             }

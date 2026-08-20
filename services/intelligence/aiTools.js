@@ -13,6 +13,7 @@ import { predictMigrationOutcome } from './predictionEngine.js';
 import { RecoveryIntelligence } from './recoveryIntelligence.js';
 import { runDeepVerification } from './deepVerification.js';
 import { SheetOptimizerAgent } from './sheetOptimizerAgent.js';
+import { assistantContextManager } from './AssistantContextManager.js';
 
 export class IntelligenceToolsRegistry {
     constructor(jobManager = null, aiModelRouter = null) {
@@ -108,8 +109,56 @@ export class IntelligenceToolsRegistry {
         const job = jobId && this.jobManager ? this.jobManager.getJob(jobId) : null;
 
         switch (toolName) {
+            // --- Context Manager Authoritative Tools ---
+            case 'getActiveJobs':
+                return { activeJobs: assistantContextManager.getAllActiveJobs() };
+            case 'getJobSnapshot':
+                return assistantContextManager.getActiveJobSnapshot(jobId) || { error: 'No snapshot available' };
+            case 'getAgentSnapshot':
+                const snap = assistantContextManager.getActiveJobSnapshot(jobId);
+                if (!snap) return { error: 'No job snapshot' };
+                const agentKey = args.agentType?.toLowerCase();
+                return snap[agentKey] || { error: 'Unknown agent type' };
+            case 'getCurrentTask':
+                const snapTask = assistantContextManager.getActiveJobSnapshot(jobId);
+                return { currentTask: snapTask?.activeTask || 'None', phase: snapTask?.phase || 'None' };
+            case 'getRecentEvents':
+                const snapEvents = assistantContextManager.getActiveJobSnapshot(jobId);
+                return { recentEvents: snapEvents?.recentEvents?.slice(0, args.limit || 10) || [] };
+            case 'getErrors':
+                const snapErr = assistantContextManager.getActiveJobSnapshot(jobId);
+                return { errors: snapErr?.errors || [] };
+            case 'getRateLimitState':
+                const snapRl = assistantContextManager.getActiveJobSnapshot(jobId);
+                return { rateLimit: snapRl?.rateLimit || null };
+            case 'getVerificationState':
+                const snapVer = assistantContextManager.getActiveJobSnapshot(jobId);
+                return { verification: snapVer?.verification || null };
+            case 'getResourceTrace':
+                // For simplicity, search recent events
+                const eventsForTrace = assistantContextManager.getActiveJobSnapshot(jobId)?.recentEvents || [];
+                return { trace: eventsForTrace.filter(e => e.resourceId === args.resourceId || e.resourceName === args.resourceId) };
+            case 'getMigrationSummary':
+                const sum = assistantContextManager.getActiveJobSnapshot(jobId);
+                return sum ? {
+                    status: sum.status,
+                    progress: sum.progress,
+                    liveness: sum.liveness,
+                    cleaner: sum.cleaner?.completed,
+                    cloner: sum.cloner?.completed
+                } : { error: 'No summary available' };
+            // --- Legacy Tools ---
             case 'getMigrationStatus': {
-                if (!job) return { error: 'No active job found' };
+                if (!job) {
+                    if (assistantContextManager.activeJobs.size > 0) {
+                        return { 
+                            activeJobs: Array.from(assistantContextManager.activeJobs.values()).map(j => ({
+                                jobId: j.jobId, status: j.status, phase: j.phase, progress: j.progress
+                            }))
+                        };
+                    }
+                    return { error: 'No active job found' };
+                }
                 return {
                     status: job.status,
                     stage: job.stage,
