@@ -104,6 +104,10 @@
     const progressTrack = document.getElementById('progressTrack');
     const progressItemDetail = document.getElementById('progressItemDetail');
     const progressCounts = document.getElementById('progressCounts');
+    const progressStatusChip = document.getElementById('progressStatusChip');
+    const progressPercentTag = document.getElementById('progressPercentTag');
+    const progressSubtitle = document.getElementById('progressSubtitle');
+    const progressItemsBadge = document.getElementById('progressItemsBadge');
 
     // Onboarding Tour Elements
     const tourOverlay = document.getElementById('tourOverlay');
@@ -1347,10 +1351,16 @@
         tourCard.style.left = `${Math.max(10, left)}px`;
     }
 
+    let tourRepositionRaf = null;
     function handleTourReposition() {
         if (!isTourActive) return;
-        const step = TOUR_STEPS[currentTourStep];
-        if (step) positionTourElements(step);
+        if (tourRepositionRaf) return;
+        tourRepositionRaf = requestAnimationFrame(() => {
+            tourRepositionRaf = null;
+            if (!isTourActive) return;
+            const step = TOUR_STEPS[currentTourStep];
+            if (step) positionTourElements(step);
+        });
     }
 
     function nextTourStep() {
@@ -2007,6 +2017,11 @@
                 const percent = Math.min(100, Math.max(0, Math.round(job.progress.progress || 0)));
                 if (progressBar) progressBar.style.width = `${percent}%`;
                 if (progressText) progressText.textContent = `${percent}%`;
+                if (progressPercentTag) progressPercentTag.textContent = `${percent}% Completed`;
+                if (progressStatusChip) {
+                    progressStatusChip.textContent = 'Active';
+                    progressStatusChip.style.color = '#10B981';
+                }
                 if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
                 if (progressItemDetail && job.progress.item) progressItemDetail.textContent = job.progress.item;
                 if (progressCounts && job.progress.current !== undefined && job.progress.total !== undefined) {
@@ -2029,6 +2044,11 @@
             setRunningState(false);
             if (progressBar) progressBar.style.width = '100%';
             if (progressText) progressText.textContent = '100%';
+            if (progressPercentTag) progressPercentTag.textContent = '100% Completed';
+            if (progressStatusChip) {
+                progressStatusChip.textContent = 'Completed';
+                progressStatusChip.style.color = '#10B981';
+            }
             if (stageLabel) stageLabel.textContent = 'Completed';
             if (etaTimer) etaTimer.textContent = '00:00';
 
@@ -2308,6 +2328,11 @@
                             const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
                             if (progressBar) progressBar.style.width = `${percent}%`;
                             if (progressText) progressText.textContent = `${percent}%`;
+                            if (progressPercentTag) progressPercentTag.textContent = `${percent}% Completed`;
+                            if (progressStatusChip) {
+                                progressStatusChip.textContent = 'Active';
+                                progressStatusChip.style.color = '#10B981';
+                            }
                             if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
                             if (data.item && progressItemDetail) progressItemDetail.textContent = data.item;
                             if (data.current !== undefined && data.total !== undefined && progressCounts) {
@@ -2329,6 +2354,11 @@
                             setRunningState(false);
                             if (progressBar) progressBar.style.width = '100%';
                             if (progressText) progressText.textContent = '100%';
+                            if (progressPercentTag) progressPercentTag.textContent = '100% Completed';
+                            if (progressStatusChip) {
+                                progressStatusChip.textContent = 'Completed';
+                                progressStatusChip.style.color = '#10B981';
+                            }
                             if (stageLabel) stageLabel.textContent = 'Completed';
                             if (etaTimer) etaTimer.textContent = '00:00';
                             const stats = parsed.data.stats || parsed.data || {};
@@ -2336,10 +2366,18 @@
                             stopJobPolling();
                         } else if (parsed.event === 'clone:cancelled') {
                             setRunningState(false);
+                            if (progressStatusChip) {
+                                progressStatusChip.textContent = 'Cancelled';
+                                progressStatusChip.style.color = '#F59E0B';
+                            }
                             if (stageLabel) stageLabel.textContent = 'Cancelled';
                             stopJobPolling();
                         } else if (parsed.event === 'clone:error') {
                             setRunningState(false);
+                            if (progressStatusChip) {
+                                progressStatusChip.textContent = 'Error';
+                                progressStatusChip.style.color = '#EF4444';
+                            }
                             if (stageLabel) stageLabel.textContent = 'Error Encountered';
                             stopJobPolling();
                         }
@@ -2461,100 +2499,10 @@
     });
 
     socket.on('clone:plan_generated', (data) => {
-        const { plan, jobId } = data;
-        const modal = document.getElementById('cleanupPreviewModal');
-        const listContainer = document.getElementById('cleanupPreviewLists');
-        const btnConfirm = document.getElementById('confirmCleanupActionBtn');
-        const btnCancel = document.getElementById('cancelCleanupActionBtn');
-        const confirmInput = document.getElementById('cleanupConfirmInput');
-        const btnClose = document.getElementById('closeCleanupPreviewBtn');
-
-        if (!modal || !plan) return;
-
-        // Populate summary
-        document.getElementById('cleanupDeleteCount').textContent = 
-            (plan.summary.channelsToDeleteCount || 0) + (plan.summary.rolesToDeleteCount || 0);
-        document.getElementById('cleanupPreserveCount').textContent = 
-            (plan.summary.channelsToPreserveCount || 0) + (plan.summary.rolesToPreserveCount || 0);
-        document.getElementById('cleanupWarnCount').textContent = plan.summary.warnings || 0;
-
-        // Populate lists
-        let html = '';
-        if (plan.roles && plan.roles.toDelete && plan.roles.toDelete.length > 0) {
-            html += `<h4 style="margin-top: 10px; font-weight: 600;">Roles to Delete</h4><ul>`;
-            plan.roles.toDelete.slice(0, 20).forEach(r => html += `<li>${r.name}</li>`);
-            if (plan.roles.toDelete.length > 20) html += `<li>...and ${plan.roles.toDelete.length - 20} more</li>`;
-            html += `</ul>`;
-        }
-        if (plan.channels && plan.channels.toDelete && plan.channels.toDelete.length > 0) {
-            html += `<h4 style="margin-top: 10px; font-weight: 600;">Channels to Delete</h4><ul>`;
-            plan.channels.toDelete.slice(0, 20).forEach(c => html += `<li>${c.name} (${c.type})</li>`);
-            if (plan.channels.toDelete.length > 20) html += `<li>...and ${plan.channels.toDelete.length - 20} more</li>`;
-            html += `</ul>`;
-        }
-        if (html === '') html = '<p>No items scheduled for deletion.</p>';
-        listContainer.innerHTML = html;
-
-        // Reset and show modal
-        confirmInput.value = '';
-        btnConfirm.disabled = true;
-        modal.classList.remove('hidden');
-
-        // Input validation
-        const validateInput = () => {
-            btnConfirm.disabled = confirmInput.value !== 'CONFIRM';
-        };
-        confirmInput.removeEventListener('input', validateInput);
-        confirmInput.addEventListener('input', validateInput);
-
-        // Handlers
-        const handleConfirm = async () => {
-            btnConfirm.disabled = true;
-            btnConfirm.textContent = 'Approving...';
-            try {
-                await fetch(`/api/jobs/${jobId}/approve`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-session-id': clientSessionId,
-                        'x-user-token': userTokenInput.value.trim()
-                    }
-                });
-                modal.classList.add('hidden');
-                appendLog('info', 'Cleanup plan approved. Proceeding with deletion...', 'APPROVE');
-            } catch (err) {
-                appendLog('error', 'Failed to approve plan: ' + err.message, 'ERROR');
-            }
-        };
-
-        const handleReject = async () => {
-            try {
-                await fetch(`/api/jobs/${jobId}/reject`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-session-id': clientSessionId,
-                        'x-user-token': userTokenInput.value.trim()
-                    }
-                });
-                modal.classList.add('hidden');
-                appendLog('info', 'Cleanup plan rejected. Job cancelled.', 'REJECT');
-            } catch (err) {
-                appendLog('error', 'Failed to reject plan: ' + err.message, 'ERROR');
-            }
-        };
-
-        // Cleanup old listeners to prevent double-firing
-        const newBtnConfirm = btnConfirm.cloneNode(true);
-        btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
-        const newBtnCancel = btnCancel.cloneNode(true);
-        btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
-        const newBtnClose = btnClose.cloneNode(true);
-        btnClose.parentNode.replaceChild(newBtnClose, btnClose);
-
-        newBtnConfirm.addEventListener('click', handleConfirm);
-        newBtnCancel.addEventListener('click', handleReject);
-        newBtnClose.addEventListener('click', handleReject);
+        const { plan } = data || {};
+        if (!plan || !plan.summary) return;
+        const totalDel = (plan.summary.channelsToDeleteCount || 0) + (plan.summary.rolesToDeleteCount || 0);
+        appendLog('info', `Target cleanup plan: ${totalDel} items to delete (${plan.summary.channelsToDeleteCount || 0} channels, ${plan.summary.rolesToDeleteCount || 0} roles), ${plan.summary.rolesToPreserveCount || 0} protected. Proceeding automatically...`, 'CLEANUP');
     });
 
     socket.on('clone:progress', (data) => {
@@ -2562,6 +2510,11 @@
         const percent = Math.min(100, Math.max(0, Math.round(rawPercent)));
         if (progressBar) progressBar.style.width = `${percent}%`;
         if (progressText) progressText.textContent = `${percent}%`;
+        if (progressPercentTag) progressPercentTag.textContent = `${percent}% Completed`;
+        if (progressStatusChip) {
+            progressStatusChip.textContent = 'Active';
+            progressStatusChip.style.color = '#10B981';
+        }
         if (progressTrack) progressTrack.setAttribute('aria-valuenow', percent);
 
         if (data.item && progressItemDetail) {
@@ -2637,6 +2590,11 @@
         setRunningState(false);
         if (progressBar) progressBar.style.width = '100%';
         if (progressText) progressText.textContent = '100%';
+        if (progressPercentTag) progressPercentTag.textContent = '100% Completed';
+        if (progressStatusChip) {
+            progressStatusChip.textContent = 'Completed';
+            progressStatusChip.style.color = '#10B981';
+        }
         if (stageLabel) stageLabel.textContent = 'Completed';
         if (etaTimer) etaTimer.textContent = '00:00';
 
@@ -2684,6 +2642,10 @@
 
     socket.on('clone:error', (data) => {
         setRunningState(false);
+        if (progressStatusChip) {
+            progressStatusChip.textContent = 'Error';
+            progressStatusChip.style.color = '#EF4444';
+        }
         if (stageLabel) stageLabel.textContent = 'Error Encountered';
         if (etaTimer) etaTimer.textContent = '-';
         const errMessage = data.message || data.error || 'An unexpected failure occurred during cloning.';
@@ -3089,27 +3051,32 @@
             userIsInteractingWithTerminal = false;
         });
 
-        // Scroll listener for bottom detection
+        // Scroll listener for bottom detection (wrapped in RAF for 60fps)
+        let terminalScrollRaf = null;
         terminal.addEventListener('scroll', () => {
-            const distanceFromBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight;
-            const isNearBottom = distanceFromBottom <= 60;
+            if (terminalScrollRaf) return;
+            terminalScrollRaf = requestAnimationFrame(() => {
+                terminalScrollRaf = null;
+                const distanceFromBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight;
+                const isNearBottom = distanceFromBottom <= 60;
 
-            if (isNearBottom) {
-                if (!isAutoScrollLocked && !userIsInteractingWithTerminal) {
-                    isAutoScrollLocked = true;
-                    updateAutoScrollToggleUI();
+                if (isNearBottom) {
+                    if (!isAutoScrollLocked && !userIsInteractingWithTerminal) {
+                        isAutoScrollLocked = true;
+                        updateAutoScrollToggleUI();
+                    }
+                    if (jumpLatestBtn) {
+                        jumpLatestBtn.classList.add('hidden');
+                    }
+                    unreadLogsCount = 0;
+                } else if (!isProgrammaticScrolling) {
+                    if (isAutoScrollLocked) {
+                        isAutoScrollLocked = false;
+                        updateAutoScrollToggleUI();
+                    }
                 }
-                if (jumpLatestBtn) {
-                    jumpLatestBtn.classList.add('hidden');
-                }
-                unreadLogsCount = 0;
-            } else if (!isProgrammaticScrolling) {
-                if (isAutoScrollLocked) {
-                    isAutoScrollLocked = false;
-                    updateAutoScrollToggleUI();
-                }
-            }
-        });
+            });
+        }, { passive: true });
     }
 
     // Toggle Auto-Scroll Button
@@ -4494,30 +4461,7 @@
         });
     }
 
-    // =========================================================================
-    // 9.2 Target Cleanup Intelligence Preview Modal
-    // =========================================================================
-    const cleanupPreviewModal = document.getElementById('cleanupPreviewModal');
-    const closeCleanupPreviewBtn = document.getElementById('closeCleanupPreviewBtn');
-    const cancelCleanupActionBtn = document.getElementById('cancelCleanupActionBtn');
-    const confirmCleanupActionBtn = document.getElementById('confirmCleanupActionBtn');
-    const cleanupDeleteCount = document.getElementById('cleanupDeleteCount');
-    const cleanupPreserveCount = document.getElementById('cleanupPreserveCount');
-    const cleanupWarnCount = document.getElementById('cleanupWarnCount');
-    const cleanupPreviewLists = document.getElementById('cleanupPreviewLists');
 
-    if (closeCleanupPreviewBtn && cleanupPreviewModal) {
-        closeCleanupPreviewBtn.addEventListener('click', () => closeModal(cleanupPreviewModal));
-    }
-    if (cancelCleanupActionBtn && cleanupPreviewModal) {
-        cancelCleanupActionBtn.addEventListener('click', () => closeModal(cleanupPreviewModal));
-    }
-    if (confirmCleanupActionBtn) {
-        confirmCleanupActionBtn.addEventListener('click', () => {
-            closeModal(cleanupPreviewModal);
-            executeDirectCloningProcess();
-        });
-    }
 
     // =========================================================================
     // 9.3 AI Migration Copilot Floating Widget & OpenRouter Multi-LLM System
@@ -5536,19 +5480,18 @@
 
 
     // ==========================================================================
-    // Intersection Observer for Scroll Animations
+    // Intersection Observer for Scroll Animations (Performance-Optimized)
     // ==========================================================================
     const scrollObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('is-visible');
-                // Optional: Stop observing once visible if you only want it to animate once
-                // scrollObserver.unobserve(entry.target);
+                scrollObserver.unobserve(entry.target);
             }
         });
     }, {
-        threshold: 0.1,
-        rootMargin: "0px 0px -50px 0px"
+        threshold: 0.05,
+        rootMargin: "0px 0px 50px 0px"
     });
 
     document.querySelectorAll('.scroll-animate').forEach(el => {

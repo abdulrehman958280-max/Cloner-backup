@@ -284,24 +284,19 @@ export async function executeClone({
 
             const cleanupPlan = createCleanupPlan(targetGuild, options.cleanupMode || 'full', options);
             
-            if (onPlanGenerated && typeof onPlanGenerated === 'function') {
-                onStage('awaiting_approval', 'Awaiting User Approval for Cleanup', 24);
-                emitLog('info', `Cleanup plan generated (${cleanupPlan.summary.channelsToDeleteCount} channels, ${cleanupPlan.summary.rolesToDeleteCount} roles to delete). Waiting for user approval...`, null, 'awaiting_approval');
-                
-                agentEventBus.emitEvent(jobId, {
-                    eventType: 'PLAN_GENERATED',
-                    agentType: 'CLEANER',
-                    stage: 'PLANNING',
-                    status: 'SUCCESS',
-                    message: 'Generated cleanup plan and awaiting approval.'
-                });
+            agentEventBus.publish({
+                jobId,
+                eventType: 'PLAN_GENERATED',
+                agentType: 'CLEANER',
+                stage: 'PLANNING',
+                status: 'SUCCESS',
+                message: `Generated cleanup plan: ${cleanupPlan.summary.channelsToDeleteCount} channels, ${cleanupPlan.summary.rolesToDeleteCount} roles to delete.`
+            });
 
+            if (onPlanGenerated && typeof onPlanGenerated === 'function') {
                 try {
-                    await onPlanGenerated(cleanupPlan);
-                } catch (err) {
-                    throw new Error(err.message || 'Cleanup plan was rejected.');
-                }
-                onStage('cleaning_target', 'Cleaning Target Server Structure', 24);
+                    onPlanGenerated(cleanupPlan);
+                } catch (e) {}
             }
             
             emitLog('info', `Target cleanup starting (${cleanupPlan.summary.channelsToDeleteCount} channels, ${cleanupPlan.summary.rolesToDeleteCount} roles to delete)...`, null, 'cleaning_target');

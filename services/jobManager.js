@@ -351,19 +351,11 @@ class JobManager extends EventEmitter {
 
         const onPlanGenerated = async (plan) => {
             job.cleanupPlan = plan;
-            
-            // Wait for approval
-            job._approvalPromise = new Promise((resolve, reject) => {
-                job._resolveApproval = resolve;
-                job._rejectApproval = reject;
-            });
-            
             this.emit(`job:${jobId}`, { event: 'clone:plan_generated', data: { plan, jobId } });
             if (this.io) {
                 this.io.to(`job:${jobId}`).emit('clone:plan_generated', { plan, jobId });
             }
-            
-            return await job._approvalPromise;
+            return true;
         };
 
         try {

@@ -96,6 +96,30 @@ export class AgentEventBus extends EventEmitter {
     }
 
     /**
+     * Emits an event with explicit jobId parameter (backward compatibility)
+     */
+    emitEvent(jobId, eventPayload = {}) {
+        if (typeof jobId === 'object' && jobId !== null) {
+            return this.publish(jobId);
+        }
+        return this.publish({ ...eventPayload, jobId });
+    }
+
+    /**
+     * Alias for publish
+     */
+    broadcast(eventPayload = {}) {
+        return this.publish(eventPayload);
+    }
+
+    /**
+     * Alias for publish
+     */
+    send(eventPayload = {}) {
+        return this.publish(eventPayload);
+    }
+
+    /**
      * Subscribe to all global events
      */
     addGlobalListener(listener) {

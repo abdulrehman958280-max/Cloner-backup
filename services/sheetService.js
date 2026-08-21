@@ -174,18 +174,19 @@ export async function logCloneEntry({
         console.error('[SheetService] Failed to save local history entry:', e.message);
     }
 
-    // 2. Push to Google Apps Script Web App
+    // 2. Push to Google Apps Script Web App in non-blocking / resilient fashion
     const config = getSheetConfig();
     const webhookUrl = config.webAppUrl || process.env.GOOGLE_APPS_SCRIPT_URL || PERMANENT_SHEET_WEB_APP_URL;
 
     if (webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
         const payloadString = JSON.stringify(entry);
 
-        // Attempt up to 2 times (for cold-start tolerance)
+        // Run network dispatch with 8s timeout and swift fallback
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const timeoutMs = attempt === 1 ? 8000 : 5000;
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
@@ -198,7 +199,7 @@ export async function logCloneEntry({
                 });
                 clearTimeout(timeoutId);
 
-                const text = await response.text();
+                const text = await response.text().catch(() => '');
                 let result = null;
 
                 try {
@@ -220,7 +221,7 @@ export async function logCloneEntry({
                 }
 
                 if (result && result.status === 'error') {
-                    console.warn(`[SheetService] Google Apps Script returned error: ${result.message}`);
+                    console.warn(`[SheetService] Google Apps Script notice: ${result.message}`);
                     return { loggedToSheet: false, warning: result.message, entry };
                 }
 
@@ -232,13 +233,13 @@ export async function logCloneEntry({
                 return { loggedToSheet: true, result: result || { status: 'received' }, entry };
             } catch (err) {
                 const isAbort = err.name === 'AbortError';
-                const errorMsg = isAbort ? 'Google Apps Script request timed out (15s limit)' : err.message;
-                console.warn(`[SheetService] Attempt ${attempt} failed: ${errorMsg}`);
+                const errorMsg = isAbort ? 'Google Apps Script endpoint delayed (offline local cache preserved)' : err.message;
                 
                 if (attempt === 1) {
-                    // Small delay before retry
-                    await new Promise(r => setTimeout(r, 1000));
+                    // Small micro-delay before 1 quick retry
+                    await new Promise(r => setTimeout(r, 600));
                 } else {
+                    console.info(`[SheetService] Sync notice: ${errorMsg}`);
                     return { loggedToSheet: false, warning: errorMsg, entry };
                 }
             }

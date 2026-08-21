@@ -929,100 +929,66 @@
                             </div>
                         </div>
 
-                        <div class="active-header-row">
-                            <div class="stage-pill-raised" id="stagePill">
-                                <span class="stage-dot" id="stageDot"></span>
-                                <span id="stageLabel">Initializing...</span>
-                            </div>
-                            <div class="active-timers-group">
-                                <div class="eta-pill" id="etaPill" title="Estimated Time Remaining based on server size and migration throughput">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eta-icon">
-                                        <circle cx="12" cy="12" r="10"/>
-                                        <polyline points="12 6 12 12 16 14"/>
-                                    </svg>
-                                    <span class="eta-label">ETA:</span>
-                                    <span class="eta-value font-mono" id="etaTimer">Calculating...</span>
+                        <!-- Upgraded Premium Progress & Work Completion Dashboard -->
+                        <div class="upgraded-progress-card" id="upgradedProgressCard">
+                            <!-- Top Status & Timers Strip -->
+                            <div class="active-header-row">
+                                <div class="stage-pill-raised" id="stagePill">
+                                    <span class="stage-dot" id="stageDot"></span>
+                                    <span id="stageLabel">Initializing...</span>
                                 </div>
-                                <div class="elapsed-badge font-mono" id="elapsedTimer" title="Elapsed Operation Time">00:00</div>
-                            </div>
-                        </div>
-
-                        <!-- Progress Bar & Percentage -->
-                        <div class="progress-section">
-                            <div class="progress-meta-row">
-                                <span class="progress-title">Overall Progress</span>
-                                <span class="progress-percent font-mono" id="progressText">0%</span>
-                            </div>
-                            <div class="neu-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0" id="progressTrack">
-                                <div class="neu-progress-fill" id="progressBar"></div>
-                            </div>
-                            <div class="progress-sub-row">
-                                <span class="progress-detail" id="progressItemDetail">Connecting to Discord Gateway...</span>
-                                <span class="progress-counts font-mono" id="progressCounts">-</span>
-                            </div>
-                        </div>
-
-                        <!-- Real-Time Discord API Rate-Limiting & Capacity Gauge -->
-                        <div class="rate-limit-gauge-card" id="rateLimitGaugeCard">
-                            <div class="gauge-card-header">
-                                <div class="gauge-title-group">
-                                    <div class="gauge-icon-bubble">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="gauge-icon-svg">
-                                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                <div class="active-timers-group">
+                                    <div class="eta-pill" id="etaPill" title="Estimated Time Remaining based on server size and migration throughput">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eta-icon">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
                                         </svg>
+                                        <span class="eta-label">ETA:</span>
+                                        <span class="eta-value font-mono" id="etaTimer">Calculating...</span>
                                     </div>
-                                    <div class="gauge-text-col">
-                                        <div class="gauge-header-title-row">
-                                            <span class="gauge-main-title">Discord API Rate Limit</span>
-                                            <span class="gauge-sub-pill">REAL-TIME</span>
+                                    <div class="elapsed-badge font-mono" id="elapsedTimer" title="Elapsed Operation Time">00:00</div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Completion Headline & Stats Row -->
+                            <div class="progress-section">
+                                <div class="progress-meta-row">
+                                    <div class="progress-title-stack">
+                                        <div class="progress-title-line">
+                                            <span class="progress-title">Migration Workload</span>
+                                            <span class="progress-status-chip" id="progressStatusChip">Active</span>
                                         </div>
-                                        <p class="gauge-subtitle">Remaining capacity & adaptive backpressure</p>
+                                        <span class="progress-subtitle" id="progressSubtitle">Real-time sync throughput</span>
                                     </div>
-                                </div>
-                                <div class="gauge-status-badge optimal" id="rateLimitStatusBadge">
-                                    <span class="status-pulse-dot" id="rateLimitStatusDot"></span>
-                                    <span id="rateLimitStatusText">OPTIMAL (100%)</span>
-                                </div>
-                            </div>
-
-                            <!-- Dual Visual Gauge Layout -->
-                            <div class="gauge-visual-body">
-                                <!-- Neumorphic Circular Arc Gauge -->
-                                <div class="radial-gauge-wrapper">
-                                    <svg class="radial-gauge-svg" viewBox="0 0 100 100" id="rateLimitSvgGauge" aria-hidden="true">
-                                        <circle class="gauge-bg-circle" cx="50" cy="50" r="40"></circle>
-                                        <circle class="gauge-progress-circle" id="rateLimitGaugeArc" cx="50" cy="50" r="40" stroke-dasharray="251.327" stroke-dashoffset="0"></circle>
-                                    </svg>
-                                    <div class="radial-gauge-center">
-                                        <span class="radial-gauge-number font-mono" id="rateLimitCapacityVal">100%</span>
-                                        <span class="radial-gauge-caption" id="rateLimitCapacitySubtext">Capacity</span>
+                                    <div class="progress-metrics-badge-group">
+                                        <div class="progress-items-badge font-mono" id="progressItemsBadge" title="Items completed out of total">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="items-badge-icon">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                                <polyline points="22 4 12 14.01 9 11.01"/>
+                                            </svg>
+                                            <span id="progressCounts">0 / 0</span>
+                                        </div>
+                                        <span class="progress-percent font-mono" id="progressText">0%</span>
                                     </div>
                                 </div>
 
-                                <!-- Live Telemetry Metrics Grid -->
-                                <div class="gauge-metrics-breakdown">
-                                    <div class="gauge-mini-metric">
-                                        <span class="mini-metric-label">Headroom</span>
-                                        <span class="mini-metric-val font-mono" id="rateLimitHeadroom">100% Safe</span>
-                                    </div>
-                                    <div class="gauge-mini-metric">
-                                        <span class="mini-metric-label">Active Cooldown</span>
-                                        <span class="mini-metric-val font-mono" id="rateLimitCooldown">0.0s</span>
-                                    </div>
-                                    <div class="gauge-mini-metric">
-                                        <span class="mini-metric-label">429 Events</span>
-                                        <span class="mini-metric-val font-mono" id="rateLimit429Count">0</span>
-                                    </div>
-                                    <div class="gauge-mini-metric">
-                                        <span class="mini-metric-label">Pacing State</span>
-                                        <span class="mini-metric-val font-mono" id="rateLimitPacingState">Clear</span>
+                                <!-- Upgraded Track with Glow Head -->
+                                <div class="neu-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0" id="progressTrack">
+                                    <div class="neu-progress-fill" id="progressBar">
+                                        <div class="progress-glow-head"></div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Linear Capacity Headroom Bar -->
-                            <div class="gauge-linear-track" title="Discord REST Quota Headroom">
-                                <div class="gauge-linear-fill optimal" id="rateLimitLinearBar" style="width: 100%;"></div>
+                                <!-- Current Processing Item & Sub-Detail Strip -->
+                                <div class="progress-sub-row">
+                                    <div class="progress-current-item-box">
+                                        <span class="current-item-bullet"></span>
+                                        <span class="progress-detail font-mono" id="progressItemDetail">Connecting to Discord Gateway...</span>
+                                    </div>
+                                    <div class="progress-completion-state" id="progressCompletionState">
+                                        <span class="state-label font-mono" id="progressPercentTag">0% Completed</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1306,54 +1272,7 @@
         </div>
     </div>
 
-    <!-- Target Server Cleanup Intelligence Preview Modal -->
-    <div class="modal-backdrop hidden" id="cleanupPreviewModal" role="dialog" aria-modal="true" aria-labelledby="cleanupModalTitle">
-        <div class="neu-modal-card cleanup-preview-modal">
-            <div class="modal-header-simple">
-                <div class="guide-title-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-title-icon" style="color:var(--danger, #ef4444);">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    <h3 class="modal-title" id="cleanupModalTitle">Target Cleanup Intelligence Preview</h3>
-                </div>
-                <button type="button" class="modal-close-btn" id="closeCleanupPreviewBtn" aria-label="Close cleanup preview">✕</button>
-            </div>
-            <div class="modal-body-content">
-                <p class="modal-desc">
-                    Review items scheduled for purge before starting migration. System channels and managed bot roles will be safely preserved.
-                </p>
-                <div class="cleanup-preview-summary" id="cleanupPreviewSummary">
-                    <div class="cleanup-summary-chip will-delete">
-                        <span class="chip-count" id="cleanupDeleteCount">0</span>
-                        <span class="chip-label">Will Delete</span>
-                    </div>
-                    <div class="cleanup-summary-chip will-preserve">
-                        <span class="chip-count" id="cleanupPreserveCount">0</span>
-                        <span class="chip-label">Protected</span>
-                    </div>
-                    <div class="cleanup-summary-chip will-warn">
-                        <span class="chip-count" id="cleanupWarnCount">0</span>
-                        <span class="chip-label">Warnings</span>
-                    </div>
-                </div>
-                <div class="cleanup-preview-lists" id="cleanupPreviewLists">
-                    <!-- Items populated dynamically -->
-                </div>
-                
-                <div class="cleanup-confirmation-section" style="margin-top: 16px;">
-                    <label for="cleanupConfirmInput" class="field-label" style="font-weight: 600; color: var(--danger, #ef4444);">
-                        Type "CONFIRM" to proceed with deletion
-                    </label>
-                    <input type="text" id="cleanupConfirmInput" class="neu-input" placeholder="CONFIRM" autocomplete="off">
-                </div>
-            </div>
-            <div class="modal-actions-row">
-                <button type="button" class="neu-btn-secondary" id="cancelCleanupActionBtn">Cancel</button>
-                <button type="button" class="neu-btn-danger" id="confirmCleanupActionBtn" disabled>Confirm & Start Clone</button>
-            </div>
-        </div>
-    </div>
+
 
     <!-- AI Migration Copilot Floating Liquid Button -->
     <div class="copilot-widget-container" id="copilotWidget">
