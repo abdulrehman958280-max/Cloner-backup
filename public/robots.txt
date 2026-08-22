@@ -4,4 +4,4 @@ Allow: /google9dd587690182db74.html
 Allow: /sitemap.xml
 Allow: /robots.txt
 
-Sitemap: https://ais-pre-ud3volhrydppia7n6xwrcf-723965795491.asia-southeast1.run.app/sitemap.xml
+Sitemap: https://discloner.onrender.com/sitemap.xml
