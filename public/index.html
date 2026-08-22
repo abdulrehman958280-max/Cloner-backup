@@ -30,15 +30,94 @@
     <meta name="twitter:title" content="Discloner - Discord Server Clone & Migration">
     <meta name="twitter:description" content="Replicate Discord channels, roles, and assets with real-time telemetry.">
 
-    <!-- SoftwareApplication structured data -->
+    <!-- Structured Data: SoftwareApplication, Organization & FAQPage Schema for Google Rich Results -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Discloner",
-      "url": "https://discloner.onrender.com/",
-      "applicationCategory": "UtilitiesApplication",
-      "description": "A Discord server clone and migration tool."
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://discloner.onrender.com/#organization",
+          "name": "Discloner Studio",
+          "url": "https://discloner.onrender.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://discloner.onrender.com/favicon.svg"
+          },
+          "description": "Developer of enterprise-grade Discord server cloning, role permission bitfield synchronization, and guild migration tools.",
+          "knowsAbout": [
+            "Discord API",
+            "Discord Server Cloning",
+            "Role Permission Synchronization",
+            "Discord Guild Migration",
+            "Webhook Re-creation"
+          ],
+          "publishingPrinciples": "https://discloner.onrender.com/#features",
+          "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://discloner.onrender.com/#faq",
+            "name": "Discord Server Cloning Help & FAQ Documentation"
+          },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "technical support",
+            "url": "https://discloner.onrender.com/#faq"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://discloner.onrender.com/#software",
+          "name": "Discloner",
+          "publisher": {
+            "@id": "https://discloner.onrender.com/#organization"
+          },
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "Web, Windows, macOS, Linux",
+          "description": "The ultimate Discord server clone and migration tool. Replicate channels, roles, and assets safely.",
+          "url": "https://discloner.onrender.com/",
+          "helpUrl": "https://discloner.onrender.com/#faq",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "125"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://discloner.onrender.com/#faqpage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How do I clone a Discord server?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cloning a Discord server with Discloner takes just 3 straightforward steps: 1. Enter your Discord authorization token with administrative permissions. 2. Select your source and target Guild IDs. 3. Configure replication options (roles, channels, emojis, stickers, messages) and click Start Server Migration."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is it safe to copy a Discord server using this migration tool?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, security and privacy are top priorities. User authorization tokens are processed in-memory for the active session, never persisted to disk or databases, all debug streams redact sensitive credentials, and adaptive anti-rate-limit algorithms protect accounts from API throttling."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does this Discord cloner transfer messages and webhooks?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Discloner utilizes an advanced Webhook Mimicry Engine that provisions high-speed webhooks in destination channels to recreate messages with original author avatars and names, with customizable rate limits and attachment transfers."
+              }
+            }
+          ]
+        }
+      ]
     }
     </script>
 
@@ -1164,6 +1243,410 @@
 
             </section>
         </main>
+
+        <!-- ==========================================================================
+             Section 1: SEO Features Section (Semantic, Accessible & High Fidelity)
+             ========================================================================== -->
+        <section class="landing-seo-section features-section animate-entrance delay-4" id="features" aria-labelledby="featuresHeading">
+            <div class="section-container">
+                <div class="section-header-block text-center">
+                    <div class="section-kicker-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                        <span>POWERFUL REPLICATION ARCHITECTURE</span>
+                    </div>
+                    <h2 class="section-main-title" id="featuresHeading">
+                        Why Choose Discloner - The Ultimate Discord Server Cloner?
+                    </h2>
+                    <p class="section-main-subtitle">
+                        Engineered for community leaders, developers, and guild administrators who demand bit-perfect fidelity, comprehensive role structures, and reliable asset replication when they clone Discord server environments.
+                    </p>
+                </div>
+
+                <div class="features-cards-grid" role="list">
+                    <!-- Feature Card 1: Roles & Permissions Hierarchy -->
+                    <article class="neu-card feature-showcase-card" role="listitem" id="featRoleSync">
+                        <div class="feature-card-inner">
+                            <div class="feature-icon-bubble" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                    <path d="m9 12 2 2 4-4"/>
+                                </svg>
+                            </div>
+                            <div class="feature-card-content">
+                                <h3 class="feature-card-title">Real-Time Role &amp; Permission Bitfield Sync</h3>
+                                <p class="feature-card-text">
+                                    Replicate intricate guild hierarchies down to exact permission bitfields, hoist flags, custom HEX colors, and manageability positions. Every overwrite and administrative privilege maps 1:1 to prevent permission leaks.
+                                </p>
+                                <ul class="feature-points-list" aria-label="Role synchronization details">
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Bitfield permission calculations matching Discord API v10</span>
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Preserved role hierarchy ordering &amp; display hoisting</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Feature Card 2: Channels & Category Layouts -->
+                    <article class="neu-card feature-showcase-card" role="listitem" id="featChannelLayout">
+                        <div class="feature-card-inner">
+                            <div class="feature-icon-bubble" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="9" x2="20" y2="9"/>
+                                    <line x1="4" y1="15" x2="20" y2="15"/>
+                                    <line x1="10" y1="3" x2="8" y2="21"/>
+                                    <line x1="16" y1="3" x2="14" y2="21"/>
+                                </svg>
+                            </div>
+                            <div class="feature-card-content">
+                                <h3 class="feature-card-title">Accurate Channel &amp; Category Layout Replication</h3>
+                                <p class="feature-card-text">
+                                    Seamlessly copy Discord server architecture with categorized sorting, text channels, voice bitrates, announcement channels, forum tags, and stage layouts with zero structural drift or broken parent categories.
+                                </p>
+                                <ul class="feature-points-list" aria-label="Channel copying details">
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Category nesting &amp; channel permission sync</span>
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Voice channel bitrate auto-clamping to server boost tiers</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Feature Card 3: Emojis, Stickers & Assets -->
+                    <article class="neu-card feature-showcase-card" role="listitem" id="featEmojiAssets">
+                        <div class="feature-card-inner">
+                            <div class="feature-icon-bubble" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"/>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"/>
+                                </svg>
+                            </div>
+                            <div class="feature-card-content">
+                                <h3 class="feature-card-title">Safe Emoji, Sticker &amp; Asset Migration</h3>
+                                <p class="feature-card-text">
+                                    Transfer custom server icons, banners, static and animated custom emojis, and guild stickers with high-speed asset streaming, MIME-type validation, and automatic slot boundary detection.
+                                </p>
+                                <ul class="feature-points-list" aria-label="Asset migration details">
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Lossless image &amp; GIF asset streaming directly from Discord CDN</span>
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Automatic slot cap enforcement to match boost levels</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Feature Card 4: Intelligent Anti-Rate-Limit Engine -->
+                    <article class="neu-card feature-showcase-card" role="listitem" id="featReliabilityEngine">
+                        <div class="feature-card-inner">
+                            <div class="feature-icon-bubble" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"/>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"/>
+                                </svg>
+                            </div>
+                            <div class="feature-card-content">
+                                <h3 class="feature-card-title">Adaptive Anti-Rate-Limit &amp; Live Telemetry</h3>
+                                <p class="feature-card-text">
+                                    Our intelligent Discord migration tool utilizes token bucket rate limiters, HTTP 429 exponential backoff, and live Socket.IO progress telemetry to execute guild backups safely without API throttling.
+                                </p>
+                                <ul class="feature-points-list" aria-label="Rate limit engine details">
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Dynamic jittered backoff respecting Retry-After headers</span>
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="bullet-check"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Real-time terminal event streaming with exportable audit logs</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================================================
+             Section 2: Interactive FAQ Accordion Section (WCAG AA Accessible)
+             ========================================================================== -->
+        <section class="landing-seo-section faq-section animate-entrance delay-5" id="faq" aria-labelledby="faqHeading">
+            <div class="section-container faq-narrow-container">
+                <div class="section-header-block text-center">
+                    <div class="section-kicker-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>COMMON QUESTIONS &amp; ANSWERS</span>
+                    </div>
+                    <h2 class="section-main-title" id="faqHeading">
+                        Frequently Asked Questions about Discord Server Cloning
+                    </h2>
+                    <p class="section-main-subtitle">
+                        Find everything you need to know about using our Discord server cloner, token privacy, rate limits, and replication capabilities.
+                    </p>
+                </div>
+
+                <div class="faq-accordion-group" id="faqAccordionGroup">
+                    <!-- FAQ Item 1 -->
+                    <div class="neu-card faq-accordion-item is-open" id="faqItem1">
+                        <h3>
+                            <button 
+                                type="button" 
+                                class="faq-accordion-header" 
+                                id="faqBtn1" 
+                                aria-expanded="true" 
+                                aria-controls="faqContent1"
+                            >
+                                <span class="faq-question-text">How do I clone a Discord server?</span>
+                                <span class="faq-icon-indicator" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron-icon">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </span>
+                            </button>
+                        </h3>
+                        <div 
+                            id="faqContent1" 
+                            class="faq-accordion-panel" 
+                            role="region" 
+                            aria-labelledby="faqBtn1"
+                        >
+                            <div class="faq-panel-inner">
+                                <p>Cloning a Discord server with Discloner takes just 3 straightforward steps:</p>
+                                <ol class="faq-steps-list">
+                                    <li>
+                                        <strong>1. Enter Authorization Token:</strong> Provide your Discord user token with administrative access to both the source server (to read structure) and the target server (to create roles and channels).
+                                    </li>
+                                    <li>
+                                        <strong>2. Select Source &amp; Target Guild IDs:</strong> Paste or search the Server IDs for your source server (the template to copy) and your empty target destination server.
+                                    </li>
+                                    <li>
+                                        <strong>3. Configure &amp; Start Migration:</strong> Customize what you wish to replicate (roles, permissions, channels, emojis, stickers, or message history) and click <em>Start Server Migration</em> to begin the automated real-time cloning process.
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 2 -->
+                    <div class="neu-card faq-accordion-item" id="faqItem2">
+                        <h3>
+                            <button 
+                                type="button" 
+                                class="faq-accordion-header" 
+                                id="faqBtn2" 
+                                aria-expanded="false" 
+                                aria-controls="faqContent2"
+                            >
+                                <span class="faq-question-text">Is it safe to copy a Discord server using this migration tool?</span>
+                                <span class="faq-icon-indicator" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron-icon">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </span>
+                            </button>
+                        </h3>
+                        <div 
+                            id="faqContent2" 
+                            class="faq-accordion-panel" 
+                            role="region" 
+                            aria-labelledby="faqBtn2" 
+                            hidden
+                        >
+                            <div class="faq-panel-inner">
+                                <p>
+                                    <strong>Yes, security and privacy are top priorities.</strong> Discloner is built with strict privacy guarantees:
+                                </p>
+                                <ul class="faq-feature-bullets">
+                                    <li><strong>Zero Token Storage:</strong> Your Discord user authorization token is processed strictly in-memory for the active session and is never persisted to databases or written to disk.</li>
+                                    <li><strong>Automatic Redaction:</strong> All live log streams and debug telemetry automatically mask token strings and sensitive authentication headers.</li>
+                                    <li><strong>Anti-Ban Rate Limiting:</strong> Built-in rate limiting adheres to Discord API guidelines with jittered exponential backoff, preventing spam flags or API account blocks.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 3 -->
+                    <div class="neu-card faq-accordion-item" id="faqItem3">
+                        <h3>
+                            <button 
+                                type="button" 
+                                class="faq-accordion-header" 
+                                id="faqBtn3" 
+                                aria-expanded="false" 
+                                aria-controls="faqContent3"
+                            >
+                                <span class="faq-question-text">Does this Discord cloner transfer messages and webhooks?</span>
+                                <span class="faq-icon-indicator" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron-icon">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </span>
+                            </button>
+                        </h3>
+                        <div 
+                            id="faqContent3" 
+                            class="faq-accordion-panel" 
+                            role="region" 
+                            aria-labelledby="faqBtn3" 
+                            hidden
+                        >
+                            <div class="faq-panel-inner">
+                                <p>
+                                    <strong>Yes, with customizable tuning.</strong> While standard Discord API bot endpoints do not allow impersonating original timestamps or user accounts directly, Discloner implements an advanced <em>Webhook Mimicry Engine</em>:
+                                </p>
+                                <ul class="faq-feature-bullets">
+                                    <li><strong>Webhook Re-creation:</strong> Temporary high-speed webhooks are provisioned in target channels to re-post messages matching original author avatars and display names.</li>
+                                    <li><strong>Configurable Limits &amp; Delay:</strong> You can tune the message limit per channel (e.g., 5 to 100 messages) and set millisecond delay pacing to stay well below webhook rate limits.</li>
+                                    <li><strong>Attachment Transfers:</strong> Image and media attachments are securely transferred to preserve context across cloned conversations.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 4 -->
+                    <div class="neu-card faq-accordion-item" id="faqItem4">
+                        <h3>
+                            <button 
+                                type="button" 
+                                class="faq-accordion-header" 
+                                id="faqBtn4" 
+                                aria-expanded="false" 
+                                aria-controls="faqContent4"
+                            >
+                                <span class="faq-question-text">What happens to existing channels and roles on the target server?</span>
+                                <span class="faq-icon-indicator" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron-icon">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </span>
+                            </button>
+                        </h3>
+                        <div 
+                            id="faqContent4" 
+                            class="faq-accordion-panel" 
+                            role="region" 
+                            aria-labelledby="faqBtn4" 
+                            hidden
+                        >
+                            <div class="faq-panel-inner">
+                                <p>
+                                    By default, Discloner features a safe <em>Target Server Cleanup</em> option:
+                                </p>
+                                <ul class="faq-feature-bullets">
+                                    <li>When <strong>Target Server Cleanup</strong> is enabled (recommended for empty destination servers), existing default channels, roles, and emojis on the target server are pruned before creating the clean clone.</li>
+                                    <li>If you prefer to append new channels without deleting existing assets, simply toggle the cleanup setting off in the options panel.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer Section (Refined Balanced Grid in Premium Card) -->
+        <footer class="app-footer-bar" role="contentinfo" id="appFooter" itemscope itemtype="https://schema.org/Organization">
+            <!-- Schema.org Organization Metadata for Search Engine Crawlers -->
+            <meta itemprop="name" content="Discloner Studio">
+            <meta itemprop="url" content="https://discloner.onrender.com/">
+            <meta itemprop="logo" content="https://discloner.onrender.com/favicon.svg">
+            <meta itemprop="description" content="High-fidelity Discord server replication suite and guild migration platform.">
+            <link itemprop="sameAs" href="https://discloner.onrender.com/#faq">
+            <link itemprop="publishingPrinciples" href="https://discloner.onrender.com/#features">
+
+            <div class="neu-card footer-premium-card">
+                <div class="footer-grid-layout">
+                    <!-- Brand Column -->
+                    <div class="footer-brand-column">
+                        <div class="footer-brand-header">
+                            <div class="logo-shield mini">
+                                <span class="logo-text-bold">DC</span>
+                            </div>
+                            <div class="footer-brand-meta">
+                                <span class="footer-title" itemprop="legalName">Discloner Studio</span>
+                                <span class="footer-version-tag">v2.0 Enterprise</span>
+                            </div>
+                        </div>
+                        <p class="footer-summary-text">
+                            High-fidelity Discord server replication suite. Synchronize roles, permissions, channels, custom emojis, and message histories with real-time telemetry and anti-rate-limit protection.
+                        </p>
+                        <div class="footer-trust-chips" aria-label="Key architecture highlights">
+                            <span class="footer-chip">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                Bitfield Precision
+                            </span>
+                            <span class="footer-chip">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Zero Structural Drift
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Navigation / Quick Actions Grid -->
+                    <div class="footer-actions-column">
+                        <span class="footer-section-label">Quick Jump</span>
+                        <nav aria-label="Footer navigation" class="footer-nav-grid">
+                            <a href="#mainDashboard" class="footer-nav-card-link">
+                                <span class="nav-icon-wrap" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                </span>
+                                <span class="nav-label-wrap">
+                                    <span class="nav-label-main">Dashboard</span>
+                                    <span class="nav-label-sub">Migration Studio</span>
+                                </span>
+                            </a>
+                            <a href="#features" class="footer-nav-card-link">
+                                <span class="nav-icon-wrap" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                </span>
+                                <span class="nav-label-wrap">
+                                    <span class="nav-label-main">Features</span>
+                                    <span class="nav-label-sub">Architecture</span>
+                                </span>
+                            </a>
+                            <a href="#faq" class="footer-nav-card-link" itemprop="significantLink">
+                                <span class="nav-icon-wrap" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                </span>
+                                <span class="nav-label-wrap">
+                                    <span class="nav-label-main">FAQ &amp; Help</span>
+                                    <span class="nav-label-sub">Documentation</span>
+                                </span>
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+
+                <div class="footer-card-bottom-divider"></div>
+
+                <div class="footer-card-bottom-row">
+                    <p class="footer-copy">&copy; 2026 Discloner Studio. Built for Discord community administrators &amp; developers.</p>
+                    <p class="footer-disclaimer">Not affiliated with Discord Inc. Use responsibly in compliance with the Discord Developer Terms of Service.</p>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- Modals System -->

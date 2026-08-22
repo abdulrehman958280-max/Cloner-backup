@@ -5480,6 +5480,40 @@
 
 
     // ==========================================================================
+    // Interactive Accessible FAQ Accordion Handler (WCAG AA)
+    // ==========================================================================
+    const faqAccordionGroup = document.getElementById('faqAccordionGroup');
+    if (faqAccordionGroup) {
+        const faqHeaders = faqAccordionGroup.querySelectorAll('.faq-accordion-header');
+        
+        faqHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.closest('.faq-accordion-item');
+                if (!item) return;
+                
+                const panelId = header.getAttribute('aria-controls');
+                const panel = panelId ? document.getElementById(panelId) : null;
+                const isExpanded = header.getAttribute('aria-expanded') === 'true';
+
+                // Toggle current item
+                if (isExpanded) {
+                    header.setAttribute('aria-expanded', 'false');
+                    item.classList.remove('is-open');
+                    if (panel) {
+                        panel.hidden = true;
+                    }
+                } else {
+                    header.setAttribute('aria-expanded', 'true');
+                    item.classList.add('is-open');
+                    if (panel) {
+                        panel.hidden = false;
+                    }
+                }
+            });
+        });
+    }
+
+    // ==========================================================================
     // Intersection Observer for Scroll Animations (Performance-Optimized)
     // ==========================================================================
     const scrollObserver = new IntersectionObserver((entries) => {
